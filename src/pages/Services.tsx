@@ -1,4 +1,4 @@
-import ServiceCard from "@/components/ServiceCard";
+import ServiceCard from "../components/ServiceCard";
 import { Wrench, Sparkles, ShieldCheck, Truck } from "lucide-react";
 
 const services = [

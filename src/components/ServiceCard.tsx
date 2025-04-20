@@ -9,7 +9,7 @@ interface ServiceCardProps {
 
 export default function ServiceCard({ icon, title, description }: ServiceCardProps) {
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition border border-gray-200 hover:border-fuwoo-primary">
+    <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 border border-gray-200 hover:border-fuwoo-primary">
       <div className="text-fuwoo-primary text-3xl mb-4">{icon}</div>
       <h3 className="text-lg font-semibold mb-1">{title}</h3>
       <p className="text-sm text-gray-600">{description}</p>
