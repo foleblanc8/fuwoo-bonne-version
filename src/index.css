@@ -1,0 +1,12 @@
+@import url("https://unpkg.com/@geist-ui/fonts/geist/variable.css");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    background-color: var(--fuwoo-background);
+    color: var(--fuwoo-text);
+    font-family: var(--font-sans);
+  }
+}
