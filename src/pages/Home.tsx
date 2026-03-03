@@ -24,7 +24,6 @@ const categories = [
   { label: "Électricité",  slug: "electricite",         emoji: "⚡" },
   { label: "Paysager",     slug: "amenagement-paysager",emoji: "🌳" },
   { label: "Déménagement", slug: "demenagement",        emoji: "📦" },
-  { label: "Extermination",slug: "extermination",       emoji: "🐛" },
 ];
 
 const Home = () => {
