@@ -64,27 +64,6 @@
   },
   {
     "model": "fuwoo_api.service",
-    "pk": 4,
-    "fields": {
-      "provider": 11,
-      "category": 2,
-      "title": "Nettoyage en profondeur — déménagement ou printemps",
-      "description": "Nettoyage complet de fond en comble : intérieur des armoires, appareils, fenêtres, joints de salle de bain. Idéal avant ou après un déménagement.",
-      "price": "250.00",
-      "price_unit": "par projet",
-      "duration": 300,
-      "service_area": "Laval",
-      "max_distance": 25,
-      "is_active": true,
-      "instant_booking": false,
-      "rating": "4.95",
-      "total_bookings": 36,
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:00:00Z"
-    }
-  },
-  {
-    "model": "fuwoo_api.service",
     "pk": 5,
     "fields": {
       "provider": 11,
@@ -257,7 +236,7 @@
     "fields": {
       "provider": 12,
       "category": 16,
-      "title": "Nettoyage de terrasse à pression",
+      "title": "Nettoyage de terrasse",
       "description": "Nettoyage à haute pression de terrasses en bois, patio en béton, allées pavées et escaliers. Élimine mousse, taches et saletés accumulées.",
       "price": "100.00",
       "price_unit": "par projet",
@@ -331,27 +310,6 @@
       "instant_booking": false,
       "rating": "4.60",
       "total_bookings": 22,
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:00:00Z"
-    }
-  },
-  {
-    "model": "fuwoo_api.service",
-    "pk": 17,
-    "fields": {
-      "provider": 11,
-      "category": 18,
-      "title": "Extermination — fourmis, coquerelles et rongeurs",
-      "description": "Traitement préventif et curatif contre fourmis, coquerelles, punaises de lit, souris et autres parasites. Produits certifiés, sécuritaires pour la famille.",
-      "price": "150.00",
-      "price_unit": "par traitement",
-      "duration": 90,
-      "service_area": "Grand Montréal",
-      "max_distance": 40,
-      "is_active": true,
-      "instant_booking": false,
-      "rating": "4.85",
-      "total_bookings": 16,
       "created_at": "2026-01-01T00:00:00Z",
       "updated_at": "2026-01-01T00:00:00Z"
     }
