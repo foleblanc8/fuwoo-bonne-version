@@ -32,7 +32,7 @@ const values = [
     icon: Heart,
     title: "Fait au Québec",
     description:
-      "Fuwoo est une entreprise québécoise qui croit au travail local. Chaque réservation soutient un professionnel de votre région.",
+      "Coupdemain est une entreprise québécoise qui croit au travail local. Chaque réservation soutient un professionnel de votre région.",
   },
 ];
 
@@ -71,14 +71,14 @@ const APropos = () => {
             Des pros pour votre maison,<br />une plateforme pour le Québec.
           </h1>
           <p className="mt-6 text-xl text-white/85 max-w-2xl mx-auto">
-            Fuwoo connecte les propriétaires québécois avec des prestataires de confiance
+            Coupdemain connecte les propriétaires québécois avec des prestataires de confiance
             pour tous leurs besoins à domicile.
           </p>
         </div>
       </div>
 
       {/* ── Stats ── */}
-      <div className="bg-fuwoo-primary">
+      <div className="bg-coupdemain-primary">
         <div className="max-w-5xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-4 gap-6 text-white text-center">
           {stats.map((s) => (
             <div key={s.label}>
@@ -93,13 +93,13 @@ const APropos = () => {
       <div className="max-w-4xl mx-auto px-6 py-20 text-center">
         <h2 className="text-3xl font-bold text-gray-900 mb-4">Notre mission</h2>
         <p className="text-lg text-gray-600 leading-relaxed">
-          Fuwoo est né d'un constat simple : trouver un bon professionnel pour sa maison au Québec
+          Coupdemain est né d'un constat simple : trouver un bon professionnel pour sa maison au Québec
           est trop compliqué. Appels sans réponse, devis interminables, doutes sur la fiabilité…
           Nous avons créé une plateforme où réserver un service à domicile est aussi simple
           que commander une pizza — avec la confiance en plus.
         </p>
         <p className="text-lg text-gray-600 leading-relaxed mt-4">
-          Comme Airbnb l'a fait pour l'hébergement, Fuwoo révolutionne les services à domicile
+          Comme Airbnb l'a fait pour l'hébergement, Coupdemain révolutionne les services à domicile
           au Québec : transparence des prix, avis vérifiés, réservation en ligne et prestataires
           certifiés.
         </p>
@@ -114,7 +114,7 @@ const APropos = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {steps.map((step) => (
               <div key={step.num} className="flex flex-col items-center text-center">
-                <div className="w-14 h-14 rounded-full bg-fuwoo-primary text-white text-2xl font-extrabold flex items-center justify-center mb-4 shadow-md">
+                <div className="w-14 h-14 rounded-full bg-coupdemain-primary text-white text-2xl font-extrabold flex items-center justify-center mb-4 shadow-md">
                   {step.num}
                 </div>
                 <h3 className="font-semibold text-gray-900 text-lg mb-2">{step.title}</h3>
@@ -134,8 +134,8 @@ const APropos = () => {
               key={title}
               className="flex gap-4 p-6 bg-gray-50 rounded-2xl border border-gray-100"
             >
-              <div className="w-12 h-12 bg-fuwoo-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                <Icon className="w-6 h-6 text-fuwoo-primary" />
+              <div className="w-12 h-12 bg-coupdemain-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                <Icon className="w-6 h-6 text-coupdemain-primary" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 mb-1">{title}</h3>
@@ -164,7 +164,7 @@ const APropos = () => {
               </p>
               <Link
                 to="/services"
-                className="inline-block bg-fuwoo-primary text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-fuwoo-primary/90 transition text-sm"
+                className="inline-block bg-coupdemain-primary text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition text-sm"
               >
                 Trouver un service
               </Link>
@@ -194,7 +194,7 @@ const APropos = () => {
       <div className="max-w-4xl mx-auto px-6 py-16 text-center">
         <h2 className="text-3xl font-bold text-gray-900 mb-4">Disponible partout au Québec</h2>
         <p className="text-gray-500 mb-8">
-          Fuwoo est actif dans le Grand Montréal et s'étend rapidement à travers la province.
+          Coupdemain est actif dans le Grand Montréal et s'étend rapidement à travers la province.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           {["Montréal", "Laval", "Longueuil", "Rive-Sud", "Grand Montréal"].map((region) => (
@@ -202,7 +202,7 @@ const APropos = () => {
               key={region}
               className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 text-gray-700 text-sm font-medium px-4 py-2 rounded-full"
             >
-              <MapPin className="w-3.5 h-3.5 text-fuwoo-primary" />
+              <MapPin className="w-3.5 h-3.5 text-coupdemain-primary" />
               {region}
             </span>
           ))}
@@ -210,22 +210,22 @@ const APropos = () => {
       </div>
 
       {/* ── CTA final ── */}
-      <div className="bg-fuwoo-primary py-16">
+      <div className="bg-coupdemain-primary py-16">
         <div className="max-w-2xl mx-auto px-6 text-center text-white">
-          <h2 className="text-3xl font-bold mb-4">Prêt à essayer Fuwoo ?</h2>
+          <h2 className="text-3xl font-bold mb-4">Prêt à essayer Coupdemain ?</h2>
           <p className="text-white/80 mb-8 text-lg">
-            Rejoignez des centaines de Québécois qui font confiance à Fuwoo pour leur maison.
+            Rejoignez des centaines de Québécois qui font confiance à Coupdemain pour leur maison.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/services"
-              className="bg-white text-fuwoo-primary px-8 py-3 rounded-xl font-semibold hover:bg-gray-100 transition"
+              className="bg-white text-coupdemain-primary px-8 py-3 rounded-xl font-semibold hover:bg-gray-100 transition"
             >
               Voir les services
             </Link>
             <Link
               to="/inscription"
-              className="bg-fuwoo-primary border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/10 transition"
+              className="bg-coupdemain-primary border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/10 transition"
             >
               Créer un compte gratuit
             </Link>

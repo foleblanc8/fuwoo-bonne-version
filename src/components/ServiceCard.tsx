@@ -57,7 +57,7 @@ export default function ServiceCard({
         {/* Badge réservation instantanée */}
         {totalBookings && totalBookings > 30 && (
           <div className="absolute top-3 left-3">
-            <span className="bg-fuwoo-primary text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+            <span className="bg-coupdemain-primary text-white text-xs font-semibold px-2.5 py-1 rounded-full">
               Populaire
             </span>
           </div>

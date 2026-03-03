@@ -84,7 +84,7 @@ const ClientDashboard = () => {
       {/* Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-lg">
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-fuwoo-primary">Fuwoo</h2>
+          <h2 className="text-2xl font-bold text-coupdemain-primary">Coupdemain</h2>
           <p className="text-sm text-gray-600 mt-1">Espace Client</p>
         </div>
         
@@ -92,7 +92,7 @@ const ClientDashboard = () => {
           <button
             onClick={() => setActiveTab('bookings')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-gray-50 transition ${
-              activeTab === 'bookings' ? 'bg-fuwoo-primary/10 text-fuwoo-primary border-r-4 border-fuwoo-primary' : ''
+              activeTab === 'bookings' ? 'bg-coupdemain-primary/10 text-coupdemain-primary border-r-4 border-coupdemain-primary' : ''
             }`}
           >
             <Calendar className="w-5 h-5" />
@@ -101,7 +101,7 @@ const ClientDashboard = () => {
           <button
             onClick={() => setActiveTab('messages')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-gray-50 transition ${
-              activeTab === 'messages' ? 'bg-fuwoo-primary/10 text-fuwoo-primary border-r-4 border-fuwoo-primary' : ''
+              activeTab === 'messages' ? 'bg-coupdemain-primary/10 text-coupdemain-primary border-r-4 border-coupdemain-primary' : ''
             }`}
           >
             <MessageSquare className="w-5 h-5" />
@@ -110,7 +110,7 @@ const ClientDashboard = () => {
           <button
             onClick={() => setActiveTab('profile')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-gray-50 transition ${
-              activeTab === 'profile' ? 'bg-fuwoo-primary/10 text-fuwoo-primary border-r-4 border-fuwoo-primary' : ''
+              activeTab === 'profile' ? 'bg-coupdemain-primary/10 text-coupdemain-primary border-r-4 border-coupdemain-primary' : ''
             }`}
           >
             <User className="w-5 h-5" />
@@ -119,7 +119,7 @@ const ClientDashboard = () => {
           <button
             onClick={() => setActiveTab('settings')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-gray-50 transition ${
-              activeTab === 'settings' ? 'bg-fuwoo-primary/10 text-fuwoo-primary border-r-4 border-fuwoo-primary' : ''
+              activeTab === 'settings' ? 'bg-coupdemain-primary/10 text-coupdemain-primary border-r-4 border-coupdemain-primary' : ''
             }`}
           >
             <Settings className="w-5 h-5" />
@@ -192,7 +192,7 @@ const ClientDashboard = () => {
             <div className="p-6 border-b">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold">Mes réservations</h2>
-                <button className="bg-fuwoo-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-fuwoo-primary/90 transition">
+                <button className="bg-coupdemain-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-coupdemain-primary/90 transition">
                   <Plus className="w-4 h-4" />
                   Nouvelle réservation
                 </button>
@@ -324,7 +324,7 @@ const ProviderDashboard = () => {
       {/* Sidebar similar to client but with provider-specific options */}
       <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-lg">
         <div className="p-6">
-          <h2 className="text-2xl font-bold text-fuwoo-primary">Fuwoo Pro</h2>
+          <h2 className="text-2xl font-bold text-coupdemain-primary">Coupdemain Pro</h2>
           <p className="text-sm text-gray-600 mt-1">Espace Prestataire</p>
         </div>
         
@@ -332,7 +332,7 @@ const ProviderDashboard = () => {
           <button
             onClick={() => setActiveTab('overview')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-gray-50 transition ${
-              activeTab === 'overview' ? 'bg-fuwoo-primary/10 text-fuwoo-primary border-r-4 border-fuwoo-primary' : ''
+              activeTab === 'overview' ? 'bg-coupdemain-primary/10 text-coupdemain-primary border-r-4 border-coupdemain-primary' : ''
             }`}
           >
             <TrendingUp className="w-5 h-5" />
@@ -341,7 +341,7 @@ const ProviderDashboard = () => {
           <button
             onClick={() => setActiveTab('bookings')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-gray-50 transition ${
-              activeTab === 'bookings' ? 'bg-fuwoo-primary/10 text-fuwoo-primary border-r-4 border-fuwoo-primary' : ''
+              activeTab === 'bookings' ? 'bg-coupdemain-primary/10 text-coupdemain-primary border-r-4 border-coupdemain-primary' : ''
             }`}
           >
             <Calendar className="w-5 h-5" />
@@ -350,7 +350,7 @@ const ProviderDashboard = () => {
           <button
             onClick={() => setActiveTab('services')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-gray-50 transition ${
-              activeTab === 'services' ? 'bg-fuwoo-primary/10 text-fuwoo-primary border-r-4 border-fuwoo-primary' : ''
+              activeTab === 'services' ? 'bg-coupdemain-primary/10 text-coupdemain-primary border-r-4 border-coupdemain-primary' : ''
             }`}
           >
             <Settings className="w-5 h-5" />
@@ -359,7 +359,7 @@ const ProviderDashboard = () => {
           <button
             onClick={() => setActiveTab('earnings')}
             className={`w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-gray-50 transition ${
-              activeTab === 'earnings' ? 'bg-fuwoo-primary/10 text-fuwoo-primary border-r-4 border-fuwoo-primary' : ''
+              activeTab === 'earnings' ? 'bg-coupdemain-primary/10 text-coupdemain-primary border-r-4 border-coupdemain-primary' : ''
             }`}
           >
             <DollarSign className="w-5 h-5" />

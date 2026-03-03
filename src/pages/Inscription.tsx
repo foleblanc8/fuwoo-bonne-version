@@ -55,16 +55,16 @@ const Inscription = () => {
   };
 
   const inputClass =
-    "w-full border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary bg-white";
+    "w-full border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary bg-white";
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-lg mx-auto">
         {/* En-tête */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-fuwoo-primary">Créer un compte</h1>
+          <h1 className="text-3xl font-bold text-coupdemain-primary">Créer un compte</h1>
           <p className="text-gray-500 mt-2">
-            Rejoignez Fuwoo — la marketplace de services à domicile au Québec.
+            Rejoignez Coupdemain — la marketplace de services à domicile au Québec.
           </p>
         </div>
 
@@ -80,18 +80,18 @@ const Inscription = () => {
               onClick={() => setRole("client")}
               className={`relative flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all ${
                 role === "client"
-                  ? "border-fuwoo-primary bg-fuwoo-primary/5 shadow-md"
+                  ? "border-coupdemain-primary bg-coupdemain-primary/5 shadow-md"
                   : "border-gray-200 bg-white hover:border-gray-300"
               }`}
             >
               {role === "client" && (
-                <span className="absolute top-3 right-3 w-5 h-5 bg-fuwoo-primary rounded-full flex items-center justify-center">
+                <span className="absolute top-3 right-3 w-5 h-5 bg-coupdemain-primary rounded-full flex items-center justify-center">
                   <Check className="w-3 h-3 text-white" strokeWidth={3} />
                 </span>
               )}
               <div
                 className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  role === "client" ? "bg-fuwoo-primary text-white" : "bg-gray-100 text-gray-500"
+                  role === "client" ? "bg-coupdemain-primary text-white" : "bg-gray-100 text-gray-500"
                 }`}
               >
                 <Home className="w-6 h-6" />
@@ -110,18 +110,18 @@ const Inscription = () => {
               onClick={() => setRole("prestataire")}
               className={`relative flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all ${
                 role === "prestataire"
-                  ? "border-fuwoo-primary bg-fuwoo-primary/5 shadow-md"
+                  ? "border-coupdemain-primary bg-coupdemain-primary/5 shadow-md"
                   : "border-gray-200 bg-white hover:border-gray-300"
               }`}
             >
               {role === "prestataire" && (
-                <span className="absolute top-3 right-3 w-5 h-5 bg-fuwoo-primary rounded-full flex items-center justify-center">
+                <span className="absolute top-3 right-3 w-5 h-5 bg-coupdemain-primary rounded-full flex items-center justify-center">
                   <Check className="w-3 h-3 text-white" strokeWidth={3} />
                 </span>
               )}
               <div
                 className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  role === "prestataire" ? "bg-fuwoo-primary text-white" : "bg-gray-100 text-gray-500"
+                  role === "prestataire" ? "bg-coupdemain-primary text-white" : "bg-gray-100 text-gray-500"
                 }`}
               >
                 <Wrench className="w-6 h-6" />
@@ -257,7 +257,7 @@ const Inscription = () => {
           <button
             type="submit"
             disabled={loading}
-            className="mt-1 bg-fuwoo-primary text-white py-3 rounded-xl font-semibold shadow hover:shadow-md transition disabled:opacity-60"
+            className="mt-1 bg-coupdemain-primary text-white py-3 rounded-xl font-semibold shadow hover:shadow-md transition disabled:opacity-60"
           >
             {loading
               ? "Création en cours..."
@@ -269,7 +269,7 @@ const Inscription = () => {
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Déjà un compte ?{" "}
-          <Link to="/connexion" className="text-fuwoo-primary hover:underline font-medium">
+          <Link to="/connexion" className="text-coupdemain-primary hover:underline font-medium">
             Se connecter
           </Link>
         </p>

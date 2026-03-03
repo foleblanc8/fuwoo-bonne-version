@@ -30,23 +30,23 @@ const LoginModal = ({ isOpen, onClose }: LoginModalProps) => {
           <FaTimes size={20} />
         </button>
 
-        <h2 className="text-2xl font-bold text-center text-fuwoo-primary">Connexion</h2>
-        <p className="text-center text-gray-600 mt-2">Connectez-vous à votre compte Fuwoo.</p>
+        <h2 className="text-2xl font-bold text-center text-coupdemain-primary">Connexion</h2>
+        <p className="text-center text-gray-600 mt-2">Connectez-vous à votre compte Coupdemain.</p>
 
         <form className="mt-6 flex flex-col gap-4">
           <input
             type="email"
             placeholder="Adresse courriel"
-            className="border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
+            className="border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
           />
           <input
             type="password"
             placeholder="Mot de passe"
-            className="border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
+            className="border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
           />
           <button
             type="submit"
-            className="mt-2 bg-fuwoo-primary text-white py-3 rounded-xl shadow hover:shadow-md transition"
+            className="mt-2 bg-coupdemain-primary text-white py-3 rounded-xl shadow hover:shadow-md transition"
           >
             Se connecter
           </button>
@@ -75,7 +75,7 @@ const LoginModal = ({ isOpen, onClose }: LoginModalProps) => {
 
         <p className="text-center text-sm text-gray-600 mt-6">
           Pas de compte?{" "}
-          <button onClick={handleSignup} className="text-fuwoo-primary hover:underline">
+          <button onClick={handleSignup} className="text-coupdemain-primary hover:underline">
             Inscrivez-vous
           </button>
         </p>

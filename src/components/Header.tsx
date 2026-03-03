@@ -27,16 +27,16 @@ const Header = () => {
     <>
       <header className="w-full sticky top-0 z-50 bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="text-2xl font-extrabold text-fuwoo-primary tracking-tight">
-            Fuwoo
+          <div className="text-2xl font-extrabold text-coupdemain-primary tracking-tight">
+            Coupdemain
           </div>
           <nav className="hidden md:flex gap-10 text-base font-medium text-gray-700 items-center">
             {navLinks.map(({ to, label }) => (
               <Link
                 key={to}
                 to={to}
-                className={`hover:text-fuwoo-primary transition ${
-                  location.pathname === to ? "text-fuwoo-primary font-bold" : ""
+                className={`hover:text-coupdemain-primary transition ${
+                  location.pathname === to ? "text-coupdemain-primary font-bold" : ""
                 }`}
               >
                 {label}
@@ -46,7 +46,7 @@ const Header = () => {
               <div className="ml-6 flex items-center gap-4">
                 <Link
                   to="/dashboard"
-                  className="text-gray-700 hover:text-fuwoo-primary transition font-medium"
+                  className="text-gray-700 hover:text-coupdemain-primary transition font-medium"
                 >
                   Bonjour, {user.username}
                 </Link>
@@ -60,7 +60,7 @@ const Header = () => {
             ) : (
               <Link
                 to="/connexion"
-                className="ml-6 bg-fuwoo-primary text-white py-2 px-4 rounded-xl shadow hover:shadow-md transition"
+                className="ml-6 bg-coupdemain-primary text-white py-2 px-4 rounded-xl shadow hover:shadow-md transition"
               >
                 Connexion
               </Link>
@@ -85,7 +85,7 @@ const Header = () => {
           }`}
         >
           <div className="p-4 flex justify-between items-center border-b">
-            <span className="text-xl font-bold text-fuwoo-primary">Menu</span>
+            <span className="text-xl font-bold text-coupdemain-primary">Menu</span>
             <button onClick={() => setIsOpen(false)}>
               <X className="w-6 h-6 text-gray-700" />
             </button>
@@ -96,9 +96,9 @@ const Header = () => {
                 key={to}
                 to={to}
                 onClick={() => setIsOpen(false)}
-                className={`py-2 px-2 rounded hover:bg-fuwoo-primary/10 ${
+                className={`py-2 px-2 rounded hover:bg-coupdemain-primary/10 ${
                   location.pathname === to
-                    ? "bg-fuwoo-primary/10 font-bold text-fuwoo-primary"
+                    ? "bg-coupdemain-primary/10 font-bold text-coupdemain-primary"
                     : ""
                 }`}
               >
@@ -110,7 +110,7 @@ const Header = () => {
                 <Link
                   to="/dashboard"
                   onClick={() => setIsOpen(false)}
-                  className="py-2 px-2 rounded hover:bg-fuwoo-primary/10"
+                  className="py-2 px-2 rounded hover:bg-coupdemain-primary/10"
                 >
                   Mon tableau de bord
                 </Link>
@@ -125,7 +125,7 @@ const Header = () => {
               <Link
                 to="/connexion"
                 onClick={() => setIsOpen(false)}
-                className="mt-4 bg-fuwoo-primary text-white py-2 px-4 rounded-xl shadow hover:shadow-md transition text-center"
+                className="mt-4 bg-coupdemain-primary text-white py-2 px-4 rounded-xl shadow hover:shadow-md transition text-center"
               >
                 Connexion
               </Link>

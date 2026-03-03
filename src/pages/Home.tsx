@@ -53,7 +53,7 @@ const Home = () => {
             />
             <Link
               to="/services"
-              className="bg-fuwoo-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-fuwoo-primary/90 transition text-sm shrink-0"
+              className="bg-coupdemain-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition text-sm shrink-0"
             >
               Rechercher
             </Link>
@@ -70,10 +70,10 @@ const Home = () => {
               to="/services"
               className="flex flex-col items-center gap-2 min-w-[72px] group"
             >
-              <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center text-2xl group-hover:border-fuwoo-primary group-hover:bg-fuwoo-primary/5 transition-all">
+              <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center text-2xl group-hover:border-coupdemain-primary group-hover:bg-coupdemain-primary/5 transition-all">
                 {cat.emoji}
               </div>
-              <span className="text-xs text-gray-600 font-medium text-center group-hover:text-fuwoo-primary transition-colors">
+              <span className="text-xs text-gray-600 font-medium text-center group-hover:text-coupdemain-primary transition-colors">
                 {cat.label}
               </span>
             </Link>
@@ -85,7 +85,7 @@ const Home = () => {
       <div className="max-w-7xl mx-auto px-6 pb-16">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Services populaires</h2>
-          <Link to="/services" className="text-fuwoo-primary text-sm font-medium hover:underline">
+          <Link to="/services" className="text-coupdemain-primary text-sm font-medium hover:underline">
             Tout voir →
           </Link>
         </div>
@@ -107,29 +107,29 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ── Pourquoi Fuwoo ── */}
+      {/* ── Pourquoi Coupdemain ── */}
       <div className="bg-gray-50 border-t border-gray-200 py-16">
         <div className="max-w-5xl mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Pourquoi Fuwoo ?</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Pourquoi Coupdemain ?</h2>
           <p className="text-gray-500 mb-12">Comme Airbnb, mais pour les services à domicile au Québec.</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="flex flex-col items-center gap-4 p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
-              <div className="w-14 h-14 bg-fuwoo-primary/10 rounded-2xl flex items-center justify-center">
-                <ShieldCheck className="w-7 h-7 text-fuwoo-primary" />
+              <div className="w-14 h-14 bg-coupdemain-primary/10 rounded-2xl flex items-center justify-center">
+                <ShieldCheck className="w-7 h-7 text-coupdemain-primary" />
               </div>
               <h3 className="font-semibold text-gray-900 text-lg">Professionnels vérifiés</h3>
-              <p className="text-gray-500 text-sm">Chaque prestataire est identifié et évalué par la communauté Fuwoo.</p>
+              <p className="text-gray-500 text-sm">Chaque prestataire est identifié et évalué par la communauté Coupdemain.</p>
             </div>
             <div className="flex flex-col items-center gap-4 p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
-              <div className="w-14 h-14 bg-fuwoo-primary/10 rounded-2xl flex items-center justify-center">
-                <Clock className="w-7 h-7 text-fuwoo-primary" />
+              <div className="w-14 h-14 bg-coupdemain-primary/10 rounded-2xl flex items-center justify-center">
+                <Clock className="w-7 h-7 text-coupdemain-primary" />
               </div>
               <h3 className="font-semibold text-gray-900 text-lg">Réservation en 2 minutes</h3>
               <p className="text-gray-500 text-sm">Choisissez votre créneau, confirmez — le pro arrive chez vous.</p>
             </div>
             <div className="flex flex-col items-center gap-4 p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
-              <div className="w-14 h-14 bg-fuwoo-primary/10 rounded-2xl flex items-center justify-center">
-                <Star className="w-7 h-7 text-fuwoo-primary fill-fuwoo-primary" />
+              <div className="w-14 h-14 bg-coupdemain-primary/10 rounded-2xl flex items-center justify-center">
+                <Star className="w-7 h-7 text-coupdemain-primary fill-coupdemain-primary" />
               </div>
               <h3 className="font-semibold text-gray-900 text-lg">Avis 100 % transparents</h3>
               <p className="text-gray-500 text-sm">Lisez les vrais avis de vrais clients avant de réserver.</p>

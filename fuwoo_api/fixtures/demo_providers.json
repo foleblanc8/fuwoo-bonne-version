@@ -4,7 +4,7 @@
     "pk": 10,
     "fields": {
       "username": "jean_tremblay",
-      "email": "jean@fuwoo.ca",
+      "email": "jean@coupdemain.ca",
       "first_name": "Jean",
       "last_name": "Tremblay",
       "password": "pbkdf2_sha256$1000000$KuU9O1jaqJJf67uvRP6FUj$/uQdxl6okt/zI5ATa7wxJM2gZKJk7bqyjznXLfBLq2k=",
@@ -32,7 +32,7 @@
     "pk": 11,
     "fields": {
       "username": "marie_lafleur",
-      "email": "marie@fuwoo.ca",
+      "email": "marie@coupdemain.ca",
       "first_name": "Marie",
       "last_name": "Lafleur",
       "password": "pbkdf2_sha256$1000000$KuU9O1jaqJJf67uvRP6FUj$/uQdxl6okt/zI5ATa7wxJM2gZKJk7bqyjznXLfBLq2k=",
@@ -60,7 +60,7 @@
     "pk": 12,
     "fields": {
       "username": "pierre_gagnon",
-      "email": "pierre@fuwoo.ca",
+      "email": "pierre@coupdemain.ca",
       "first_name": "Pierre",
       "last_name": "Gagnon",
       "password": "pbkdf2_sha256$1000000$KuU9O1jaqJJf67uvRP6FUj$/uQdxl6okt/zI5ATa7wxJM2gZKJk7bqyjznXLfBLq2k=",

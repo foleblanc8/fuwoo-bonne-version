@@ -5,8 +5,8 @@
 
 @layer base {
   html, body {
-    background-color: var(--fuwoo-background);
-    color: var(--fuwoo-text);
+    background-color: var(--coupdemain-background);
+    color: var(--coupdemain-text);
     font-family: var(--font-sans);
   }
 }

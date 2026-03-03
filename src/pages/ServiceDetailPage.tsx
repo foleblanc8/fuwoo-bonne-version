@@ -126,7 +126,7 @@ const ServiceDetailPage = () => {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6">
             <div className="text-center mb-6">
-              <div className="text-3xl font-bold text-fuwoo-primary">${service.price}</div>
+              <div className="text-3xl font-bold text-coupdemain-primary">${service.price}</div>
               <div className="text-gray-600">{service.price_unit}</div>
             </div>
 
@@ -150,7 +150,7 @@ const ServiceDetailPage = () => {
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
+                className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
                 min={new Date().toISOString().split('T')[0]}
               />
             </div>
@@ -160,7 +160,7 @@ const ServiceDetailPage = () => {
               <select
                 value={selectedTime}
                 onChange={(e) => setSelectedTime(e.target.value)}
-                className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
+                className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
               >
                 <option value="">Sélectionner une heure</option>
                 <option value="9:00">9:00</option>
@@ -174,7 +174,7 @@ const ServiceDetailPage = () => {
 
             <button
               onClick={() => setShowBookingModal(true)}
-              className="w-full bg-fuwoo-primary text-white py-3 rounded-xl font-semibold hover:bg-fuwoo-primary/90 transition"
+              className="w-full bg-coupdemain-primary text-white py-3 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition"
               disabled={!selectedDate || !selectedTime}
             >
               Réserver maintenant
@@ -252,7 +252,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ service, date, time, onClos
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
+              className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
               required
             />
           </div>
@@ -261,7 +261,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ service, date, time, onClos
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
+              className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
               rows={3}
               placeholder="Informations complémentaires (facultatif)"
             />
@@ -278,7 +278,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ service, date, time, onClos
           </div>
           <button
             type="submit"
-            className="w-full bg-fuwoo-primary text-white py-3 rounded-xl font-semibold hover:bg-fuwoo-primary/90 transition"
+            className="w-full bg-coupdemain-primary text-white py-3 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition"
             disabled={isProcessing || !address}
           >
             {isProcessing ? 'Réservation...' : 'Confirmer la réservation'}

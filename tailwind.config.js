@@ -10,7 +10,7 @@ module.exports = {
         sans: ['"Geist Variable"', 'sans-serif'],
       },
       colors: {
-        fuwoo: {
+        coupdemain: {
           primary: "#FF5A5F",
           secondary: "#00A699",
           accent: "#FC642D",
