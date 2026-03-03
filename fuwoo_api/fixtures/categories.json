@@ -2,121 +2,91 @@
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 1,
-    "fields": {
-      "name": "Ménage résidentiel",
-      "slug": "menage-residentiel",
-      "icon": "sparkles",
-      "description": "Nettoyage régulier de votre domicile.",
-      "is_active": true,
-      "created_at": "2026-01-01T00:00:00Z"
-    }
+    "fields": { "name": "Ménage résidentiel", "slug": "menage-residentiel", "icon": "sparkles", "description": "Nettoyage régulier de votre domicile.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 2,
-    "fields": {
-      "name": "Nettoyage en profondeur",
-      "slug": "nettoyage-profondeur",
-      "icon": "shield-check",
-      "description": "Nettoyage complet et minutieux de votre espace.",
-      "is_active": true,
-      "created_at": "2026-01-01T00:00:00Z"
-    }
+    "fields": { "name": "Nettoyage en profondeur", "slug": "nettoyage-profondeur", "icon": "shield-check", "description": "Nettoyage complet et minutieux de votre espace.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 3,
-    "fields": {
-      "name": "Tonte de pelouse",
-      "slug": "tonte-pelouse",
-      "icon": "scissors",
-      "description": "Entretien et tonte de votre gazon.",
-      "is_active": true,
-      "created_at": "2026-01-01T00:00:00Z"
-    }
+    "fields": { "name": "Tonte de pelouse", "slug": "tonte-pelouse", "icon": "scissors", "description": "Entretien et tonte de votre gazon.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 4,
-    "fields": {
-      "name": "Entretien de jardin",
-      "slug": "entretien-jardin",
-      "icon": "flower",
-      "description": "Aménagement et entretien de jardins et plates-bandes.",
-      "is_active": true,
-      "created_at": "2026-01-01T00:00:00Z"
-    }
+    "fields": { "name": "Entretien de jardin", "slug": "entretien-jardin", "icon": "flower", "description": "Aménagement et entretien de jardins et plates-bandes.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 5,
-    "fields": {
-      "name": "Déneigement",
-      "slug": "deneigement",
-      "icon": "snowflake",
-      "description": "Déblaiement de neige, entrée, trottoir et toiture.",
-      "is_active": true,
-      "created_at": "2026-01-01T00:00:00Z"
-    }
+    "fields": { "name": "Déneigement", "slug": "deneigement", "icon": "snowflake", "description": "Déblaiement de neige, entrée, trottoir et toiture.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 6,
-    "fields": {
-      "name": "Peinture",
-      "slug": "peinture",
-      "icon": "paintbrush",
-      "description": "Peinture intérieure et extérieure résidentielle.",
-      "is_active": true,
-      "created_at": "2026-01-01T00:00:00Z"
-    }
+    "fields": { "name": "Peinture", "slug": "peinture", "icon": "paintbrush", "description": "Peinture intérieure et extérieure résidentielle.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 7,
-    "fields": {
-      "name": "Plomberie",
-      "slug": "plomberie",
-      "icon": "wrench",
-      "description": "Réparation, débouchage et installation sanitaire.",
-      "is_active": true,
-      "created_at": "2026-01-01T00:00:00Z"
-    }
+    "fields": { "name": "Plomberie", "slug": "plomberie", "icon": "wrench", "description": "Réparation, débouchage et installation sanitaire.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 8,
-    "fields": {
-      "name": "Électricité",
-      "slug": "electricite",
-      "icon": "zap",
-      "description": "Installation de luminaires, prises et panneaux électriques.",
-      "is_active": true,
-      "created_at": "2026-01-01T00:00:00Z"
-    }
+    "fields": { "name": "Électricité", "slug": "electricite", "icon": "zap", "description": "Installation de luminaires, prises et panneaux électriques.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 9,
-    "fields": {
-      "name": "Déménagement",
-      "slug": "demenagement",
-      "icon": "truck",
-      "description": "Transport et aide au déménagement local.",
-      "is_active": true,
-      "created_at": "2026-01-01T00:00:00Z"
-    }
+    "fields": { "name": "Déménagement", "slug": "demenagement", "icon": "truck", "description": "Transport et aide au déménagement local.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 10,
-    "fields": {
-      "name": "Lavage de vitres",
-      "slug": "lavage-vitres",
-      "icon": "droplets",
-      "description": "Nettoyage de fenêtres intérieur et extérieur.",
-      "is_active": true,
-      "created_at": "2026-01-01T00:00:00Z"
-    }
+    "fields": { "name": "Lavage de vitres", "slug": "lavage-vitres", "icon": "droplets", "description": "Nettoyage de fenêtres intérieur et extérieur.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 11,
+    "fields": { "name": "Nettoyage de terrain", "slug": "nettoyage-terrain", "icon": "leaf", "description": "Ramassage de feuilles, branches, minéraux et débris extérieurs.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 12,
+    "fields": { "name": "Entretien de piscine", "slug": "entretien-piscine", "icon": "waves", "description": "Nettoyage, traitement de l'eau et hivernisation de piscine ou spa.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 13,
+    "fields": { "name": "Taille de haies", "slug": "taille-haies", "icon": "scissors", "description": "Taille de haies, arbustes et bordures végétales.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 14,
+    "fields": { "name": "Élagage d'arbres", "slug": "elagage-arbres", "icon": "tree-pine", "description": "Taille, élagage et abattage d'arbres en toute sécurité.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 15,
+    "fields": { "name": "Nettoyage de gouttières", "slug": "nettoyage-gouttieres", "icon": "funnel", "description": "Débouchage et nettoyage de gouttières et descentes de toiture.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 16,
+    "fields": { "name": "Nettoyage de terrasse", "slug": "nettoyage-terrasse", "icon": "home", "description": "Nettoyage à pression de terrasses, patios, allées et entrées.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 17,
+    "fields": { "name": "Aménagement paysager", "slug": "amenagement-paysager", "icon": "map", "description": "Conception et installation de jardins, cours et espaces verts.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 18,
+    "fields": { "name": "Extermination", "slug": "extermination", "icon": "bug", "description": "Traitement contre les insectes, rongeurs et parasites.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   }
 ]

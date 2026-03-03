@@ -1,0 +1,380 @@
+[
+  {
+    "model": "fuwoo_api.service",
+    "pk": 1,
+    "fields": {
+      "provider": 10,
+      "category": 7,
+      "title": "Plomberie résidentielle — réparation & installation",
+      "description": "Réparation de fuites, remplacement de robinets, débouchage de drains, installation de chauffe-eau et travaux sanitaires courants. Devis gratuit.",
+      "price": "85.00",
+      "price_unit": "par heure",
+      "duration": 90,
+      "service_area": "Montréal",
+      "max_distance": 30,
+      "is_active": true,
+      "instant_booking": true,
+      "rating": "4.90",
+      "total_bookings": 54,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 2,
+    "fields": {
+      "provider": 10,
+      "category": 8,
+      "title": "Électricité résidentielle — luminaires & prises",
+      "description": "Installation de luminaires, remplacement de prises et interrupteurs, mise aux normes du panneau électrique. Électricien licencié RBQ.",
+      "price": "95.00",
+      "price_unit": "par heure",
+      "duration": 120,
+      "service_area": "Montréal",
+      "max_distance": 25,
+      "is_active": true,
+      "instant_booking": false,
+      "rating": "4.85",
+      "total_bookings": 33,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 3,
+    "fields": {
+      "provider": 11,
+      "category": 1,
+      "title": "Ménage résidentiel — entretien régulier",
+      "description": "Nettoyage complet de votre domicile : aspirateur, lavage des planchers, salles de bain, cuisine et époussetage. Service hebdomadaire ou bi-mensuel.",
+      "price": "65.00",
+      "price_unit": "par visite",
+      "duration": 120,
+      "service_area": "Laval",
+      "max_distance": 20,
+      "is_active": true,
+      "instant_booking": true,
+      "rating": "4.80",
+      "total_bookings": 98,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 4,
+    "fields": {
+      "provider": 11,
+      "category": 2,
+      "title": "Nettoyage en profondeur — déménagement ou printemps",
+      "description": "Nettoyage complet de fond en comble : intérieur des armoires, appareils, fenêtres, joints de salle de bain. Idéal avant ou après un déménagement.",
+      "price": "250.00",
+      "price_unit": "par projet",
+      "duration": 300,
+      "service_area": "Laval",
+      "max_distance": 25,
+      "is_active": true,
+      "instant_booking": false,
+      "rating": "4.95",
+      "total_bookings": 36,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 5,
+    "fields": {
+      "provider": 11,
+      "category": 10,
+      "title": "Lavage de vitres — intérieur et extérieur",
+      "description": "Nettoyage professionnel de toutes vos fenêtres, portes-fenêtres et vérandas. Résultat impeccable sans traces, équipement professionnel.",
+      "price": "120.00",
+      "price_unit": "par projet",
+      "duration": 180,
+      "service_area": "Grand Montréal",
+      "max_distance": 35,
+      "is_active": true,
+      "instant_booking": true,
+      "rating": "4.75",
+      "total_bookings": 41,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 6,
+    "fields": {
+      "provider": 12,
+      "category": 3,
+      "title": "Tonte de pelouse — entretien saisonnier",
+      "description": "Tonte régulière, bordure propre et ramassage des rognures. Service hebdomadaire ou bi-mensuel du printemps à l'automne.",
+      "price": "55.00",
+      "price_unit": "par visite",
+      "duration": 60,
+      "service_area": "Longueuil",
+      "max_distance": 20,
+      "is_active": true,
+      "instant_booking": true,
+      "rating": "4.70",
+      "total_bookings": 72,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 7,
+    "fields": {
+      "provider": 12,
+      "category": 5,
+      "title": "Déneigement — entrée, trottoir et terrasse",
+      "description": "Déblaiement de neige après chaque tempête : entrée de garage, trottoir, escaliers et terrasse. Contrat saisonnier ou à l'appel.",
+      "price": "45.00",
+      "price_unit": "par visite",
+      "duration": 45,
+      "service_area": "Longueuil",
+      "max_distance": 15,
+      "is_active": true,
+      "instant_booking": false,
+      "rating": "4.65",
+      "total_bookings": 88,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 8,
+    "fields": {
+      "provider": 12,
+      "category": 11,
+      "title": "Nettoyage de terrain — ramassage de feuilles",
+      "description": "Ramassage et sac des feuilles mortes, branches tombées, cônes et débris. Balayage des minéraux et nettoyage de l'allée et des bordures.",
+      "price": "75.00",
+      "price_unit": "par visite",
+      "duration": 90,
+      "service_area": "Rive-Sud",
+      "max_distance": 25,
+      "is_active": true,
+      "instant_booking": true,
+      "rating": "4.80",
+      "total_bookings": 29,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 9,
+    "fields": {
+      "provider": 12,
+      "category": 12,
+      "title": "Entretien de piscine — ouverture et fermeture",
+      "description": "Ouverture printanière, traitement chimique de l'eau, nettoyage du fond et des parois, hivernisation en automne. Piscines creusées et hors-terre.",
+      "price": "180.00",
+      "price_unit": "par visite",
+      "duration": 120,
+      "service_area": "Rive-Sud",
+      "max_distance": 30,
+      "is_active": true,
+      "instant_booking": false,
+      "rating": "4.90",
+      "total_bookings": 18,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 10,
+    "fields": {
+      "provider": 12,
+      "category": 13,
+      "title": "Taille de haies et arbustes",
+      "description": "Taille soignée de haies, cèdres, spirées, rosiers et arbustes ornementaux. Ramassage et disposition des résidus inclus.",
+      "price": "70.00",
+      "price_unit": "par heure",
+      "duration": 90,
+      "service_area": "Longueuil",
+      "max_distance": 20,
+      "is_active": true,
+      "instant_booking": true,
+      "rating": "4.60",
+      "total_bookings": 23,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 11,
+    "fields": {
+      "provider": 12,
+      "category": 14,
+      "title": "Élagage d'arbres — taille et abattage",
+      "description": "Élagage de branches mortes ou dangereuses, abattage contrôlé, réduction de couronne. Travail en hauteur sécurisé, déchiquetage sur place.",
+      "price": "150.00",
+      "price_unit": "par heure",
+      "duration": 180,
+      "service_area": "Rive-Sud",
+      "max_distance": 35,
+      "is_active": true,
+      "instant_booking": false,
+      "rating": "4.85",
+      "total_bookings": 14,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 12,
+    "fields": {
+      "provider": 12,
+      "category": 15,
+      "title": "Nettoyage de gouttières — débouchage complet",
+      "description": "Nettoyage et débouchage de gouttières et descentes de toiture. Inspection visuelle incluse. Prévient les infiltrations et les dommages au fondement.",
+      "price": "120.00",
+      "price_unit": "par projet",
+      "duration": 90,
+      "service_area": "Grand Montréal",
+      "max_distance": 30,
+      "is_active": true,
+      "instant_booking": true,
+      "rating": "4.75",
+      "total_bookings": 31,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 13,
+    "fields": {
+      "provider": 12,
+      "category": 16,
+      "title": "Nettoyage de terrasse à pression",
+      "description": "Nettoyage à haute pression de terrasses en bois, patio en béton, allées pavées et escaliers. Élimine mousse, taches et saletés accumulées.",
+      "price": "100.00",
+      "price_unit": "par projet",
+      "duration": 120,
+      "service_area": "Rive-Sud",
+      "max_distance": 25,
+      "is_active": true,
+      "instant_booking": true,
+      "rating": "4.80",
+      "total_bookings": 27,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 14,
+    "fields": {
+      "provider": 12,
+      "category": 17,
+      "title": "Aménagement paysager — conception et installation",
+      "description": "Conception d'espaces verts, installation de plates-bandes, pose de gazon, rocailles et bordures. Transformation complète de votre cour.",
+      "price": "500.00",
+      "price_unit": "par projet",
+      "duration": 480,
+      "service_area": "Rive-Sud",
+      "max_distance": 40,
+      "is_active": true,
+      "instant_booking": false,
+      "rating": "4.95",
+      "total_bookings": 8,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 15,
+    "fields": {
+      "provider": 12,
+      "category": 4,
+      "title": "Entretien de jardin — plates-bandes et potager",
+      "description": "Désherbage, binage, plantation de vivaces et annuelles, entretien du potager. Service ponctuel ou régulier selon vos besoins.",
+      "price": "60.00",
+      "price_unit": "par heure",
+      "duration": 120,
+      "service_area": "Longueuil",
+      "max_distance": 20,
+      "is_active": true,
+      "instant_booking": true,
+      "rating": "4.70",
+      "total_bookings": 19,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 16,
+    "fields": {
+      "provider": 10,
+      "category": 9,
+      "title": "Aide au déménagement — local Montréal",
+      "description": "Aide pour soulever, emballer et transporter vos meubles et boîtes. Camion disponible sur demande. Déménagement local dans le Grand Montréal.",
+      "price": "75.00",
+      "price_unit": "par heure",
+      "duration": 240,
+      "service_area": "Grand Montréal",
+      "max_distance": 50,
+      "is_active": true,
+      "instant_booking": false,
+      "rating": "4.60",
+      "total_bookings": 22,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 17,
+    "fields": {
+      "provider": 11,
+      "category": 18,
+      "title": "Extermination — fourmis, coquerelles et rongeurs",
+      "description": "Traitement préventif et curatif contre fourmis, coquerelles, punaises de lit, souris et autres parasites. Produits certifiés, sécuritaires pour la famille.",
+      "price": "150.00",
+      "price_unit": "par traitement",
+      "duration": 90,
+      "service_area": "Grand Montréal",
+      "max_distance": 40,
+      "is_active": true,
+      "instant_booking": false,
+      "rating": "4.85",
+      "total_bookings": 16,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "fuwoo_api.service",
+    "pk": 18,
+    "fields": {
+      "provider": 11,
+      "category": 6,
+      "title": "Peinture intérieure — pièces et plafonds",
+      "description": "Peinture de murs, plafonds, boiseries et portes. Préparation des surfaces incluse (calfeutrage, sablage léger). Fourniture de peinture en option.",
+      "price": "350.00",
+      "price_unit": "par pièce",
+      "duration": 360,
+      "service_area": "Laval",
+      "max_distance": 30,
+      "is_active": true,
+      "instant_booking": false,
+      "rating": "4.75",
+      "total_bookings": 11,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  }
+]
