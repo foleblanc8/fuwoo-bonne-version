@@ -2,6 +2,7 @@
 
 from rest_framework import viewsets, permissions, status, filters, serializers
 from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -61,6 +62,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 # Vue d'inscription (gardez votre version mais améliorée)
 @api_view(['POST'])
+@permission_classes([permissions.AllowAny])
 def register(request):
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():

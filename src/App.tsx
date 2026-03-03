@@ -6,7 +6,9 @@ import Services from "./pages/Services";
 import APropos from "./pages/APropos";
 import Connexion from "./pages/connexion";
 import Inscription from "./pages/Inscription";
-import ProfilPage from "./pages/ProfilPage"; // <-- renommé pour éviter le bug
+import ProfilPage from "./pages/ProfilPage";
+import ServiceDetailPage from "./pages/ServiceDetailPage";
+import DashboardPage from "./pages/DashboardPage";
 
 const App = () => {
   return (
@@ -17,7 +19,9 @@ const App = () => {
         <Route path="/a-propos" element={<APropos />} />
         <Route path="/connexion" element={<Connexion />} />
         <Route path="/inscription" element={<Inscription />} />
-        <Route path="/profil" element={<ProfilPage />} /> {/* Nouveau nom propre */}
+        <Route path="/profil" element={<ProfilPage />} />
+        <Route path="/service/:id" element={<ServiceDetailPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
       </Routes>
     </Layout>
   );

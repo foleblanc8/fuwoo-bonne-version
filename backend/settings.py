@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',  # Django REST Framework
     'fuwoo_api',       # <= AJOUTE cette ligne, très important
     'rest_framework.authtoken',
+    'rest_framework_simplejwt',
     'django_filters',
 ]
 
@@ -147,7 +148,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',

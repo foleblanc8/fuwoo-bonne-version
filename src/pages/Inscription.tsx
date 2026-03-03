@@ -1,46 +1,44 @@
 // src/pages/Inscription.tsx
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple, FaFacebookF } from "react-icons/fa";
+import { useAuth } from "../contexts/AuthContext";
 
 const Inscription = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setSuccess(false);
 
+    if (password !== passwordConfirm) {
+      setError("Les mots de passe ne correspondent pas.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const response = await fetch("http://localhost:8000/api/register/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          email,
-          password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        localStorage.setItem("access_token", data.access);
-        localStorage.setItem("refresh_token", data.refresh);
-        setSuccess(true);
-        // Rediriger ou afficher un message si nécessaire
+      await register({ username, email, password, password_confirm: passwordConfirm });
+      navigate("/dashboard");
+    } catch (err: any) {
+      const data = err?.response?.data;
+      if (data) {
+        const messages = Object.values(data).flat().join(" ");
+        setError(messages || "Erreur lors de l'inscription.");
       } else {
-        setError("Erreur lors de l'inscription. Veuillez réessayer.");
+        setError("Une erreur est survenue. Veuillez réessayer.");
       }
-    } catch (err) {
-      setError("Une erreur est survenue. Veuillez réessayer.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,9 +75,10 @@ const Inscription = () => {
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <input
           type="text"
-          placeholder="Prénom"
+          placeholder="Nom d'utilisateur"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          required
           className="border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
         />
         <input
@@ -87,6 +86,7 @@ const Inscription = () => {
           placeholder="Adresse courriel"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          required
           className="border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
         />
         <input
@@ -94,25 +94,28 @@ const Inscription = () => {
           placeholder="Mot de passe"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          required
+          className="border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
+        />
+        <input
+          type="password"
+          placeholder="Confirmer le mot de passe"
+          value={passwordConfirm}
+          onChange={(e) => setPasswordConfirm(e.target.value)}
+          required
           className="border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
         />
 
+        {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+
         <button
           type="submit"
-          className="mt-6 bg-fuwoo-primary text-white py-3 rounded-xl shadow hover:shadow-md transition"
+          disabled={loading}
+          className="mt-2 bg-fuwoo-primary text-white py-3 rounded-xl shadow hover:shadow-md transition disabled:opacity-60"
         >
-          Créer mon compte
+          {loading ? "Création en cours..." : "Créer mon compte"}
         </button>
       </form>
-
-      {success && (
-        <p className="text-green-600 mt-4 text-center">
-          Inscription réussie! 🎉
-        </p>
-      )}
-      {error && (
-        <p className="text-red-600 mt-4 text-center">{error}</p>
-      )}
     </div>
   );
 };

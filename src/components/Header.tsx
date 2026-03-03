@@ -1,20 +1,27 @@
 // src/components/Header.tsx
 
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import LoginModal from "./LoginModal";
+import { useAuth } from "../contexts/AuthContext";
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const navLinks = [
     { to: "/", label: "Accueil" },
     { to: "/services", label: "Services" },
     { to: "/a-propos", label: "À propos" },
   ];
+
+  const handleLogout = () => {
+    logout();
+    setIsOpen(false);
+    navigate("/");
+  };
 
   return (
     <>
@@ -35,12 +42,29 @@ const Header = () => {
                 {label}
               </Link>
             ))}
-            <button
-              onClick={() => setShowLogin(true)}
-              className="ml-6 bg-fuwoo-primary text-white py-2 px-4 rounded-xl shadow hover:shadow-md transition"
-            >
-              Connexion
-            </button>
+            {user ? (
+              <div className="ml-6 flex items-center gap-4">
+                <Link
+                  to="/dashboard"
+                  className="text-gray-700 hover:text-fuwoo-primary transition font-medium"
+                >
+                  Bonjour, {user.username}
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="bg-gray-100 text-gray-700 py-2 px-4 rounded-xl shadow hover:shadow-md transition hover:bg-gray-200"
+                >
+                  Déconnexion
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/connexion"
+                className="ml-6 bg-fuwoo-primary text-white py-2 px-4 rounded-xl shadow hover:shadow-md transition"
+              >
+                Connexion
+              </Link>
+            )}
           </nav>
           <div className="md:hidden">
             <button onClick={() => setIsOpen(!isOpen)}>
@@ -81,20 +105,34 @@ const Header = () => {
                 {label}
               </Link>
             ))}
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                setShowLogin(true);
-              }}
-              className="mt-4 bg-fuwoo-primary text-white py-2 px-4 rounded-xl shadow hover:shadow-md transition"
-            >
-              Connexion
-            </button>
+            {user ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  onClick={() => setIsOpen(false)}
+                  className="py-2 px-2 rounded hover:bg-fuwoo-primary/10"
+                >
+                  Mon tableau de bord
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="mt-2 bg-gray-100 text-gray-700 py-2 px-4 rounded-xl shadow hover:shadow-md transition text-left"
+                >
+                  Déconnexion
+                </button>
+              </>
+            ) : (
+              <Link
+                to="/connexion"
+                onClick={() => setIsOpen(false)}
+                className="mt-4 bg-fuwoo-primary text-white py-2 px-4 rounded-xl shadow hover:shadow-md transition text-center"
+              >
+                Connexion
+              </Link>
+            )}
           </nav>
         </div>
       </header>
-
-      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
     </>
   );
 };

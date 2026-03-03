@@ -1,21 +1,26 @@
 // src/components/ServiceCard.tsx
 import { ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 interface ServiceCardProps {
-  icon: ReactNode;
+  icon?: ReactNode;
   title: string;
   description: string;
+  linkTo?: string;
 }
 
-export default function ServiceCard({ icon, title, description }: ServiceCardProps) {
-  return (
+export default function ServiceCard({ icon, title, description, linkTo }: ServiceCardProps) {
+  const content = (
     <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 border border-gray-200 hover:border-fuwoo-primary">
-      <div className="text-fuwoo-primary text-3xl mb-4">{icon}</div>
+      {icon && <div className="text-fuwoo-primary text-3xl mb-4">{icon}</div>}
       <h3 className="text-lg font-semibold mb-1">{title}</h3>
       <p className="text-sm text-gray-600">{description}</p>
     </div>
   );
+
+  return linkTo ? <Link to={linkTo}>{content}</Link> : content;
 }
+
 // Usage example:
 // <ServiceCard
 //   icon={<YourIconComponent />}
