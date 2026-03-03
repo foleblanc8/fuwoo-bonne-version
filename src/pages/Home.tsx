@@ -23,6 +23,7 @@ const Home = () => {
                 icon={<Icon />}
                 title={service.title}
                 description={service.description}
+                linkTo={`/service/1`}
               />
             );
           })}

@@ -1,7 +1,11 @@
+// src/pages/ServiceDetailPage.tsx
+// Page de détail d'un service connecté à l'API
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Star, User, DollarSign, Shield, Check, X } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { useServices } from '../contexts/ServiceContext';
+import { useBookings } from '../contexts/BookingContext';
+import { Calendar, Clock, MapPin, Star, User, Shield, Check, X } from 'lucide-react';
 
-// Page de détail d'un service
 type Service = {
   id: number;
   title: string;
@@ -33,110 +37,69 @@ type Service = {
   }[];
 };
 
-const ServiceDetailPage = ({ serviceId = 1 }) => {
+const ServiceDetailPage = () => {
+  const { id } = useParams();
+  const serviceId = parseInt(id || '1', 10);
+  const { getServiceById } = useServices();
   const [service, setService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [showBookingModal, setShowBookingModal] = useState(false);
 
-  // Simuler les données d'un service
   useEffect(() => {
-    setService({
-      id: serviceId,
-      title: "Plomberie résidentielle",
-      description: "Service complet de plomberie incluant réparations, installations et urgences. Plus de 10 ans d'expérience dans le domaine.",
-      provider: {
-        name: "Jean Dupont",
-        rating: 4.8,
-        total_reviews: 156,
-        verified: true,
-        profile_picture: null
-      },
-      category: "Plomberie",
-      price: 75,
-      price_unit: "par heure",
-      duration: 60,
-      service_area: "Montréal",
-      max_distance: 25,
-      instant_booking: true,
-      rating: 4.8,
-      total_bookings: 234,
-      images: [
-        { id: 1, url: '/api/placeholder/600/400', is_primary: true }
-      ],
-      availability: [
-        { day: "Lundi", slots: ["9:00", "10:00", "14:00", "15:00"] },
-        { day: "Mardi", slots: ["9:00", "11:00", "14:00", "16:00"] },
-        { day: "Mercredi", slots: ["10:00", "14:00", "15:00"] }
-      ],
-      reviews: [
-        {
-          id: 1,
-          client: "Marie L.",
-          rating: 5,
-          comment: "Excellent service, très professionnel!",
-          date: "2024-03-15"
-        },
-        {
-          id: 2,
-          client: "Pierre M.",
-          rating: 4,
-          comment: "Bon travail, ponctuel et efficace.",
-          date: "2024-03-10"
-        }
-      ]
-    });
-  }, [serviceId]);
+    getServiceById(serviceId)
+      .then((data: any) => {
+        // Adapt data to match the Service type exactly
+        setService({
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          provider: data.provider,
+          category: typeof data.category === 'string' ? data.category : String(data.category),
+          price: Number(data.price),
+          price_unit: data.price_unit,
+          duration: data.duration,
+          service_area: data.service_area,
+          max_distance: data.max_distance,
+          instant_booking: data.instant_booking,
+          rating: data.rating,
+          total_bookings: data.total_bookings,
+          images: data.images ?? [],
+          availability: data.availability ?? [],
+          reviews: data.reviews ?? [],
+        });
+      })
+      .catch((err) => console.error('Erreur récupération service:', err));
+  }, [serviceId, getServiceById]);
 
   if (!service) return <div className="p-8 text-center">Chargement...</div>;
 
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Colonne principale */}
         <div className="lg:col-span-2">
-          {/* Image principale */}
           <div className="rounded-2xl overflow-hidden shadow-lg mb-6">
-            <img 
-              src="/api/placeholder/800/500" 
+            <img
+              src={service.images[0]?.url || '/placeholder.jpg'}
               alt={service.title}
               className="w-full h-96 object-cover"
             />
           </div>
 
-          {/* Informations du service */}
           <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
             <h1 className="text-3xl font-bold mb-2">{service.title}</h1>
             <div className="flex items-center gap-4 text-gray-600 mb-4">
-              <span className="flex items-center gap-1">
-                <MapPin className="w-4 h-4" />
-                {service.service_area}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
-                {service.duration} min
-              </span>
-              <span className="flex items-center gap-1">
-                <Star className="w-4 h-4 text-yellow-500" />
-                {service.rating} ({service.total_bookings} réservations)
-              </span>
+              <span className="flex items-center gap-1"><MapPin className="w-4 h-4" />{service.service_area}</span>
+              <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{service.duration} min</span>
+              <span className="flex items-center gap-1"><Star className="w-4 h-4 text-yellow-500" />{service.rating} ({service.total_bookings} réservations)</span>
             </div>
             <p className="text-gray-700 mb-6">{service.description}</p>
-
-            {/* Caractéristiques */}
             <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-green-600" />
-                <span>Prestataire vérifié</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-5 h-5 text-blue-600" />
-                <span>Réservation instantanée</span>
-              </div>
+              <div className="flex items-center gap-2"><Shield className="w-5 h-5 text-green-600" /><span>Prestataire vérifié</span></div>
+              <div className="flex items-center gap-2"><Check className="w-5 h-5 text-blue-600" /><span>Réservation instantanée</span></div>
             </div>
           </div>
 
-          {/* Section avis */}
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h2 className="text-2xl font-bold mb-4">Avis clients</h2>
             <div className="space-y-4">
@@ -147,10 +110,7 @@ const ServiceDetailPage = ({ serviceId = 1 }) => {
                     <div className="flex items-center gap-2">
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
-                          <Star 
-                            key={i} 
-                            className={`w-4 h-4 ${i < review.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'}`}
-                          />
+                          <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-yellow-500 fill-current' : 'text-gray-300'}`} />
                         ))}
                       </div>
                       <span className="text-sm text-gray-500">{review.date}</span>
@@ -163,17 +123,13 @@ const ServiceDetailPage = ({ serviceId = 1 }) => {
           </div>
         </div>
 
-        {/* Colonne latérale - Réservation */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6">
             <div className="text-center mb-6">
-              <div className="text-3xl font-bold text-fuwoo-primary">
-                ${service.price}
-              </div>
+              <div className="text-3xl font-bold text-fuwoo-primary">${service.price}</div>
               <div className="text-gray-600">{service.price_unit}</div>
             </div>
 
-            {/* Prestataire */}
             <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
               <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
                 <User className="w-6 h-6 text-gray-600" />
@@ -188,7 +144,6 @@ const ServiceDetailPage = ({ serviceId = 1 }) => {
               </div>
             </div>
 
-            {/* Sélection date et heure */}
             <div className="mb-6">
               <label className="block text-sm font-medium mb-2">Date</label>
               <input
@@ -232,9 +187,8 @@ const ServiceDetailPage = ({ serviceId = 1 }) => {
         </div>
       </div>
 
-      {/* Modal de réservation */}
       {showBookingModal && (
-        <BookingModal 
+        <BookingModal
           service={service}
           date={selectedDate}
           time={selectedTime}
@@ -245,7 +199,6 @@ const ServiceDetailPage = ({ serviceId = 1 }) => {
   );
 };
 
-// Modal de confirmation de réservation
 type BookingModalProps = {
   service: Service;
   date: string;
@@ -257,87 +210,78 @@ const BookingModal: React.FC<BookingModalProps> = ({ service, date, time, onClos
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const { createBooking } = useBookings();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsProcessing(true);
-    
-    // Simuler l'envoi de la réservation
-    setTimeout(() => {
-      alert('Réservation confirmée!');
+
+    try {
+      await createBooking({
+        service: service.id,
+        date,
+        start_time: time,
+        service_address: address,
+        client_notes: notes,
+      });
+      alert('Réservation confirmée ! ✅');
       onClose();
-    }, 2000);
+    } catch (error) {
+      alert("Une erreur s'est produite lors de la réservation.");
+      console.error("Erreur lors de la réservation:", error);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md relative">
         <button
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          aria-label="Fermer"
         >
           <X className="w-6 h-6" />
         </button>
-
-        <h2 className="text-2xl font-bold mb-6">Confirmer la réservation</h2>
-
-        {/* Résumé */}
-        <div className="bg-gray-50 rounded-xl p-4 mb-6">
-          <h3 className="font-semibold mb-2">{service.title}</h3>
-          <div className="space-y-1 text-sm text-gray-600">
-            <div className="flex justify-between">
-              <span>Date:</span>
-              <span>{new Date(date).toLocaleDateString('fr-CA')}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Heure:</span>
-              <span>{time}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Durée:</span>
-              <span>{service.duration} minutes</span>
-            </div>
-            <div className="flex justify-between font-semibold text-black mt-2 pt-2 border-t">
-              <span>Total:</span>
-              <span>${service.price}</span>
-            </div>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">
-              Adresse du service
-            </label>
-            <textarea
+        <h2 className="text-2xl font-bold mb-4">Confirmer la réservation</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Adresse de prestation</label>
+            <input
+              type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
-              rows={2}
               required
-              placeholder="123 Rue Example, Montréal, QC"
             />
           </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">
-              Notes pour le prestataire (optionnel)
-            </label>
+          <div>
+            <label className="block text-sm font-medium mb-1">Notes pour le prestataire</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-fuwoo-primary"
               rows={3}
-              placeholder="Instructions spéciales, code d'accès, etc."
+              placeholder="Informations complémentaires (facultatif)"
             />
           </div>
-
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              <Calendar className="inline w-4 h-4 mr-1" />
+              {date}
+            </span>
+            <span>
+              <Clock className="inline w-4 h-4 mr-1" />
+              {time}
+            </span>
+          </div>
           <button
             type="submit"
-            disabled={isProcessing}
-            className="w-full bg-fuwoo-primary text-white py-3 rounded-xl font-semibold hover:bg-fuwoo-primary/90 transition disabled:opacity-50"
+            className="w-full bg-fuwoo-primary text-white py-3 rounded-xl font-semibold hover:bg-fuwoo-primary/90 transition"
+            disabled={isProcessing || !address}
           >
-            {isProcessing ? 'Traitement...' : 'Confirmer la réservation'}
+            {isProcessing ? 'Réservation...' : 'Confirmer la réservation'}
           </button>
         </form>
       </div>
