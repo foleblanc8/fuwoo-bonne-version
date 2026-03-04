@@ -14,7 +14,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'categories', ServiceCategoryViewSet)
-router.register(r'services', ServiceViewSet)
+router.register(r'services', ServiceViewSet, basename='service')
 router.register(r'bookings', BookingViewSet, basename='booking')
 router.register(r'reviews', ReviewViewSet, basename='review')
 router.register(r'messages', MessageViewSet, basename='message')

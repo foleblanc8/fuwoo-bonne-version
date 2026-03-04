@@ -1,10 +1,10 @@
 // src/pages/ServiceDetailPage.tsx
-// Page de détail d'un service connecté à l'API
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
+import axios from 'axios';
 import { useServices } from '../contexts/ServiceContext';
-import { useBookings } from '../contexts/BookingContext';
-import { Calendar, Clock, MapPin, Star, User, Shield, Check, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Calendar, Clock, MapPin, Star, User, Shield, Check, X, Upload, ImagePlus, Trash2 } from 'lucide-react';
 import { getCategoryImage } from '../data/serviceImages';
 
 type Service = {
@@ -19,6 +19,7 @@ type Service = {
     profile_picture: string | null;
   };
   category: string;
+  categoryId: number | null;
   categorySlug: string;
   price: number;
   price_unit: string;
@@ -48,7 +49,7 @@ const ServiceDetailPage = () => {
   const [notFound, setNotFound] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
-  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showSoumissionModal, setShowSoumissionModal] = useState(false);
 
   useEffect(() => {
     setLoadingService(true);
@@ -68,6 +69,7 @@ const ServiceDetailPage = () => {
             profile_picture: p.profile_picture ?? null,
           },
           category: data.category?.name ?? String(data.category ?? ''),
+          categoryId: data.category?.id ?? null,
           categorySlug: data.category?.slug ?? '',
           price: Number(data.price),
           price_unit: data.price_unit,
@@ -143,6 +145,7 @@ const ServiceDetailPage = () => {
           </div>
         </div>
 
+        {/* Sidebar */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6">
             <div className="text-center mb-6">
@@ -164,28 +167,36 @@ const ServiceDetailPage = () => {
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-medium mb-2">Date</label>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2 text-gray-700">
+                <Calendar className="inline w-4 h-4 mr-1 text-gray-400" />
+                Date souhaitée <span className="font-normal text-gray-400">(optionnel)</span>
+              </label>
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+                className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary text-sm"
                 min={new Date().toISOString().split('T')[0]}
               />
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium mb-2">Heure</label>
+              <label className="block text-sm font-medium mb-2 text-gray-700">
+                <Clock className="inline w-4 h-4 mr-1 text-gray-400" />
+                Heure souhaitée <span className="font-normal text-gray-400">(optionnel)</span>
+              </label>
               <select
                 value={selectedTime}
                 onChange={(e) => setSelectedTime(e.target.value)}
-                className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+                className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary text-sm"
               >
                 <option value="">Sélectionner une heure</option>
+                <option value="8:00">8:00</option>
                 <option value="9:00">9:00</option>
                 <option value="10:00">10:00</option>
                 <option value="11:00">11:00</option>
+                <option value="13:00">13:00</option>
                 <option value="14:00">14:00</option>
                 <option value="15:00">15:00</option>
                 <option value="16:00">16:00</option>
@@ -193,117 +204,353 @@ const ServiceDetailPage = () => {
             </div>
 
             <button
-              onClick={() => setShowBookingModal(true)}
-              className="w-full bg-coupdemain-primary text-white py-3 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition"
-              disabled={!selectedDate || !selectedTime}
+              onClick={() => setShowSoumissionModal(true)}
+              className="w-full bg-coupdemain-primary text-white py-3.5 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition text-base"
             >
-              Réserver maintenant
+              Demander Soumission
             </button>
 
-            <p className="text-center text-sm text-gray-500 mt-4">
-              Annulation gratuite jusqu'à 24h avant
+            <p className="text-center text-xs text-gray-400 mt-3">
+              Gratuit · Les prestataires vous font une offre
             </p>
           </div>
         </div>
       </div>
 
-      {showBookingModal && (
-        <BookingModal
+      {showSoumissionModal && (
+        <SoumissionModal
           service={service}
-          date={selectedDate}
-          time={selectedTime}
-          onClose={() => setShowBookingModal(false)}
+          preferredDate={selectedDate}
+          preferredTime={selectedTime}
+          onClose={() => setShowSoumissionModal(false)}
         />
       )}
     </div>
   );
 };
 
-type BookingModalProps = {
+/* ─────────────────────────────────────────────────────────────────────────── */
+/*  Modale Demander Soumission                                                 */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+type SoumissionModalProps = {
   service: Service;
-  date: string;
-  time: string;
+  preferredDate: string;
+  preferredTime: string;
   onClose: () => void;
 };
 
-const BookingModal: React.FC<BookingModalProps> = ({ service, date, time, onClose }) => {
-  const [address, setAddress] = useState('');
-  const [notes, setNotes] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const { createBooking } = useBookings();
+const SoumissionModal: React.FC<SoumissionModalProps> = ({
+  service,
+  preferredDate,
+  preferredTime,
+  onClose,
+}) => {
+  const { user } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+
+  const [title, setTitle] = useState(service.title);
+  const [description, setDescription] = useState('');
+  const [serviceArea, setServiceArea] = useState(service.service_area);
+  const [deadlineDate, setDeadlineDate] = useState(() => {
+    const d = new Date(); d.setHours(d.getHours() + 48);
+    return d.toISOString().split('T')[0];
+  });
+  const [deadlineTime, setDeadlineTime] = useState('10:00');
+  const [prefDate, setPrefDate] = useState(preferredDate);
+  const [prefTime, setPrefTime] = useState(preferredTime);
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotos = (files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    const combined = [...photos, ...newFiles].slice(0, 8); // max 8 photos
+    setPhotos(combined);
+    const urls = combined.map(f => URL.createObjectURL(f));
+    setPreviews(prev => { prev.forEach(URL.revokeObjectURL); return urls; });
+  };
+
+  const removePhoto = (index: number) => {
+    const updated = photos.filter((_, i) => i !== index);
+    setPhotos(updated);
+    const urls = updated.map(f => URL.createObjectURL(f));
+    setPreviews(prev => { prev.forEach(URL.revokeObjectURL); return urls; });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsProcessing(true);
+    if (!user) {
+      setError('Vous devez être connecté pour demander une soumission.');
+      return;
+    }
+    if (prefDate && prefTime) {
+      const serviceDateTime = new Date(`${prefDate}T${prefTime}`);
+      const deadlineDateTime = new Date(`${deadlineDate}T${deadlineTime}`);
+      if (serviceDateTime.getTime() - deadlineDateTime.getTime() < 24 * 60 * 60 * 1000) {
+        setError('Le délai de soumission doit être au moins 24h avant la date et l\'heure souhaitées du service.');
+        return;
+      }
+    }
+    if (photos.length === 0) {
+      setError('Veuillez ajouter au moins une photo du chantier ou de la problématique.');
+      return;
+    }
+    setIsSubmitting(true);
+    setError('');
 
     try {
-      await createBooking({
-        service: service.id,
-        date,
-        start_time: time,
-        service_address: address,
-        client_notes: notes,
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('description', description);
+      formData.append('service_area', serviceArea);
+      formData.append('submission_deadline', new Date(`${deadlineDate}T${deadlineTime}`).toISOString());
+      formData.append('preferred_dates', `${prefDate}${prefTime ? ' à ' + prefTime : ''}`);
+      if (service.categoryId) formData.append('category_id', String(service.categoryId));
+      photos.forEach(photo => formData.append('images', photo));
+
+      await axios.post('service-requests/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      alert('Réservation confirmée ! ✅');
-      onClose();
-    } catch (error) {
-      alert("Une erreur s'est produite lors de la réservation.");
-      console.error("Erreur lors de la réservation:", error);
+      setSuccess(true);
+    } catch {
+      setError('Une erreur est survenue. Veuillez réessayer.');
     } finally {
-      setIsProcessing(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md relative">
-        <button
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-          onClick={onClose}
-          aria-label="Fermer"
-        >
-          <X className="w-6 h-6" />
-        </button>
-        <h2 className="text-2xl font-bold mb-4">Confirmer la réservation</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Adresse de prestation</label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Notes pour le prestataire</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
-              rows={3}
-              placeholder="Informations complémentaires (facultatif)"
-            />
-          </div>
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>
-              <Calendar className="inline w-4 h-4 mr-1" />
-              {date}
-            </span>
-            <span>
-              <Clock className="inline w-4 h-4 mr-1" />
-              {time}
-            </span>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto relative">
+        {/* Header */}
+        <div className="sticky top-0 bg-white rounded-t-2xl px-6 pt-6 pb-4 border-b border-gray-100 z-10">
           <button
-            type="submit"
-            className="w-full bg-coupdemain-primary text-white py-3 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition"
-            disabled={isProcessing || !address}
+            onClick={onClose}
+            className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition"
           >
-            {isProcessing ? 'Réservation...' : 'Confirmer la réservation'}
+            <X className="w-5 h-5" />
           </button>
-        </form>
+          <h2 className="text-xl font-bold text-gray-900">Demander une soumission</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Décrivez votre projet — les prestataires vous feront une offre.
+          </p>
+        </div>
+
+        {success ? (
+          <div className="px-6 py-10 text-center">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-7 h-7 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Demande envoyée !</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Les prestataires ont jusqu'au{' '}
+              <strong>{new Date(`${deadlineDate}T${deadlineTime}`).toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</strong>{' '}
+              pour vous soumettre une offre.
+            </p>
+            <button
+              onClick={onClose}
+              className="bg-coupdemain-primary text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition"
+            >
+              Fermer
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+
+            {/* Titre */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Titre de la demande <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                required
+                placeholder="Ex. : Remplacement robinet cuisine"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Description du travail / problématique <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                required
+                rows={4}
+                placeholder="Décrivez en détail le travail à effectuer, l'état actuel, les matériaux concernés, l'urgence…"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary resize-none"
+              />
+            </div>
+
+            {/* Adresse */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Adresse de prestation <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={serviceArea}
+                onChange={e => setServiceArea(e.target.value)}
+                required
+                placeholder="Ex. : 123 rue des Érables, Montréal"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+              />
+            </div>
+
+            {/* Délai de soumission */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Délai accordé aux prestataires pour soumettre <span className="text-red-500">*</span>
+              </label>
+              <p className="text-xs text-gray-400 mb-2">Les prestataires pourront vous envoyer une offre jusqu'à cette date.</p>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={deadlineDate}
+                  onChange={e => setDeadlineDate(e.target.value)}
+                  required
+                  min={new Date().toISOString().split('T')[0]}
+                  max={prefDate ? new Date(new Date(prefDate).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0] : undefined}
+                  className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+                />
+                <select
+                  value={deadlineTime}
+                  onChange={e => setDeadlineTime(e.target.value)}
+                  required
+                  className="w-36 border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+                >
+                  <option value="8:00">8:00</option>
+                  <option value="9:00">9:00</option>
+                  <option value="10:00">10:00</option>
+                  <option value="11:00">11:00</option>
+                  <option value="13:00">13:00</option>
+                  <option value="14:00">14:00</option>
+                  <option value="15:00">15:00</option>
+                  <option value="16:00">16:00</option>
+                  <option value="17:00">17:00</option>
+                  <option value="18:00">18:00</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Date + Heure souhaitées sur la même ligne */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Date et heure souhaitées pour le service <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={prefDate}
+                  onChange={e => setPrefDate(e.target.value)}
+                  required
+                  min={new Date().toISOString().split('T')[0]}
+                  className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+                />
+                <select
+                  value={prefTime}
+                  onChange={e => setPrefTime(e.target.value)}
+                  required
+                  className="w-36 border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+                >
+                  <option value="">Heure</option>
+                  <option value="8:00">8:00</option>
+                  <option value="9:00">9:00</option>
+                  <option value="10:00">10:00</option>
+                  <option value="11:00">11:00</option>
+                  <option value="13:00">13:00</option>
+                  <option value="14:00">14:00</option>
+                  <option value="15:00">15:00</option>
+                  <option value="16:00">16:00</option>
+                  <option value="17:00">17:00</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Photos */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Photos du problème / du chantier <span className="text-red-500">*</span>
+                <span className="font-normal text-gray-400 ml-1">(max 8)</span>
+              </label>
+
+              {previews.length > 0 && (
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {previews.map((src, i) => (
+                    <div key={i} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100">
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(i)}
+                        className="absolute top-1 right-1 bg-white/90 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                  {previews.length < 8 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-coupdemain-primary hover:bg-coupdemain-primary/5 transition"
+                    >
+                      <ImagePlus className="w-5 h-5 text-gray-400" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {previews.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-gray-300 rounded-xl py-6 flex flex-col items-center gap-2 hover:border-coupdemain-primary hover:bg-coupdemain-primary/5 transition text-gray-400"
+                >
+                  <Upload className="w-6 h-6" />
+                  <span className="text-sm">Cliquez pour ajouter des photos</span>
+                  <span className="text-xs">JPG, PNG, HEIC — max 8 fichiers</span>
+                </button>
+              )}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={e => handlePhotos(e.target.files)}
+              />
+            </div>
+
+            {error && (
+              <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>
+            )}
+
+            {!user && (
+              <p className="text-sm text-amber-700 bg-amber-50 rounded-xl px-4 py-3">
+                Vous devez être <a href="/connexion" className="underline font-medium">connecté</a> pour envoyer une demande de soumission.
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting || !user}
+              className="w-full bg-coupdemain-primary text-white py-3.5 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60 text-base"
+            >
+              {isSubmitting ? 'Envoi en cours…' : 'Envoyer la demande'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
