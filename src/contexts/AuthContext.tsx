@@ -9,7 +9,14 @@ interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: string;
+  role: 'client' | 'prestataire';
+  phone_number?: string;
+  address?: string;
+  profile_picture?: string | null;
+  bio?: string;
+  is_verified?: boolean;
+  rating?: number;
+  total_reviews?: number;
 }
 
 interface RegisterData {
@@ -20,7 +27,7 @@ interface RegisterData {
   first_name?: string;
   last_name?: string;
   phone_number?: string;
-  role?: string;
+  role?: 'client' | 'prestataire';
 }
 
 interface AuthContextType {
@@ -45,10 +52,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const storedUser = localStorage.getItem('user');
     if (storedToken && storedUser) {
       try {
-        const parsedUser = JSON.parse(storedUser);
         setToken(storedToken);
-        setUser(parsedUser);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+        setUser(JSON.parse(storedUser));
       } catch {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
@@ -58,17 +63,62 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(false);
   }, []);
 
-  // Intercepteur axios pour injecter le token Bearer automatiquement
+  // Intercepteurs axios : injection du token Bearer + refresh automatique sur 401
   useEffect(() => {
-    const interceptor = axios.interceptors.request.use((config) => {
+    const requestInterceptor = axios.interceptors.request.use((config) => {
       const t = localStorage.getItem('access_token');
+      config.headers = config.headers ?? {};
       if (t) {
-        config.headers = config.headers ?? {};
         config.headers['Authorization'] = `Bearer ${t}`;
+      } else {
+        delete config.headers['Authorization'];
       }
       return config;
     });
-    return () => axios.interceptors.request.eject(interceptor);
+
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+        if (
+          error.response?.status === 401 &&
+          !originalRequest._retry &&
+          !originalRequest.url?.includes('auth/')
+        ) {
+          originalRequest._retry = true;
+          const refreshToken = localStorage.getItem('refresh_token');
+          // Supprime le token expiré pour que le refresh parte sans Authorization
+          localStorage.removeItem('access_token');
+          if (refreshToken) {
+            try {
+              const res = await axios.post<{ access: string }>(
+                'auth/token/refresh/',
+                { refresh: refreshToken },
+              );
+              const newAccess = res.data.access;
+              localStorage.setItem('access_token', newAccess);
+              return axios(originalRequest);
+            } catch {
+              // Refresh échoué → déconnexion + relance sans token (endpoints publics)
+              localStorage.removeItem('refresh_token');
+              localStorage.removeItem('user');
+              setToken(null);
+              setUser(null);
+              return axios(originalRequest);
+            }
+          } else {
+            // Pas de refresh token → relance sans token
+            return axios(originalRequest);
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.request.eject(requestInterceptor);
+      axios.interceptors.response.eject(responseInterceptor);
+    };
   }, []);
 
   interface AuthResponse {
@@ -85,7 +135,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('user', JSON.stringify(userData));
     setToken(access);
     setUser(userData);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
   };
 
   const register = async (data: RegisterData) => {
@@ -96,7 +145,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('user', JSON.stringify(userData));
     setToken(access);
     setUser(userData);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
   };
 
   const logout = () => {
@@ -105,7 +153,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
   };
 
   return (

@@ -55,7 +55,7 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({ children })
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/categories/');
+      const response = await axios.get('categories/');
       const data = response.data as { results?: Category[] } | Category[];
       setCategories(Array.isArray(data) ? data : data.results || []);
     } catch (error) {
@@ -69,14 +69,14 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({ children })
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      
+
       if (filters) {
         Object.keys(filters).forEach(key => {
           if (filters[key]) params.append(key, filters[key]);
         });
       }
-      
-      const response = await axios.get<{ results?: Service[] } | Service[]>(`/services/?${params}`);
+
+      const response = await axios.get<{ results?: Service[] } | Service[]>(`services/?${params}`);
       const data = response.data;
       setServices(Array.isArray(data) ? data : data.results || []);
     } catch (error) {
@@ -89,7 +89,7 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({ children })
   const searchServices = async (query: string) => {
     try {
       setLoading(true);
-      const response = await axios.get<{ results?: Service[] } | Service[]>(`/services/?search=${query}`);
+      const response = await axios.get<{ results?: Service[] } | Service[]>(`services/?search=${query}`);
       setServices(Array.isArray(response.data) ? response.data : response.data.results || []);
     } catch (error) {
       console.error('Erreur lors de la recherche:', error);
@@ -99,22 +99,22 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const getServiceById = async (id: number): Promise<Service> => {
-    const response = await axios.get<Service>(`/services/${id}/`);
+    const response = await axios.get<Service>(`services/${id}/`);
     return response.data;
   };
 
   const createService = async (serviceData: any): Promise<Service> => {
-    const response = await axios.post<Service>('/services/', serviceData);
+    const response = await axios.post<Service>('services/', serviceData);
     return response.data;
   };
 
   const updateService = async (id: number, serviceData: any): Promise<Service> => {
-    const response = await axios.patch<Service>(`/services/${id}/`, serviceData);
+    const response = await axios.patch<Service>(`services/${id}/`, serviceData);
     return response.data;
   };
 
   const deleteService = async (id: number): Promise<void> => {
-    await axios.delete(`/services/${id}/`);
+    await axios.delete(`services/${id}/`);
     setServices(services.filter(s => s.id !== id));
   };
 

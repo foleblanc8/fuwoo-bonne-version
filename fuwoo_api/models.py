@@ -263,3 +263,44 @@ class Notification(models.Model):
     
     def __str__(self):
         return f"{self.type} - {self.user.username}"
+
+
+class ServiceRequest(models.Model):
+    STATUS_CHOICES = [('open', 'Ouverte'), ('awarded', 'Attribuée'), ('cancelled', 'Annulée')]
+    client = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='service_requests')
+    category = models.ForeignKey(ServiceCategory, on_delete=models.SET_NULL, null=True, blank=True)
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    service_area = models.CharField(max_length=100)
+    preferred_dates = models.TextField(blank=True)
+    submission_deadline = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+
+class ServiceRequestImage(models.Model):
+    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='service_requests/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Bid(models.Model):
+    STATUS_CHOICES = [('pending', 'En attente'), ('accepted', 'Acceptée'), ('rejected', 'Refusée')]
+    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE, related_name='bids')
+    provider = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='bids')
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    price_unit = models.CharField(max_length=50, default='par projet')
+    message = models.TextField()
+    estimated_duration = models.IntegerField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['service_request', 'provider']
+
+    def __str__(self):
+        return f"Bid by {self.provider} on {self.service_request}"

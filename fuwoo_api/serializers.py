@@ -3,8 +3,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
-    ServiceCategory, Service, ServiceImage, Booking, 
-    Review, Message, Notification, Availability
+    ServiceCategory, Service, ServiceImage, Booking,
+    Review, Message, Notification, Availability,
+    ServiceRequest, ServiceRequestImage, Bid,
 )
 
 User = get_user_model()
@@ -110,3 +111,47 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = '__all__'
         read_only_fields = ['user']
+
+
+class ServiceRequestImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceRequestImage
+        fields = ['id', 'image']
+
+
+class ServiceRequestSerializer(serializers.ModelSerializer):
+    images = ServiceRequestImageSerializer(many=True, read_only=True)
+    bid_count = serializers.SerializerMethodField()
+    category = ServiceCategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=ServiceCategory.objects.all(),
+        source='category',
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
+    client = UserSerializer(read_only=True)
+
+    def get_bid_count(self, obj):
+        return obj.bids.count()
+
+    class Meta:
+        model = ServiceRequest
+        fields = [
+            'id', 'client', 'category', 'category_id', 'title', 'description',
+            'service_area', 'preferred_dates', 'submission_deadline',
+            'status', 'images', 'bid_count', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['client', 'status']
+
+
+class BidSerializer(serializers.ModelSerializer):
+    provider = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Bid
+        fields = [
+            'id', 'service_request', 'provider', 'price', 'price_unit',
+            'message', 'estimated_duration', 'status', 'created_at',
+        ]
+        read_only_fields = ['provider', 'status']

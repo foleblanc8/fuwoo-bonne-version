@@ -5,9 +5,10 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     CustomTokenObtainPairView, register, profile, become_provider,
-    UserViewSet, ServiceCategoryViewSet, ServiceViewSet, 
-    BookingViewSet, ReviewViewSet, MessageViewSet, 
-    NotificationViewSet, AvailabilityViewSet
+    UserViewSet, ServiceCategoryViewSet, ServiceViewSet,
+    BookingViewSet, ReviewViewSet, MessageViewSet,
+    NotificationViewSet, AvailabilityViewSet,
+    ServiceRequestViewSet, BidViewSet,
 )
 
 router = DefaultRouter()
@@ -19,6 +20,8 @@ router.register(r'reviews', ReviewViewSet, basename='review')
 router.register(r'messages', MessageViewSet, basename='message')
 router.register(r'notifications', NotificationViewSet, basename='notification')
 router.register(r'availabilities', AvailabilityViewSet, basename='availability')
+router.register(r'service-requests', ServiceRequestViewSet, basename='service-request')
+router.register(r'bids', BidViewSet, basename='bid')
 
 urlpatterns = [
     path('', include(router.urls)),

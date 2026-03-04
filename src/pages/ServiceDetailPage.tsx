@@ -5,6 +5,7 @@ import { useParams } from 'react-router-dom';
 import { useServices } from '../contexts/ServiceContext';
 import { useBookings } from '../contexts/BookingContext';
 import { Calendar, Clock, MapPin, Star, User, Shield, Check, X } from 'lucide-react';
+import { getCategoryImage } from '../data/serviceImages';
 
 type Service = {
   id: number;
@@ -18,6 +19,7 @@ type Service = {
     profile_picture: string | null;
   };
   category: string;
+  categorySlug: string;
   price: number;
   price_unit: string;
   duration: number;
@@ -42,20 +44,31 @@ const ServiceDetailPage = () => {
   const serviceId = parseInt(id || '1', 10);
   const { getServiceById } = useServices();
   const [service, setService] = useState<Service | null>(null);
+  const [loadingService, setLoadingService] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [showBookingModal, setShowBookingModal] = useState(false);
 
   useEffect(() => {
+    setLoadingService(true);
+    setNotFound(false);
     getServiceById(serviceId)
       .then((data: any) => {
-        // Adapt data to match the Service type exactly
+        const p = data.provider ?? {};
         setService({
           id: data.id,
           title: data.title,
           description: data.description,
-          provider: data.provider,
-          category: typeof data.category === 'string' ? data.category : String(data.category),
+          provider: {
+            name: [p.first_name, p.last_name].filter(Boolean).join(' ') || p.username || '',
+            rating: parseFloat(p.rating) || 0,
+            total_reviews: p.total_reviews ?? 0,
+            verified: p.is_verified ?? false,
+            profile_picture: p.profile_picture ?? null,
+          },
+          category: data.category?.name ?? String(data.category ?? ''),
+          categorySlug: data.category?.slug ?? '',
           price: Number(data.price),
           price_unit: data.price_unit,
           duration: data.duration,
@@ -69,10 +82,17 @@ const ServiceDetailPage = () => {
           reviews: data.reviews ?? [],
         });
       })
-      .catch((err) => console.error('Erreur récupération service:', err));
-  }, [serviceId, getServiceById]);
+      .catch(() => setNotFound(true))
+      .finally(() => setLoadingService(false));
+  }, [serviceId]);
 
-  if (!service) return <div className="p-8 text-center">Chargement...</div>;
+  if (loadingService) return <div className="p-8 text-center text-gray-500">Chargement...</div>;
+  if (notFound || !service) return (
+    <div className="p-8 text-center">
+      <p className="text-xl font-semibold text-gray-700">Service introuvable</p>
+      <p className="text-gray-400 mt-2">Ce service n'existe pas ou a été supprimé.</p>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -80,7 +100,7 @@ const ServiceDetailPage = () => {
         <div className="lg:col-span-2">
           <div className="rounded-2xl overflow-hidden shadow-lg mb-6">
             <img
-              src={service.images[0]?.url || '/placeholder.jpg'}
+              src={service.images[0]?.url || getCategoryImage(service.categorySlug)}
               alt={service.title}
               className="w-full h-96 object-cover"
             />

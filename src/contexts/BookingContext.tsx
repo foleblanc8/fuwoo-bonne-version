@@ -42,7 +42,7 @@ export const BookingProvider: React.FC<{ children: ReactNode }> = ({ children })
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/bookings/');
+      const response = await axios.get('bookings/');
       const data = response.data as { results?: Booking[] } | Booking[];
       if (Array.isArray(data)) {
         setBookings(data);
@@ -59,32 +59,32 @@ export const BookingProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const createBooking = async (bookingData: any): Promise<Booking> => {
-    const response = await axios.post('/bookings/', bookingData);
+    const response = await axios.post('bookings/', bookingData);
     const newBooking = response.data as Booking;
     setBookings([...bookings, newBooking]);
     return newBooking;
   };
 
   const updateBookingStatus = async (id: number, status: string) => {
-    const response = await axios.patch(`/bookings/${id}/`, { status });
+    const response = await axios.patch(`bookings/${id}/`, { status });
     const updatedBooking = response.data as Booking;
     setBookings(bookings.map(b => b.id === id ? updatedBooking : b));
   };
 
   const cancelBooking = async (id: number) => {
-    const response = await axios.post(`/bookings/${id}/cancel/`);
+    const response = await axios.post(`bookings/${id}/cancel/`);
     const updatedBooking = response.data as Booking;
     setBookings(bookings.map(b => b.id === id ? updatedBooking : b));
   };
 
   const confirmBooking = async (id: number) => {
-    const response = await axios.post(`/bookings/${id}/confirm/`);
+    const response = await axios.post(`bookings/${id}/confirm/`);
     const updatedBooking = response.data as Booking;
     setBookings(bookings.map(b => b.id === id ? updatedBooking : b));
   };
 
   const completeBooking = async (id: number) => {
-    const response = await axios.post(`/bookings/${id}/complete/`);
+    const response = await axios.post(`bookings/${id}/complete/`);
     const updatedBooking = response.data as Booking;
     setBookings(bookings.map(b => b.id === id ? updatedBooking : b));
   };

@@ -2,22 +2,26 @@
 
 from rest_framework import viewsets, permissions, status, filters, serializers
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import authenticate, get_user_model
 from django.db.models import Q, Avg
 from django.db import IntegrityError
+from django.utils.timezone import now
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import (
-    ServiceCategory, Service, Booking, Review, 
-    Message, Notification, Availability
+    ServiceCategory, Service, Booking, Review,
+    Message, Notification, Availability,
+    ServiceRequest, ServiceRequestImage, Bid,
 )
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, ServiceCategorySerializer,
     ServiceSerializer, BookingSerializer, ReviewSerializer,
-    MessageSerializer, NotificationSerializer, AvailabilitySerializer
+    MessageSerializer, NotificationSerializer, AvailabilitySerializer,
+    ServiceRequestSerializer, BidSerializer,
 )
 from .permissions import IsOwnerOrReadOnly, IsProviderOrReadOnly
 
@@ -62,7 +66,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 # Vue d'inscription (gardez votre version mais améliorée)
 @api_view(['POST'])
-@permission_classes([permissions.AllowAny])
 def register(request):
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
@@ -317,4 +320,75 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         if self.request.user.role != 'prestataire':
             raise serializers.ValidationError("Seuls les prestataires peuvent définir leurs disponibilités.")
+        serializer.save(provider=self.request.user)
+
+
+class ServiceRequestViewSet(viewsets.ModelViewSet):
+    serializer_class = ServiceRequestSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'client':
+            return ServiceRequest.objects.filter(client=user).order_by('-created_at')
+        return ServiceRequest.objects.filter(
+            status='open', submission_deadline__gt=now()
+        ).order_by('submission_deadline')
+
+    def perform_create(self, serializer):
+        sr = serializer.save(client=self.request.user)
+        for img in self.request.FILES.getlist('images'):
+            ServiceRequestImage.objects.create(service_request=sr, image=img)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        sr = self.get_object()
+        if sr.client != request.user:
+            return Response({'error': 'Non autorisé'}, status=403)
+        sr.status = 'cancelled'
+        sr.save()
+        return Response({'status': 'cancelled'})
+
+
+class BidViewSet(viewsets.ModelViewSet):
+    serializer_class = BidSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'prestataire':
+            return Bid.objects.filter(provider=user).order_by('-created_at')
+        qs = Bid.objects.filter(service_request__client=user).order_by('-created_at')
+        service_request_id = self.request.query_params.get('service_request')
+        if service_request_id:
+            qs = qs.filter(service_request_id=service_request_id)
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role != 'prestataire':
+            raise serializers.ValidationError('Seuls les prestataires peuvent soumettre une offre.')
+        sr = serializer.validated_data['service_request']
+        if sr.status != 'open':
+            raise serializers.ValidationError("Cette demande n'est plus ouverte.")
+        if sr.submission_deadline < now():
+            raise serializers.ValidationError('La période de soumission est terminée.')
+        serializer.save(provider=user)
+
+    @action(detail=True, methods=['post'])
+    def accept(self, request, pk=None):
+        bid = self.get_object()
+        sr = bid.service_request
+        if sr.client != request.user:
+            return Response({'error': 'Non autorisé'}, status=403)
+        if sr.status != 'open':
+            return Response({'error': 'Demande non ouverte'}, status=400)
+        bid.status = 'accepted'
+        bid.save()
+        sr.bids.exclude(pk=bid.pk).update(status='rejected')
+        sr.status = 'awarded'
+        sr.save()
+        return Response({'status': 'accepted'})
         serializer.save(provider=self.request.user)
