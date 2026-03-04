@@ -66,6 +66,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 # Vue d'inscription (gardez votre version mais améliorée)
 @api_view(['POST'])
+@permission_classes([permissions.AllowAny])
 def register(request):
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
@@ -134,14 +135,25 @@ class ServiceCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.AllowAny]
 
 class ServiceViewSet(viewsets.ModelViewSet):
-    queryset = Service.objects.filter(is_active=True)
     serializer_class = ServiceSerializer
     permission_classes = [IsProviderOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'provider', 'service_area', 'instant_booking']
     search_fields = ['title', 'description']
     ordering_fields = ['price', 'rating', 'created_at']
-    
+
+    def get_queryset(self):
+        user = self.request.user
+        provider_param = self.request.query_params.get('provider')
+        # Prestataire viewing their own services: include inactive ones
+        if user.is_authenticated and user.role == 'prestataire':
+            try:
+                if provider_param and int(provider_param) == user.id:
+                    return Service.objects.filter(provider=user)
+            except (ValueError, TypeError):
+                pass
+        return Service.objects.filter(is_active=True)
+
     def perform_create(self, serializer):
         serializer.save(provider=self.request.user)
     
