@@ -6,7 +6,7 @@ import {
   CheckCircle, XCircle, User, MessageSquare, Settings, LogOut,
   Plus, Send, Bell, Lock, Trash2, ChevronRight, Camera,
   Phone, MapPin, Mail, Shield, Eye, EyeOff,
-  ChevronDown, ChevronUp, Edit2, X, Briefcase, LocateFixed, FileText,
+  ChevronDown, ChevronUp, Edit2, X, Briefcase, LocateFixed, FileText, Menu,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -155,11 +155,15 @@ function MessagesTab() {
 
   if (loading) return <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>;
 
+  const convListCls = selectedUserId
+    ? 'hidden md:flex w-full md:w-72 border-r flex-col'
+    : 'flex w-full md:w-72 border-r flex-col';
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ height: '72vh' }}>
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ height: 'calc(100vh - 130px)' }}>
       <div className="flex h-full">
         {/* Conversation list */}
-        <div className="w-72 border-r flex flex-col">
+        <div className={convListCls}>
           <div className="p-4 border-b">
             <h2 className="font-semibold text-gray-900">Messages</h2>
           </div>
@@ -204,21 +208,25 @@ function MessagesTab() {
 
         {/* Thread */}
         {selectedConv ? (
-          <div className="flex-1 flex flex-col">
-            <div className="px-6 py-4 border-b flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-coupdemain-primary/15 flex items-center justify-center text-sm font-semibold text-coupdemain-primary">
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="px-4 py-3 border-b flex items-center gap-3">
+              {/* Back button — mobile only */}
+              <button onClick={() => setSelectedUserId(null)} className="md:hidden text-gray-500 hover:text-gray-700 mr-1">
+                <ChevronRight className="w-5 h-5 rotate-180" />
+              </button>
+              <div className="w-9 h-9 rounded-full bg-coupdemain-primary/15 flex items-center justify-center text-sm font-semibold text-coupdemain-primary shrink-0">
                 {`${selectedConv.partner.first_name?.[0] ?? ''}${selectedConv.partner.last_name?.[0] ?? ''}`.toUpperCase() || '?'}
               </div>
               <p className="font-semibold text-gray-900 text-sm">
                 {selectedConv.partner.first_name} {selectedConv.partner.last_name || selectedConv.partner.username}
               </p>
             </div>
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+            <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-3">
               {thread.map(msg => {
                 const fromMe = msg.sender?.id === user?.id;
                 return (
                   <div key={msg.id} className={`flex ${fromMe ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl text-sm ${
+                    <div className={`max-w-[80%] md:max-w-md px-4 py-2 rounded-2xl text-sm ${
                       fromMe ? 'bg-coupdemain-primary text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'
                     }`}>
                       <p>{msg.content}</p>
@@ -246,7 +254,7 @@ function MessagesTab() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+          <div className="hidden md:flex flex-1 items-center justify-center text-gray-400 text-sm">
             Sélectionnez une conversation
           </div>
         )}
@@ -796,7 +804,7 @@ function ProviderBookingsTab() {
   return (
     <div>
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-5 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-6">
         {[
           { label: 'En attente',    value: counts.pending,           icon: <AlertCircle className="w-7 h-7 text-yellow-400" /> },
           { label: 'Confirmées',    value: counts.confirmed,         icon: <CheckCircle  className="w-7 h-7 text-blue-400"   /> },
@@ -1863,7 +1871,7 @@ function ClientBookingsTab() {
         />
       )}
 
-      <div className="grid grid-cols-3 gap-5 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-5 mb-8">
         {[
           { label: 'Réservations actives', value: active,              icon: <Calendar className="w-7 h-7 text-blue-400" /> },
           { label: 'Services complétés',   value: completed,           icon: <CheckCircle className="w-7 h-7 text-green-400" /> },
@@ -1994,7 +2002,7 @@ function ProviderOverviewTab() {
 
   return (
     <>
-      <div className="grid grid-cols-5 gap-5 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-5 mb-8">
         {[
           { label: 'En attente',     value: pending,                   icon: <AlertCircle className="w-7 h-7 text-yellow-400" /> },
           { label: "Aujourd'hui",    value: todayCount,                icon: <Calendar className="w-7 h-7 text-blue-400" /> },
@@ -2325,6 +2333,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { unreadCount } = useNotifications();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [activeMode, setActiveMode] = useState<Mode>(() => {
     const saved = localStorage.getItem('dashboard_mode') as Mode | null;
@@ -2383,13 +2392,37 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-sm border-r border-gray-100 flex flex-col">
-        <div className="p-5 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-coupdemain-primary">Coupdemain</h2>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {isProviderMode ? 'Espace Prestataire' : 'Espace Client'}
-          </p>
+
+      {/* ── Mobile top bar ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-100 flex items-center justify-between px-4 h-14">
+        <button onClick={() => setSidebarOpen(true)} className="text-gray-600 p-1">
+          <Menu className="w-6 h-6" />
+        </button>
+        <span className="text-base font-bold text-coupdemain-primary">Coupdemain</span>
+        <span className="w-8" /> {/* spacer */}
+      </div>
+
+      {/* ── Sidebar backdrop (mobile) ── */}
+      {sidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Sidebar ── */}
+      <div className={`fixed left-0 top-0 h-full w-64 bg-white shadow-sm border-r border-gray-100 flex flex-col z-50 transition-transform duration-200
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-coupdemain-primary">Coupdemain</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {isProviderMode ? 'Espace Prestataire' : 'Espace Client'}
+            </p>
+          </div>
+          <button onClick={() => setSidebarOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600 p-1">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Toggle Client / Prestataire */}
@@ -2414,7 +2447,7 @@ export default function DashboardPage() {
 
         <nav className="flex-1 py-4 overflow-y-auto">
           {navItems.map(item => (
-            <button key={item.key} onClick={() => setActiveTab(item.key)}
+            <button key={item.key} onClick={() => { setActiveTab(item.key); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-6 py-3 text-sm text-left transition ${
                 activeTab === item.key
                   ? 'bg-coupdemain-primary/10 text-coupdemain-primary border-r-4 border-coupdemain-primary font-medium'
@@ -2430,7 +2463,7 @@ export default function DashboardPage() {
               <p className="text-xs font-semibold text-coupdemain-primary mb-1">Vous offrez des services ?</p>
               <p className="text-xs text-gray-500 mb-2">Activez votre profil prestataire pour proposer vos compétences.</p>
               <button
-                onClick={() => setShowOnboarding(true)}
+                onClick={() => { setShowOnboarding(true); setSidebarOpen(false); }}
                 className="w-full bg-coupdemain-primary text-white text-xs py-1.5 rounded-lg font-semibold hover:bg-coupdemain-primary/90 transition"
               >Activer le mode Pro</button>
             </div>
@@ -2445,10 +2478,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Contenu principal */}
-      <div className="ml-64 p-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Bonjour, {displayName} 👋</h1>
+      {/* ── Contenu principal ── */}
+      <div className="md:ml-64 pt-14 md:pt-0 p-4 md:p-8">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Bonjour, {displayName} 👋</h1>
           <p className="text-gray-500 mt-1 text-sm">
             {isProviderMode ? 'Tableau de bord prestataire' : 'Voici un aperçu de votre activité'}
           </p>
