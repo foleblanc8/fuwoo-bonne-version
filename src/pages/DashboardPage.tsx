@@ -942,6 +942,8 @@ function ProviderBookingsTab() {
 
 // ─── Provider Services Tab ────────────────────────────────────────────────────
 
+type ServiceImage = { id: number; image: string; is_primary: boolean };
+
 type ProviderService = {
   id: number;
   title: string;
@@ -956,6 +958,7 @@ type ProviderService = {
   is_active: boolean;
   rating: number;
   total_bookings: number;
+  images: ServiceImage[];
 };
 
 type ServiceForm = {
@@ -980,6 +983,12 @@ function ProviderServicesTab() {
   const [form, setForm]             = useState<ServiceForm>(defaultServiceForm);
   const [saving, setSaving]         = useState(false);
   const [deleting, setDeleting]     = useState<number | null>(null);
+  // Images
+  const [existingImages, setExistingImages] = useState<ServiceImage[]>([]);
+  const [pendingFiles, setPendingFiles]     = useState<File[]>([]);
+  const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
+  const [deletingImg, setDeletingImg]       = useState<number | null>(null);
+  const imgInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -995,7 +1004,19 @@ function ProviderServicesTab() {
     }).finally(() => setLoading(false));
   }, [user?.id, refreshKey]);
 
-  const openCreate = () => { setForm(defaultServiceForm); setEditId(null); setShowModal(true); };
+  const resetImageState = () => {
+    setPendingFiles([]);
+    setPendingPreviews([]);
+    setExistingImages([]);
+  };
+
+  const openCreate = () => {
+    setForm(defaultServiceForm);
+    setEditId(null);
+    resetImageState();
+    setShowModal(true);
+  };
+
   const openEdit = (s: ProviderService) => {
     setForm({
       title: s.title, description: s.description,
@@ -1005,7 +1026,35 @@ function ProviderServicesTab() {
       max_distance: String(s.max_distance), instant_booking: s.instant_booking,
     });
     setEditId(s.id);
+    setExistingImages(s.images ?? []);
+    setPendingFiles([]);
+    setPendingPreviews([]);
     setShowModal(true);
+  };
+
+  const handleImgSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setPendingFiles(prev => [...prev, ...files]);
+    const previews = files.map(f => URL.createObjectURL(f));
+    setPendingPreviews(prev => [...prev, ...previews]);
+    if (imgInputRef.current) imgInputRef.current.value = '';
+  };
+
+  const removePending = (i: number) => {
+    URL.revokeObjectURL(pendingPreviews[i]);
+    setPendingFiles(prev => prev.filter((_, idx) => idx !== i));
+    setPendingPreviews(prev => prev.filter((_, idx) => idx !== i));
+  };
+
+  const handleDeleteExistingImg = async (imgId: number) => {
+    if (!editId) return;
+    setDeletingImg(imgId);
+    try {
+      await axios.delete(`services/${editId}/images/${imgId}/`);
+      setExistingImages(prev => prev.filter(img => img.id !== imgId));
+    } catch { /* silent */ }
+    finally { setDeletingImg(null); }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -1022,11 +1071,23 @@ function ProviderServicesTab() {
       instant_booking: form.instant_booking,
     };
     try {
+      let serviceId = editId;
       if (editId) {
         await axios.patch(`services/${editId}/`, payload);
       } else {
-        await axios.post('services/', payload);
+        const res = await axios.post('services/', payload);
+        serviceId = (res.data as any).id;
       }
+      // Upload des images en attente
+      for (let i = 0; i < pendingFiles.length; i++) {
+        const fd = new FormData();
+        fd.append('image', pendingFiles[i]);
+        if (i === 0 && existingImages.length === 0) fd.append('is_primary', 'true');
+        await axios.post(`services/${serviceId}/upload_image/`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
+      pendingPreviews.forEach(url => URL.revokeObjectURL(url));
       setShowModal(false);
       setRefreshKey(k => k + 1);
     } catch { /* silent */ }
@@ -1081,10 +1142,16 @@ function ProviderServicesTab() {
         </div>
       ) : (
         <div className="space-y-4">
-          {services.map(s => (
+          {services.map(s => {
+            const primaryImg = s.images?.find(img => img.is_primary) ?? s.images?.[0];
+            return (
             <div key={s.id} className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-5">
-              <div className="w-14 h-14 rounded-xl bg-coupdemain-primary/10 flex items-center justify-center shrink-0">
-                <Briefcase className="w-6 h-6 text-coupdemain-primary" />
+              <div className="w-14 h-14 rounded-xl bg-coupdemain-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                {primaryImg ? (
+                  <img src={primaryImg.image} alt={s.title} className="w-full h-full object-cover" />
+                ) : (
+                  <Briefcase className="w-6 h-6 text-coupdemain-primary" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -1132,7 +1199,8 @@ function ProviderServicesTab() {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -1215,6 +1283,64 @@ function ProviderServicesTab() {
                   <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${form.instant_booking ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
+              {/* Section images */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Photos du service</label>
+
+                {/* Images existantes (mode édition) */}
+                {existingImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {existingImages.map(img => (
+                      <div key={img.id} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-gray-200">
+                        <img src={img.image} alt="" className="w-full h-full object-cover" />
+                        {img.is_primary && (
+                          <span className="absolute bottom-0 left-0 right-0 bg-coupdemain-primary text-white text-[9px] text-center py-0.5">
+                            Principale
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExistingImg(img.id)}
+                          disabled={deletingImg === img.id}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full items-center justify-center hidden group-hover:flex transition disabled:opacity-50"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Nouvelles images en attente */}
+                {pendingPreviews.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {pendingPreviews.map((url, i) => (
+                      <div key={i} className="relative group w-20 h-20 rounded-xl overflow-hidden border-2 border-dashed border-coupdemain-primary/40">
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removePending(i)}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full items-center justify-center hidden group-hover:flex transition"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => imgInputRef.current?.click()}
+                  className="flex items-center gap-2 border border-dashed border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-500 hover:border-coupdemain-primary hover:text-coupdemain-primary transition w-full justify-center"
+                >
+                  <Camera className="w-4 h-4" />
+                  Ajouter des photos
+                </button>
+                <input ref={imgInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImgSelect} />
+                <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP — max 5 Mo par image. La première image deviendra la photo principale.</p>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)}
                   className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition">

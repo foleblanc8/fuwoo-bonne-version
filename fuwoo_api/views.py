@@ -233,6 +233,34 @@ class ServiceViewSet(viewsets.ModelViewSet):
         serializer = ReviewSerializer(reviews, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['post'], parser_classes=[MultiPartParser, FormParser])
+    def upload_image(self, request, pk=None):
+        service = self.get_object()
+        if service.provider != request.user:
+            return Response({'detail': 'Non autorisé'}, status=status.HTTP_403_FORBIDDEN)
+        image = request.FILES.get('image')
+        if not image:
+            return Response({'detail': 'Image manquante'}, status=status.HTTP_400_BAD_REQUEST)
+        is_primary = request.data.get('is_primary', 'false').lower() == 'true'
+        # Si cette image est primaire, retirer le flag des autres
+        if is_primary:
+            service.images.update(is_primary=False)
+        si = ServiceImage.objects.create(service=service, image=image, is_primary=is_primary)
+        from .serializers import ServiceImageSerializer as SIS
+        return Response(SIS(si).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['delete'], url_path=r'images/(?P<image_id>\d+)')
+    def delete_image(self, request, pk=None, image_id=None):
+        service = self.get_object()
+        if service.provider != request.user:
+            return Response({'detail': 'Non autorisé'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            img = ServiceImage.objects.get(id=image_id, service=service)
+            img.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except ServiceImage.DoesNotExist:
+            return Response({'detail': 'Image introuvable'}, status=status.HTTP_404_NOT_FOUND)
+
 class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated]
