@@ -10,6 +10,7 @@ interface User {
   first_name: string;
   last_name: string;
   role: 'client' | 'prestataire';
+  has_provider_profile: boolean;
   phone_number?: string;
   address?: string;
   profile_picture?: string | null;

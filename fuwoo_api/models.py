@@ -25,6 +25,9 @@ class CustomUser(AbstractUser):
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
+    # Profil prestataire activé (indépendant du rôle — tout utilisateur peut l'activer)
+    has_provider_profile = models.BooleanField(default=False)
+
     # Pour les prestataires
     is_verified = models.BooleanField(default=False)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)

@@ -68,10 +68,10 @@ const Inscription = () => {
           </p>
         </div>
 
-        {/* Sélecteur de rôle */}
+        {/* Sélecteur de mode */}
         <div className="mb-8">
           <p className="text-sm font-semibold text-gray-700 mb-3 text-center uppercase tracking-wide">
-            Je veux…
+            Comment comptez-vous utiliser Coupdemain ?
           </p>
           <div className="grid grid-cols-2 gap-4">
             {/* Client */}
@@ -89,22 +89,16 @@ const Inscription = () => {
                   <Check className="w-3 h-3 text-white" strokeWidth={3} />
                 </span>
               )}
-              <div
-                className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  role === "client" ? "bg-coupdemain-primary text-white" : "bg-gray-100 text-gray-500"
-                }`}
-              >
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${role === "client" ? "bg-coupdemain-primary text-white" : "bg-gray-100 text-gray-500"}`}>
                 <Home className="w-6 h-6" />
               </div>
               <div className="text-center">
-                <p className="font-semibold text-gray-800">Demander un service</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Trouvez des pros pour votre maison
-                </p>
+                <p className="font-semibold text-gray-800">Trouver des services</p>
+                <p className="text-xs text-gray-500 mt-1">Trouver des pros pour votre maison</p>
               </div>
             </button>
 
-            {/* Prestataire */}
+            {/* Prestataire + client */}
             <button
               type="button"
               onClick={() => setRole("prestataire")}
@@ -119,27 +113,20 @@ const Inscription = () => {
                   <Check className="w-3 h-3 text-white" strokeWidth={3} />
                 </span>
               )}
-              <div
-                className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  role === "prestataire" ? "bg-coupdemain-primary text-white" : "bg-gray-100 text-gray-500"
-                }`}
-              >
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${role === "prestataire" ? "bg-coupdemain-primary text-white" : "bg-gray-100 text-gray-500"}`}>
                 <Wrench className="w-6 h-6" />
               </div>
               <div className="text-center">
-                <p className="font-semibold text-gray-800">Offrir un service</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Proposez vos compétences et gagnez
-                </p>
+                <p className="font-semibold text-gray-800">Offrir & trouver</p>
+                <p className="text-xs text-gray-500 mt-1">Proposez vos services ET trouvez-en</p>
               </div>
             </button>
           </div>
 
-          {/* Badge contextuel */}
           <p className="text-center text-xs text-gray-400 mt-3">
-            {role === "client"
-              ? "Comme commander sur Uber Eats, mais pour les services à domicile."
-              : "Comme être chauffeur Uber — vous choisissez vos horaires et tarifs."}
+            {role === "prestataire"
+              ? "Les deux modes sont disponibles depuis votre tableau de bord."
+              : "Vous pourrez activer le mode prestataire à tout moment."}
           </p>
         </div>
 

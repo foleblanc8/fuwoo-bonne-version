@@ -14,9 +14,9 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                 'role', 'phone_number', 'address', 'profile_picture',
-                 'bio', 'is_verified', 'rating', 'total_reviews',
-                 'latitude', 'longitude']
+                 'role', 'has_provider_profile', 'phone_number', 'address',
+                 'profile_picture', 'bio', 'is_verified', 'rating',
+                 'total_reviews', 'latitude', 'longitude']
         read_only_fields = ['rating', 'total_reviews', 'is_verified']
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -36,8 +36,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
+        role = validated_data.get('role', 'client')
         user = User.objects.create_user(**validated_data)
         user.set_password(password)
+        if role == 'prestataire':
+            user.has_provider_profile = True
         user.save()
         return user
 

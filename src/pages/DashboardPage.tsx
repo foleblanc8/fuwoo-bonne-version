@@ -653,7 +653,7 @@ function ProviderBookingsTab() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
-  useEffect(() => { fetchBookings(); }, []);
+  useEffect(() => { fetchBookings('provider'); }, []);
 
   const filtered = filter === 'all' ? bookings : bookings.filter(b => b.status === filter);
   const counts = {
@@ -1480,206 +1480,114 @@ function ClientRequestsTab() {
   );
 }
 
-// ─── Client Dashboard ─────────────────────────────────────────────────────────
+// ─── Dashboard unifié ─────────────────────────────────────────────────────────
 
-const ClientDashboard = () => {
+type ProviderBookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+type ProviderBooking = { id: number; client: string; service: string; date: string; time: string; status: ProviderBookingStatus; price: number; address: string };
+type Mode = 'client' | 'provider';
+
+export default function DashboardPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('bookings');
-  const [bookings] = useState<Booking[]>([
+  const { unreadCount } = useNotifications();
+
+  const [activeMode, setActiveMode] = useState<Mode>(() => {
+    const saved = localStorage.getItem('dashboard_mode') as Mode | null;
+    if (saved === 'provider' && user?.has_provider_profile) return 'provider';
+    return 'client';
+  });
+
+  const [activeTab, setActiveTab] = useState(() =>
+    activeMode === 'provider' ? 'overview' : 'bookings'
+  );
+
+  const switchMode = (mode: Mode) => {
+    setActiveMode(mode);
+    localStorage.setItem('dashboard_mode', mode);
+    setActiveTab(mode === 'provider' ? 'overview' : 'bookings');
+  };
+
+  const isProviderMode = activeMode === 'provider' && !!user?.has_provider_profile;
+  const displayName = user?.first_name || user?.username || 'Vous';
+
+  const notifIcon = (
+    <span className="relative">
+      <Bell className="w-5 h-5" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
+    </span>
+  );
+
+  const clientNavItems = [
+    { key: 'bookings',      label: 'Mes réservations', icon: <Calendar className="w-5 h-5" /> },
+    { key: 'requests',      label: 'Mes demandes',     icon: <FileText className="w-5 h-5" /> },
+    { key: 'messages',      label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
+    { key: 'notifications', label: 'Notifications',    icon: notifIcon },
+    { key: 'profile',       label: 'Mon profil',        icon: <User className="w-5 h-5" /> },
+    { key: 'settings',      label: 'Paramètres',        icon: <Settings className="w-5 h-5" /> },
+  ];
+
+  const providerNavItems = [
+    { key: 'overview',      label: "Vue d'ensemble",   icon: <TrendingUp className="w-5 h-5" /> },
+    { key: 'bookings',      label: 'Réservations',     icon: <Calendar className="w-5 h-5" /> },
+    { key: 'services',      label: 'Mes services',     icon: <Briefcase className="w-5 h-5" /> },
+    { key: 'requests',      label: 'Demandes',         icon: <FileText className="w-5 h-5" /> },
+    { key: 'messages',      label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
+    { key: 'notifications', label: 'Notifications',    icon: notifIcon },
+    { key: 'profile',       label: 'Mon profil',        icon: <User className="w-5 h-5" /> },
+    { key: 'settings',      label: 'Paramètres',        icon: <Settings className="w-5 h-5" /> },
+  ];
+
+  const navItems = isProviderMode ? providerNavItems : clientNavItems;
+
+  // Données mock — client
+  const [clientBookings] = useState<Booking[]>([
     { id: 1, service: 'Plomberie — Réparation de fuite', provider: 'Jean Tremblay', date: '2026-04-15', time: '10:00', status: 'confirmed', price: 150 },
     { id: 2, service: 'Ménage résidentiel',              provider: 'Marie Côté',    date: '2026-04-10', time: '14:00', status: 'completed', price: 80 },
   ]);
 
-  const displayName = user?.first_name || user?.username || 'Vous';
-
-  const { unreadCount } = useNotifications();
-
-  const navItems = [
-    { key: 'bookings',       label: 'Mes réservations', icon: <Calendar className="w-5 h-5" /> },
-    { key: 'requests',       label: 'Mes demandes',     icon: <FileText className="w-5 h-5" /> },
-    { key: 'messages',       label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
-    {
-      key: 'notifications',
-      label: 'Notifications',
-      icon: (
-        <span className="relative">
-          <Bell className="w-5 h-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </span>
-      ),
-    },
-    { key: 'profile',  label: 'Mon profil',        icon: <User className="w-5 h-5" /> },
-    { key: 'settings', label: 'Paramètres',        icon: <Settings className="w-5 h-5" /> },
-  ];
+  // Données mock — vue d'ensemble prestataire
+  const stats = { pendingBookings: 3, todayBookings: 2, monthlyRevenue: 3450, rating: 4.8, completionRate: 95 };
+  const [overviewBookings] = useState<ProviderBooking[]>([
+    { id: 1, client: 'Alexandre Roy',   service: 'Plomberie — Réparation de fuite', date: '2026-04-15', time: '10:00', status: 'pending',   price: 150, address: '123 Rue Example, Montréal' },
+    { id: 2, client: 'Sophie Tremblay', service: 'Installation robinet',             date: '2026-04-15', time: '14:00', status: 'confirmed', price: 200, address: '456 Avenue Test, Laval' },
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-sm border-r border-gray-100 flex flex-col">
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-5 border-b border-gray-100">
           <h2 className="text-xl font-bold text-coupdemain-primary">Coupdemain</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Espace Client</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {isProviderMode ? 'Espace Prestataire' : 'Espace Client'}
+          </p>
         </div>
 
-        <nav className="flex-1 py-4">
-          {navItems.map(item => (
-            <button key={item.key} onClick={() => setActiveTab(item.key)}
-              className={`w-full flex items-center gap-3 px-6 py-3 text-sm text-left transition ${
-                activeTab === item.key
-                  ? 'bg-coupdemain-primary/10 text-coupdemain-primary border-r-4 border-coupdemain-primary font-medium'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}>
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t border-gray-100">
-          <button onClick={() => { logout(); navigate('/'); }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-xl transition">
-            <LogOut className="w-4 h-4" />
-            Déconnexion
-          </button>
-        </div>
-      </div>
-
-      {/* Main */}
-      <div className="ml-64 p-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Bonjour, {displayName} 👋</h1>
-          <p className="text-gray-500 mt-1 text-sm">Voici un aperçu de votre activité</p>
-        </div>
-
-        {/* Stats */}
-        {activeTab === 'bookings' && (
-          <div className="grid grid-cols-4 gap-5 mb-8">
-            {[
-              { label: 'Réservations actives', value: bookings.filter(b => b.status === 'confirmed').length, icon: <Calendar className="w-7 h-7 text-blue-400" /> },
-              { label: 'Services complétés',   value: bookings.filter(b => b.status === 'completed').length,  icon: <CheckCircle className="w-7 h-7 text-green-400" /> },
-              { label: 'Total dépensé',        value: `$${bookings.filter(b => b.status === 'completed').reduce((s, b) => s + b.price, 0)}`, icon: <DollarSign className="w-7 h-7 text-yellow-400" /> },
-              { label: 'Prestataires favoris', value: 3, icon: <Star className="w-7 h-7 text-purple-400" /> },
-            ].map(card => (
-              <div key={card.label} className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">{card.label}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{card.value}</p>
-                </div>
-                {card.icon}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Bookings tab */}
-        {activeTab === 'bookings' && (
-          <div className="bg-white rounded-2xl shadow-sm">
-            <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Mes réservations</h2>
-              <button onClick={() => navigate('/services')}
-                className="bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm flex items-center gap-2 hover:bg-coupdemain-primary/90 transition">
-                <Plus className="w-4 h-4" />
-                Nouvelle réservation
-              </button>
-            </div>
-            <div className="divide-y">
-              {bookings.map(b => (
-                <div key={b.id} className="p-6 hover:bg-gray-50 transition">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900">{b.service}</p>
-                      <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
-                        <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{b.provider}</span>
-                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{new Date(b.date).toLocaleDateString('fr-CA')}</span>
-                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{b.time}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-gray-900">${b.price}</p>
-                      <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs mt-1.5 ${getStatusColor(b.status)}`}>
-                        {getStatusIcon(b.status)}
-                        {getStatusText(b.status)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 mt-3">
-                    {b.status === 'completed' && <button className="text-xs text-coupdemain-primary font-medium hover:underline">Laisser un avis</button>}
-                    {b.status === 'completed' && <span className="text-gray-200">•</span>}
-                    <button className="text-xs text-coupdemain-primary font-medium hover:underline">Voir les détails</button>
-                    {b.status !== 'completed' && b.status !== 'cancelled' && (
-                      <><span className="text-gray-200">•</span><button className="text-xs text-red-500 font-medium hover:underline">Annuler</button></>
-                    )}
-                  </div>
-                </div>
-              ))}
+        {/* Toggle Client / Prestataire */}
+        {user?.has_provider_profile && (
+          <div className="px-4 py-3 border-b border-gray-100">
+            <div className="flex bg-gray-100 rounded-xl p-1">
+              <button
+                onClick={() => switchMode('client')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  !isProviderMode ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >Client</button>
+              <button
+                onClick={() => switchMode('provider')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  isProviderMode ? 'bg-white shadow-sm text-coupdemain-primary' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >Prestataire</button>
             </div>
           </div>
         )}
 
-        {activeTab === 'requests'       && <ClientRequestsTab />}
-        {activeTab === 'messages'       && <MessagesTab />}
-        {activeTab === 'notifications'  && <NotificationsTab />}
-        {activeTab === 'profile'        && <ProfileTab />}
-        {activeTab === 'settings'       && <SettingsTab />}
-      </div>
-    </div>
-  );
-};
-
-// ─── Provider Dashboard (unchanged) ──────────────────────────────────────────
-
-type ProviderBookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
-type ProviderBooking = { id: number; client: string; service: string; date: string; time: string; status: ProviderBookingStatus; price: number; address: string };
-
-const ProviderDashboard = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [bookings] = useState<ProviderBooking[]>([
-    { id: 1, client: 'Alexandre Roy',    service: 'Plomberie — Réparation de fuite', date: '2026-04-15', time: '10:00', status: 'pending',   price: 150, address: '123 Rue Example, Montréal' },
-    { id: 2, client: 'Sophie Tremblay', service: 'Installation robinet',             date: '2026-04-15', time: '14:00', status: 'confirmed', price: 200, address: '456 Avenue Test, Laval' },
-  ]);
-  const stats = { pendingBookings: 3, todayBookings: 2, monthlyRevenue: 3450, rating: 4.8, completionRate: 95 };
-
-  const { unreadCount: providerUnreadCount } = useNotifications();
-
-  const navItems = [
-    { key: 'overview',  label: "Vue d'ensemble", icon: <TrendingUp className="w-5 h-5" /> },
-    { key: 'bookings',  label: 'Réservations',   icon: <Calendar className="w-5 h-5" /> },
-    { key: 'services',  label: 'Mes services',   icon: <Briefcase className="w-5 h-5" /> },
-    { key: 'requests',  label: 'Demandes',       icon: <FileText className="w-5 h-5" /> },
-    { key: 'messages',  label: 'Messages',       icon: <MessageSquare className="w-5 h-5" /> },
-    {
-      key: 'notifications',
-      label: 'Notifications',
-      icon: (
-        <span className="relative">
-          <Bell className="w-5 h-5" />
-          {providerUnreadCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
-              {providerUnreadCount > 99 ? '99+' : providerUnreadCount}
-            </span>
-          )}
-        </span>
-      ),
-    },
-    { key: 'profile',   label: 'Mon profil',     icon: <User className="w-5 h-5" /> },
-    { key: 'settings',  label: 'Paramètres',     icon: <Settings className="w-5 h-5" /> },
-  ];
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-sm border-r border-gray-100 flex flex-col">
-        <div className="p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-coupdemain-primary">Coupdemain Pro</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Espace Prestataire</p>
-        </div>
-        <nav className="flex-1 py-4">
+        <nav className="flex-1 py-4 overflow-y-auto">
           {navItems.map(item => (
             <button key={item.key} onClick={() => setActiveTab(item.key)}
               className={`w-full flex items-center gap-3 px-6 py-3 text-sm text-left transition ${
@@ -1690,7 +1598,25 @@ const ProviderDashboard = () => {
               {item.icon}{item.label}
             </button>
           ))}
+
+          {/* CTA activation profil prestataire */}
+          {!user?.has_provider_profile && (
+            <div className="mx-4 mt-6 p-3 bg-coupdemain-primary/5 rounded-xl border border-coupdemain-primary/20">
+              <p className="text-xs font-semibold text-coupdemain-primary mb-1">Vous offrez des services ?</p>
+              <p className="text-xs text-gray-500 mb-2">Activez votre profil prestataire pour proposer vos compétences.</p>
+              <button
+                onClick={async () => {
+                  try {
+                    await import('axios').then(m => m.default.post('become-provider/'));
+                    window.location.reload();
+                  } catch { /* silent */ }
+                }}
+                className="w-full bg-coupdemain-primary text-white text-xs py-1.5 rounded-lg font-semibold hover:bg-coupdemain-primary/90 transition"
+              >Activer le mode Pro</button>
+            </div>
+          )}
         </nav>
+
         <div className="p-4 border-t border-gray-100">
           <button onClick={() => { logout(); navigate('/'); }}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-xl transition">
@@ -1699,20 +1625,91 @@ const ProviderDashboard = () => {
         </div>
       </div>
 
+      {/* Contenu principal */}
       <div className="ml-64 p-8">
-        {activeTab === 'overview' && (
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Bonjour, {displayName} 👋</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            {isProviderMode ? 'Tableau de bord prestataire' : 'Voici un aperçu de votre activité'}
+          </p>
+        </div>
+
+        {/* ── MODE CLIENT ── */}
+        {!isProviderMode && activeTab === 'bookings' && (
           <>
-            <div className="mb-8">
-              <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-              <p className="text-gray-500 mt-1 text-sm">Bonjour, {user?.first_name || user?.username} 👋</p>
+            <div className="grid grid-cols-4 gap-5 mb-8">
+              {[
+                { label: 'Réservations actives', value: clientBookings.filter(b => b.status === 'confirmed').length, icon: <Calendar className="w-7 h-7 text-blue-400" /> },
+                { label: 'Services complétés',   value: clientBookings.filter(b => b.status === 'completed').length,  icon: <CheckCircle className="w-7 h-7 text-green-400" /> },
+                { label: 'Total dépensé',        value: `$${clientBookings.filter(b => b.status === 'completed').reduce((s, b) => s + b.price, 0)}`, icon: <DollarSign className="w-7 h-7 text-yellow-400" /> },
+                { label: 'Prestataires favoris', value: 3, icon: <Star className="w-7 h-7 text-purple-400" /> },
+              ].map(card => (
+                <div key={card.label} className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500">{card.label}</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{card.value}</p>
+                  </div>
+                  {card.icon}
+                </div>
+              ))}
             </div>
+            <div className="bg-white rounded-2xl shadow-sm">
+              <div className="p-6 border-b flex items-center justify-between">
+                <h2 className="font-semibold text-gray-900">Mes réservations</h2>
+                <button onClick={() => navigate('/services')}
+                  className="bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm flex items-center gap-2 hover:bg-coupdemain-primary/90 transition">
+                  <Plus className="w-4 h-4" />Nouvelle réservation
+                </button>
+              </div>
+              <div className="divide-y">
+                {clientBookings.map(b => (
+                  <div key={b.id} className="p-6 hover:bg-gray-50 transition">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">{b.service}</p>
+                        <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
+                          <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{b.provider}</span>
+                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{new Date(b.date).toLocaleDateString('fr-CA')}</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{b.time}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-900">${b.price}</p>
+                        <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs mt-1.5 ${getStatusColor(b.status)}`}>
+                          {getStatusIcon(b.status)}{getStatusText(b.status)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 mt-3">
+                      {b.status === 'completed' && <button className="text-xs text-coupdemain-primary font-medium hover:underline">Laisser un avis</button>}
+                      {b.status === 'completed' && <span className="text-gray-200">•</span>}
+                      <button className="text-xs text-coupdemain-primary font-medium hover:underline">Voir les détails</button>
+                      {b.status !== 'completed' && b.status !== 'cancelled' && (
+                        <><span className="text-gray-200">•</span><button className="text-xs text-red-500 font-medium hover:underline">Annuler</button></>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+        {!isProviderMode && activeTab === 'requests'      && <ClientRequestsTab />}
+        {!isProviderMode && activeTab === 'messages'      && <MessagesTab />}
+        {!isProviderMode && activeTab === 'notifications' && <NotificationsTab />}
+        {!isProviderMode && activeTab === 'profile'       && <ProfileTab />}
+        {!isProviderMode && activeTab === 'settings'      && <SettingsTab />}
+
+        {/* ── MODE PRESTATAIRE ── */}
+        {isProviderMode && activeTab === 'overview' && (
+          <>
             <div className="grid grid-cols-5 gap-5 mb-8">
               {[
-                { label: 'En attente',    value: stats.pendingBookings,              icon: <AlertCircle className="w-7 h-7 text-yellow-400" /> },
-                { label: "Aujourd'hui",   value: stats.todayBookings,                icon: <Calendar className="w-7 h-7 text-blue-400" /> },
-                { label: 'Revenus (mois)',value: `$${stats.monthlyRevenue}`,          icon: <DollarSign className="w-7 h-7 text-green-400" /> },
-                { label: 'Note moyenne',  value: `${stats.rating}/5`,                icon: <Star className="w-7 h-7 text-yellow-400" /> },
-                { label: 'Taux réussite', value: `${stats.completionRate}%`,         icon: <CheckCircle className="w-7 h-7 text-purple-400" /> },
+                { label: 'En attente',     value: stats.pendingBookings,      icon: <AlertCircle className="w-7 h-7 text-yellow-400" /> },
+                { label: "Aujourd'hui",    value: stats.todayBookings,        icon: <Calendar className="w-7 h-7 text-blue-400" /> },
+                { label: 'Revenus (mois)', value: `$${stats.monthlyRevenue}`, icon: <DollarSign className="w-7 h-7 text-green-400" /> },
+                { label: 'Note moyenne',   value: `${stats.rating}/5`,        icon: <Star className="w-7 h-7 text-yellow-400" /> },
+                { label: 'Taux réussite',  value: `${stats.completionRate}%`, icon: <CheckCircle className="w-7 h-7 text-purple-400" /> },
               ].map(c => (
                 <div key={c.label} className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
                   <div><p className="text-xs text-gray-500">{c.label}</p><p className="text-2xl font-bold text-gray-900 mt-1">{c.value}</p></div>
@@ -1723,7 +1720,7 @@ const ProviderDashboard = () => {
             <div className="bg-white rounded-2xl shadow-sm">
               <div className="p-6 border-b"><h2 className="font-semibold text-gray-900">Réservations récentes</h2></div>
               <div className="divide-y">
-                {bookings.map(b => (
+                {overviewBookings.map(b => (
                   <div key={b.id} className="p-6 hover:bg-gray-50 transition">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1752,21 +1749,14 @@ const ProviderDashboard = () => {
             </div>
           </>
         )}
-        {activeTab === 'bookings'      && <ProviderBookingsTab />}
-        {activeTab === 'services'      && <ProviderServicesTab />}
-        {activeTab === 'requests'      && <ProviderRequestsTab />}
-        {activeTab === 'messages'      && <MessagesTab />}
-        {activeTab === 'notifications' && <NotificationsTab />}
-        {activeTab === 'profile'       && <ProfileTab />}
-        {activeTab === 'settings'      && <SettingsTab />}
+        {isProviderMode && activeTab === 'bookings'      && <ProviderBookingsTab />}
+        {isProviderMode && activeTab === 'services'      && <ProviderServicesTab />}
+        {isProviderMode && activeTab === 'requests'      && <ProviderRequestsTab />}
+        {isProviderMode && activeTab === 'messages'      && <MessagesTab />}
+        {isProviderMode && activeTab === 'notifications' && <NotificationsTab />}
+        {isProviderMode && activeTab === 'profile'       && <ProfileTab />}
+        {isProviderMode && activeTab === 'settings'      && <SettingsTab />}
       </div>
     </div>
   );
-};
-
-// ─── Export ───────────────────────────────────────────────────────────────────
-
-export default function DashboardPage() {
-  const { user } = useAuth();
-  return user?.role === 'prestataire' ? <ProviderDashboard /> : <ClientDashboard />;
 }

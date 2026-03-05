@@ -176,11 +176,12 @@ def profile(request):
 @permission_classes([IsAuthenticated])
 def become_provider(request):
     user = request.user
-    if user.role == 'prestataire':
-        return Response({'detail': 'Vous êtes déjà prestataire.'}, 
+    if user.has_provider_profile:
+        return Response({'detail': 'Vous avez déjà un profil prestataire.'},
                       status=status.HTTP_400_BAD_REQUEST)
-    
-    user.role = 'prestataire'
+
+    user.has_provider_profile = True
+    user.role = 'prestataire'   # maintenu pour compatibilité FK
     user.save()
     return Response(UserSerializer(user).data)
 
@@ -214,7 +215,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
         user = self.request.user
         provider_param = self.request.query_params.get('provider')
         # Prestataire viewing their own services: include inactive ones
-        if user.is_authenticated and user.role == 'prestataire':
+        if user.is_authenticated and user.has_provider_profile:
             try:
                 if provider_param and int(provider_param) == user.id:
                     return Service.objects.filter(provider=user)
@@ -241,11 +242,11 @@ class BookingViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'client':
-            return Booking.objects.filter(client=user)
-        elif user.role == 'prestataire':
+        mode = self.request.query_params.get('as')
+        if mode == 'provider' and user.has_provider_profile:
             return Booking.objects.filter(provider=user)
-        return Booking.objects.none()
+        # Par défaut (mode client ou non spécifié) : réservations en tant que client
+        return Booking.objects.filter(client=user)
     
     def perform_create(self, serializer):
         serializer.save(client=self.request.user)
@@ -393,13 +394,13 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        if self.request.user.role == 'prestataire':
+        if self.request.user.has_provider_profile:
             return Availability.objects.filter(provider=self.request.user)
         return Availability.objects.none()
-    
+
     def perform_create(self, serializer):
-        if self.request.user.role != 'prestataire':
-            raise serializers.ValidationError("Seuls les prestataires peuvent définir leurs disponibilités.")
+        if not self.request.user.has_provider_profile:
+            raise serializers.ValidationError("Activez votre profil prestataire pour définir vos disponibilités.")
         serializer.save(provider=self.request.user)
 
 
@@ -410,11 +411,13 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'client':
-            return ServiceRequest.objects.filter(client=user).order_by('-created_at')
-        return ServiceRequest.objects.filter(
-            status='open', submission_deadline__gt=now()
-        ).order_by('submission_deadline')
+        mode = self.request.query_params.get('as')
+        if mode == 'provider' and user.has_provider_profile:
+            return ServiceRequest.objects.filter(
+                status='open', submission_deadline__gt=now()
+            ).order_by('submission_deadline')
+        # Par défaut (mode client) : propres demandes
+        return ServiceRequest.objects.filter(client=user).order_by('-created_at')
 
     def perform_create(self, serializer):
         sr = serializer.save(client=self.request.user)
@@ -428,7 +431,7 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
             return
 
         providers = User.objects.filter(
-            role='prestataire',
+            has_provider_profile=True,
             latitude__isnull=False,
             longitude__isnull=False,
         ).exclude(id=self.request.user.id)
@@ -472,8 +475,10 @@ class BidViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'prestataire':
+        mode = self.request.query_params.get('as')
+        if mode == 'provider' and user.has_provider_profile:
             return Bid.objects.filter(provider=user).order_by('-created_at')
+        # Par défaut (mode client) : offres reçues sur ses demandes
         qs = Bid.objects.filter(service_request__client=user).order_by('-created_at')
         service_request_id = self.request.query_params.get('service_request')
         if service_request_id:
@@ -482,8 +487,8 @@ class BidViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if user.role != 'prestataire':
-            raise serializers.ValidationError('Seuls les prestataires peuvent soumettre une offre.')
+        if not user.has_provider_profile:
+            raise serializers.ValidationError('Activez votre profil prestataire pour soumettre une offre.')
         sr = serializer.validated_data['service_request']
         if sr.status != 'open':
             raise serializers.ValidationError("Cette demande n'est plus ouverte.")

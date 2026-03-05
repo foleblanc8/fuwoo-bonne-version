@@ -24,7 +24,7 @@ interface Booking {
 interface BookingContextType {
   bookings: Booking[];
   loading: boolean;
-  fetchBookings: () => Promise<void>;
+  fetchBookings: (mode?: 'client' | 'provider') => Promise<void>;
   createBooking: (bookingData: any) => Promise<Booking>;
   updateBookingStatus: (id: number, status: string) => Promise<void>;
   cancelBooking: (id: number) => Promise<void>;
@@ -39,10 +39,11 @@ export const BookingProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (mode?: 'client' | 'provider') => {
     try {
       setLoading(true);
-      const response = await axios.get('bookings/');
+      const url = mode ? `bookings/?as=${mode}` : 'bookings/';
+      const response = await axios.get(url);
       const data = response.data as { results?: Booking[] } | Booking[];
       if (Array.isArray(data)) {
         setBookings(data);
