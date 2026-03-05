@@ -1,6 +1,7 @@
 // src/pages/APropos.tsx
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ShieldCheck, Star, Clock, MapPin, Users, Home, Wrench, Heart } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
 
 const stats = [
   { value: "16+", label: "Services disponibles" },
@@ -55,6 +56,17 @@ const steps = [
 ];
 
 const APropos = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleOffrirService = () => {
+    if (user) {
+      navigate('/dashboard', { state: { tab: 'services' } });
+    } else {
+      navigate('/inscription');
+    }
+  };
+
   return (
     <div className="bg-white">
       {/* ── Hero ── */}
@@ -179,12 +191,12 @@ const APropos = () => {
                 Développez votre clientèle sans frais publicitaires. Gérez vos
                 disponibilités, recevez des réservations et bâtissez votre réputation.
               </p>
-              <Link
-                to="/inscription"
+              <button
+                onClick={handleOffrirService}
                 className="inline-block bg-green-500 text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-green-600 transition text-sm"
               >
                 Offrir un service
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -223,12 +235,21 @@ const APropos = () => {
             >
               Voir les services
             </Link>
-            <Link
-              to="/inscription"
-              className="bg-coupdemain-primary border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/10 transition"
-            >
-              Créer un compte gratuit
-            </Link>
+            {user ? (
+              <button
+                onClick={handleOffrirService}
+                className="bg-coupdemain-primary border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/10 transition"
+              >
+                Aller à mon tableau de bord
+              </button>
+            ) : (
+              <Link
+                to="/inscription"
+                className="bg-coupdemain-primary border-2 border-white text-white px-8 py-3 rounded-xl font-semibold hover:bg-white/10 transition"
+              >
+                Créer un compte gratuit
+              </Link>
+            )}
           </div>
         </div>
       </div>

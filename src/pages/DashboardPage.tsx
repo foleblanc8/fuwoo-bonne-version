@@ -8,7 +8,7 @@ import {
   Phone, MapPin, Mail, Shield, Eye, EyeOff,
   ChevronDown, ChevronUp, Edit2, X, Briefcase, LocateFixed, FileText, Menu,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useBookings } from '../contexts/BookingContext';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -2331,19 +2331,25 @@ type Mode = 'client' | 'provider';
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { unreadCount } = useNotifications();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const locationTab = (location.state as any)?.tab as string | undefined;
+
   const [activeMode, setActiveMode] = useState<Mode>(() => {
+    // If navigated with tab=services, switch to provider mode if possible
+    if (locationTab === 'services' && user?.has_provider_profile) return 'provider';
     const saved = localStorage.getItem('dashboard_mode') as Mode | null;
     if (saved === 'provider' && user?.has_provider_profile) return 'provider';
     return 'client';
   });
 
-  const [activeTab, setActiveTab] = useState(() =>
-    activeMode === 'provider' ? 'overview' : 'bookings'
-  );
+  const [activeTab, setActiveTab] = useState(() => {
+    if (locationTab) return locationTab;
+    return activeMode === 'provider' ? 'overview' : 'bookings';
+  });
 
   const switchMode = (mode: Mode) => {
     setActiveMode(mode);
