@@ -6,11 +6,12 @@ import {
   CheckCircle, XCircle, User, MessageSquare, Settings, LogOut,
   Plus, Send, Bell, Lock, Trash2, ChevronRight, Camera,
   Phone, MapPin, Mail, Shield, Eye, EyeOff,
-  ChevronDown, ChevronUp, Edit2, X, Briefcase,
+  ChevronDown, ChevronUp, Edit2, X, Briefcase, LocateFixed,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useBookings } from '../contexts/BookingContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import axios from 'axios';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -197,6 +198,77 @@ function MessagesTab() {
   );
 }
 
+// ─── Notifications Tab ────────────────────────────────────────────────────────
+
+function NotificationsTab() {
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+
+  const typeLabel: Record<string, string> = {
+    booking_request:      'Demande de réservation',
+    booking_confirmed:    'Réservation confirmée',
+    booking_cancelled:    'Réservation annulée',
+    booking_completed:    'Service terminé',
+    new_review:           'Nouvel avis',
+    new_message:          'Nouveau message',
+    new_service_request:  'Nouvelle demande de service',
+  };
+
+  return (
+    <div className="max-w-2xl">
+      <div className="bg-white rounded-2xl shadow-sm">
+        <div className="p-6 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-gray-900">Notifications</h2>
+            {unreadCount > 0 && (
+              <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                {unreadCount}
+              </span>
+            )}
+          </div>
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllAsRead}
+              className="text-xs text-coupdemain-primary hover:underline"
+            >
+              Tout marquer comme lu
+            </button>
+          )}
+        </div>
+
+        {notifications.length === 0 ? (
+          <div className="p-10 text-center text-gray-400 text-sm">
+            Aucune notification pour l'instant.
+          </div>
+        ) : (
+          <div className="divide-y">
+            {notifications.map(n => (
+              <div
+                key={n.id}
+                onClick={() => { if (!n.is_read) markAsRead(n.id); }}
+                className={`p-5 flex gap-4 cursor-pointer transition hover:bg-gray-50 ${!n.is_read ? 'bg-coupdemain-primary/5' : ''}`}
+              >
+                <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${!n.is_read ? 'bg-coupdemain-primary' : 'bg-transparent'}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+                      {typeLabel[n.type] ?? n.type}
+                    </span>
+                    <span className="text-xs text-gray-400 flex-shrink-0">
+                      {new Date(n.created_at).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 mt-0.5">{n.title}</p>
+                  <p className="text-sm text-gray-600 mt-0.5">{n.message}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Profile Tab ──────────────────────────────────────────────────────────────
 
 function ProfileTab() {
@@ -212,6 +284,32 @@ function ProfileTab() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved]   = useState(false);
   const [error, setError]   = useState('');
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'denied'>(
+    (user as any)?.latitude ? 'success' : 'idle',
+  );
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setGeoStatus('denied');
+      return;
+    }
+    setGeoStatus('loading');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          await axios.patch('profile/', {
+            latitude:  pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          });
+          setGeoStatus('success');
+        } catch {
+          setGeoStatus('denied');
+        }
+      },
+      () => setGeoStatus('denied'),
+      { timeout: 8000 },
+    );
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -297,6 +395,25 @@ function ProfileTab() {
           <input name="address" value={form.address} onChange={handleChange}
             placeholder="123 Rue des Érables, Montréal"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40" />
+          <div className="flex items-center justify-between mt-2">
+            <button
+              type="button"
+              onClick={handleUseMyLocation}
+              disabled={geoStatus === 'loading'}
+              className="flex items-center gap-1.5 text-xs text-coupdemain-primary hover:underline disabled:opacity-50"
+            >
+              <LocateFixed className="w-3.5 h-3.5" />
+              {geoStatus === 'loading' ? 'Localisation…' : 'Utiliser ma position GPS'}
+            </button>
+            {geoStatus === 'success' && (
+              <span className="text-xs text-green-600 flex items-center gap-1">
+                <CheckCircle className="w-3.5 h-3.5" /> Position enregistrée
+              </span>
+            )}
+            {geoStatus === 'denied' && (
+              <span className="text-xs text-amber-600">Accès refusé par le navigateur</span>
+            )}
+          </div>
         </div>
 
         <div>
@@ -990,9 +1107,25 @@ const ClientDashboard = () => {
 
   const displayName = user?.first_name || user?.username || 'Vous';
 
+  const { unreadCount } = useNotifications();
+
   const navItems = [
-    { key: 'bookings', label: 'Mes réservations', icon: <Calendar className="w-5 h-5" /> },
-    { key: 'messages', label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
+    { key: 'bookings',       label: 'Mes réservations', icon: <Calendar className="w-5 h-5" /> },
+    { key: 'messages',       label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
+    {
+      key: 'notifications',
+      label: 'Notifications',
+      icon: (
+        <span className="relative">
+          <Bell className="w-5 h-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </span>
+      ),
+    },
     { key: 'profile',  label: 'Mon profil',        icon: <User className="w-5 h-5" /> },
     { key: 'settings', label: 'Paramètres',        icon: <Settings className="w-5 h-5" /> },
   ];
@@ -1101,9 +1234,10 @@ const ClientDashboard = () => {
           </div>
         )}
 
-        {activeTab === 'messages' && <MessagesTab />}
-        {activeTab === 'profile'  && <ProfileTab />}
-        {activeTab === 'settings' && <SettingsTab />}
+        {activeTab === 'messages'       && <MessagesTab />}
+        {activeTab === 'notifications'  && <NotificationsTab />}
+        {activeTab === 'profile'        && <ProfileTab />}
+        {activeTab === 'settings'       && <SettingsTab />}
       </div>
     </div>
   );
@@ -1124,11 +1258,27 @@ const ProviderDashboard = () => {
   ]);
   const stats = { pendingBookings: 3, todayBookings: 2, monthlyRevenue: 3450, rating: 4.8, completionRate: 95 };
 
+  const { unreadCount: providerUnreadCount } = useNotifications();
+
   const navItems = [
     { key: 'overview',  label: "Vue d'ensemble", icon: <TrendingUp className="w-5 h-5" /> },
     { key: 'bookings',  label: 'Réservations',   icon: <Calendar className="w-5 h-5" /> },
     { key: 'services',  label: 'Mes services',   icon: <Briefcase className="w-5 h-5" /> },
     { key: 'messages',  label: 'Messages',       icon: <MessageSquare className="w-5 h-5" /> },
+    {
+      key: 'notifications',
+      label: 'Notifications',
+      icon: (
+        <span className="relative">
+          <Bell className="w-5 h-5" />
+          {providerUnreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5">
+              {providerUnreadCount > 99 ? '99+' : providerUnreadCount}
+            </span>
+          )}
+        </span>
+      ),
+    },
     { key: 'profile',   label: 'Mon profil',     icon: <User className="w-5 h-5" /> },
     { key: 'settings',  label: 'Paramètres',     icon: <Settings className="w-5 h-5" /> },
   ];
@@ -1213,11 +1363,12 @@ const ProviderDashboard = () => {
             </div>
           </>
         )}
-        {activeTab === 'bookings' && <ProviderBookingsTab />}
-        {activeTab === 'services' && <ProviderServicesTab />}
-        {activeTab === 'messages' && <MessagesTab />}
-        {activeTab === 'profile'  && <ProfileTab />}
-        {activeTab === 'settings' && <SettingsTab />}
+        {activeTab === 'bookings'      && <ProviderBookingsTab />}
+        {activeTab === 'services'      && <ProviderServicesTab />}
+        {activeTab === 'messages'      && <MessagesTab />}
+        {activeTab === 'notifications' && <NotificationsTab />}
+        {activeTab === 'profile'       && <ProfileTab />}
+        {activeTab === 'settings'      && <SettingsTab />}
       </div>
     </div>
   );

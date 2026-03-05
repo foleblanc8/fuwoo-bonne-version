@@ -24,6 +24,9 @@ from .serializers import (
     ServiceRequestSerializer, BidSerializer,
 )
 from .permissions import IsOwnerOrReadOnly, IsProviderOrReadOnly
+from .utils import haversine_distance
+
+PROVIDER_NOTIFICATION_RADIUS_KM = 100
 
 User = get_user_model()
 
@@ -352,6 +355,40 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         sr = serializer.save(client=self.request.user)
         for img in self.request.FILES.getlist('images'):
             ServiceRequestImage.objects.create(service_request=sr, image=img)
+        self._notify_nearby_providers(sr)
+
+    def _notify_nearby_providers(self, service_request):
+        """Notifie tous les prestataires dans un rayon de 100km."""
+        if service_request.latitude is None or service_request.longitude is None:
+            return
+
+        providers = User.objects.filter(
+            role='prestataire',
+            latitude__isnull=False,
+            longitude__isnull=False,
+        ).exclude(id=self.request.user.id)
+
+        notifications = []
+        for provider in providers:
+            distance = haversine_distance(
+                service_request.latitude, service_request.longitude,
+                provider.latitude, provider.longitude,
+            )
+            if distance <= PROVIDER_NOTIFICATION_RADIUS_KM:
+                notifications.append(Notification(
+                    user=provider,
+                    type='new_service_request',
+                    title='Nouvelle demande près de chez vous',
+                    message=(
+                        f'"{service_request.title}" — '
+                        f'{service_request.service_area} '
+                        f'({int(distance)} km de vous)'
+                    ),
+                    related_service_request=service_request,
+                ))
+
+        if notifications:
+            Notification.objects.bulk_create(notifications)
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):

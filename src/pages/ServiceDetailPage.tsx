@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useServices } from '../contexts/ServiceContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, Clock, MapPin, Star, User, Shield, Check, X, Upload, ImagePlus, Trash2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Star, User, Shield, Check, X, Upload, ImagePlus, Trash2, LocateFixed } from 'lucide-react';
 import { getCategoryImage } from '../data/serviceImages';
 
 type Service = {
@@ -248,7 +248,6 @@ const SoumissionModal: React.FC<SoumissionModalProps> = ({
 }) => {
   const { user } = useAuth();
 
-
   const [title, setTitle] = useState(service.title);
   const [description, setDescription] = useState('');
   const [serviceArea, setServiceArea] = useState(service.service_area);
@@ -265,6 +264,23 @@ const SoumissionModal: React.FC<SoumissionModalProps> = ({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Géolocalisation de la demande
+  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'denied'>('idle');
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    setGeoStatus('loading');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeoCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setGeoStatus('success');
+      },
+      () => setGeoStatus('denied'),
+      { timeout: 8000 },
+    );
+  }, []);
 
   const handlePhotos = (files: FileList | null) => {
     if (!files) return;
@@ -311,6 +327,10 @@ const SoumissionModal: React.FC<SoumissionModalProps> = ({
       formData.append('submission_deadline', new Date(`${deadlineDate}T${deadlineTime}`).toISOString());
       formData.append('preferred_dates', `${prefDate}${prefTime ? ' à ' + prefTime : ''}`);
       if (service.categoryId) formData.append('category_id', String(service.categoryId));
+      if (geoCoords) {
+        formData.append('latitude', String(geoCoords.lat));
+        formData.append('longitude', String(geoCoords.lng));
+      }
       photos.forEach(photo => formData.append('images', photo));
 
       await axios.post('service-requests/', formData, {
@@ -405,6 +425,12 @@ const SoumissionModal: React.FC<SoumissionModalProps> = ({
                 placeholder="Ex. : 123 rue des Érables, Montréal"
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
               />
+              <div className="flex items-center gap-1.5 mt-1.5 text-xs">
+                <LocateFixed className="w-3.5 h-3.5 flex-shrink-0" />
+                {geoStatus === 'loading' && <span className="text-gray-400">Localisation en cours…</span>}
+                {geoStatus === 'success' && <span className="text-green-600">Position GPS capturée — les prestataires proches seront notifiés.</span>}
+                {geoStatus === 'denied' && <span className="text-amber-600">Géolocalisation refusée — les prestataires ne seront pas filtrés par distance.</span>}
+              </div>
             </div>
 
             {/* Délai de soumission */}

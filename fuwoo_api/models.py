@@ -21,6 +21,10 @@ class CustomUser(AbstractUser):
     profile_picture = models.ImageField(upload_to='profiles/', blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
     
+    # Géolocalisation
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+
     # Pour les prestataires
     is_verified = models.BooleanField(default=False)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
@@ -244,14 +248,20 @@ class Notification(models.Model):
         ('booking_completed', 'Service terminé'),
         ('new_review', 'Nouveau commentaire'),
         ('new_message', 'Nouveau message'),
+        ('new_service_request', 'Nouvelle demande de service'),
     ]
-    
+
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     type = models.CharField(max_length=30, choices=TYPE_CHOICES)
     title = models.CharField(max_length=200)
     message = models.TextField()
     related_booking = models.ForeignKey(
         Booking,
+        on_delete=models.CASCADE,
+        null=True, blank=True
+    )
+    related_service_request = models.ForeignKey(
+        'ServiceRequest',
         on_delete=models.CASCADE,
         null=True, blank=True
     )
@@ -275,6 +285,9 @@ class ServiceRequest(models.Model):
     preferred_dates = models.TextField(blank=True)
     submission_deadline = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    # Géolocalisation de la demande
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

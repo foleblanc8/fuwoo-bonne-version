@@ -28,6 +28,7 @@ import App from "./App";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ServiceProvider } from "./contexts/ServiceContext";
 import { BookingProvider } from "./contexts/BookingContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import "./index.css";
 
 axios.defaults.baseURL = "/api/";
@@ -36,11 +37,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <ServiceProvider>
-          <BookingProvider>
-            <App />
-          </BookingProvider>
-        </ServiceProvider>
+        <NotificationProvider>
+          <ServiceProvider>
+            <BookingProvider>
+              <App />
+            </BookingProvider>
+          </ServiceProvider>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

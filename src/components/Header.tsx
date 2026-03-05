@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Bell } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useNotifications } from "../contexts/NotificationContext";
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
 
   const navLinks = [
     { to: "/", label: "Accueil" },
@@ -49,6 +51,14 @@ const Header = () => {
                   className="text-gray-700 hover:text-coupdemain-primary transition font-medium"
                 >
                   Bonjour, {user.username}
+                </Link>
+                <Link to="/dashboard" className="relative" aria-label="Notifications">
+                  <Bell className="w-5 h-5 text-gray-600 hover:text-coupdemain-primary transition" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
                 <button
                   onClick={handleLogout}

@@ -13,9 +13,10 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 
+        fields = ['id', 'username', 'email', 'first_name', 'last_name',
                  'role', 'phone_number', 'address', 'profile_picture',
-                 'bio', 'is_verified', 'rating', 'total_reviews']
+                 'bio', 'is_verified', 'rating', 'total_reviews',
+                 'latitude', 'longitude']
         read_only_fields = ['rating', 'total_reviews', 'is_verified']
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -109,7 +110,11 @@ class MessageSerializer(serializers.ModelSerializer):
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
-        fields = '__all__'
+        fields = [
+            'id', 'user', 'type', 'title', 'message',
+            'related_booking', 'related_service_request',
+            'is_read', 'created_at',
+        ]
         read_only_fields = ['user']
 
 
@@ -141,6 +146,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             'id', 'client', 'category', 'category_id', 'title', 'description',
             'service_area', 'preferred_dates', 'submission_deadline',
             'status', 'images', 'bid_count', 'created_at', 'updated_at',
+            'latitude', 'longitude',
         ]
         read_only_fields = ['client', 'status']
 
