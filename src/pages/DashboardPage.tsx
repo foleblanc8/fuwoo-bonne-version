@@ -1,5 +1,5 @@
 // src/pages/DashboardPage.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { JSX } from 'react';
 import {
   Calendar, Clock, DollarSign, Star, TrendingUp, AlertCircle,
@@ -18,15 +18,6 @@ import axios from 'axios';
 
 type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
-type Booking = {
-  id: number;
-  service: string;
-  provider: string;
-  date: string;
-  time: string;
-  status: BookingStatus;
-  price: number;
-};
 
 type ServiceRequest = {
   id: number;
@@ -50,6 +41,19 @@ type Bid = {
   message: string;
   estimated_duration: number | null;
   status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+};
+
+type ApiBooking = {
+  id: number;
+  service: { id: number; title: string; price: string } | null;
+  provider: { id: number; first_name: string; last_name: string; username: string } | null;
+  client:   { id: number; first_name: string; last_name: string; username: string } | null;
+  date: string;
+  start_time: string;
+  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  total_price: string;
+  service_address: string;
   created_at: string;
 };
 
@@ -85,54 +89,71 @@ function getStatusIcon(status: BookingStatus): JSX.Element | null {
 
 // ─── Messages Tab ─────────────────────────────────────────────────────────────
 
-const mockConversations = [
-  { id: 1, name: 'Jean Tremblay', avatar: 'JT', service: 'Plomberie', lastMsg: 'Je serai là à 10h demain.', time: '10:32', unread: 2 },
-  { id: 2, name: 'Marie Côté',    avatar: 'MC', service: 'Ménage',    lastMsg: 'Merci pour votre confiance!', time: 'Hier', unread: 0 },
-  { id: 3, name: 'Luc Gagnon',   avatar: 'LG', service: 'Déneigement', lastMsg: 'Rendez-vous confirmé.', time: 'Lun', unread: 0 },
-];
-
-type Message = { id: number; from: 'me' | 'them'; text: string; time: string };
-
-const mockMessages: Record<number, Message[]> = {
-  1: [
-    { id: 1, from: 'them', text: 'Bonjour! Je confirme notre rendez-vous pour la plomberie.', time: '10:15' },
-    { id: 2, from: 'me',   text: 'Parfait, merci! L\'adresse est bien 45 rue des Érables?', time: '10:20' },
-    { id: 3, from: 'them', text: 'Oui, exactement. Je serai là à 10h demain.', time: '10:32' },
-  ],
-  2: [
-    { id: 1, from: 'me',   text: 'Bonjour Marie, le ménage était impeccable!', time: 'Hier 14:00' },
-    { id: 2, from: 'them', text: 'Merci pour votre confiance!', time: 'Hier 14:10' },
-  ],
-  3: [
-    { id: 1, from: 'them', text: 'Rendez-vous confirmé pour lundi matin.', time: 'Lun 09:00' },
-  ],
-};
-
 function MessagesTab() {
-  const [selectedId, setSelectedId] = useState<number>(1);
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Record<number, Message[]>>(mockMessages);
+  const { user } = useAuth();
+  const [allMessages, setAllMessages] = useState<any[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [input, setInput]   = useState('');
+  const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const fetchMessages = async () => {
+    try {
+      const res = await axios.get('messages/');
+      const d = res.data as any;
+      setAllMessages(Array.isArray(d) ? d : (d.results ?? []));
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchMessages(); }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [selectedId, messages]);
+  }, [selectedUserId, allMessages]);
 
-  const send = () => {
-    if (!input.trim()) return;
-    const now = new Date().toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' });
-    setMessages(prev => ({
-      ...prev,
-      [selectedId]: [
-        ...(prev[selectedId] ?? []),
-        { id: Date.now(), from: 'me', text: input.trim(), time: now },
-      ],
-    }));
-    setInput('');
+  // Group messages by conversation partner
+  const conversations = useMemo(() => {
+    const map = new Map<number, { partner: any; lastMsg: any; unread: number }>();
+    allMessages.forEach(msg => {
+      const isMe = msg.sender?.id === user?.id;
+      const partner = isMe ? msg.receiver : msg.sender;
+      if (!partner) return;
+      const existing = map.get(partner.id);
+      const isNewer = !existing || new Date(msg.created_at) > new Date(existing.lastMsg.created_at);
+      map.set(partner.id, {
+        partner,
+        lastMsg: isNewer ? msg : existing!.lastMsg,
+        unread: (existing?.unread ?? 0) + (!isMe && !msg.is_read ? 1 : 0),
+      });
+    });
+    return [...map.values()].sort(
+      (a, b) => new Date(b.lastMsg.created_at).getTime() - new Date(a.lastMsg.created_at).getTime()
+    );
+  }, [allMessages, user?.id]);
+
+  const thread = useMemo(() =>
+    allMessages
+      .filter(m => m.sender?.id === selectedUserId || m.receiver?.id === selectedUserId)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [allMessages, selectedUserId]
+  );
+
+  const selectedConv = conversations.find(c => c.partner.id === selectedUserId);
+
+  const send = async () => {
+    if (!input.trim() || !selectedUserId || sending) return;
+    setSending(true);
+    try {
+      const res = await axios.post('messages/', { receiver: selectedUserId, content: input.trim() });
+      setAllMessages(prev => [...prev, res.data]);
+      setInput('');
+    } catch { /* silent */ }
+    finally { setSending(false); }
   };
 
-  const conv = mockConversations.find(c => c.id === selectedId)!;
-  const thread = messages[selectedId] ?? [];
+  if (loading) return <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden" style={{ height: '72vh' }}>
@@ -143,81 +164,92 @@ function MessagesTab() {
             <h2 className="font-semibold text-gray-900">Messages</h2>
           </div>
           <div className="overflow-y-auto flex-1">
-            {mockConversations.map(c => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedId(c.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition text-left ${selectedId === c.id ? 'bg-coupdemain-primary/5 border-r-2 border-coupdemain-primary' : ''}`}
-              >
-                <div className="w-10 h-10 rounded-full bg-coupdemain-primary/15 flex items-center justify-center text-sm font-semibold text-coupdemain-primary shrink-0">
-                  {c.avatar}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-900 text-sm">{c.name}</span>
-                    <span className="text-xs text-gray-400">{c.time}</span>
+            {conversations.length === 0 ? (
+              <p className="text-center text-gray-400 text-sm py-10">Aucun message</p>
+            ) : conversations.map(c => {
+              const initials = `${c.partner.first_name?.[0] ?? ''}${c.partner.last_name?.[0] ?? c.partner.username?.[0] ?? ''}`.toUpperCase();
+              const isMe = c.lastMsg.sender?.id === user?.id;
+              return (
+                <button
+                  key={c.partner.id}
+                  onClick={() => setSelectedUserId(c.partner.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition text-left ${selectedUserId === c.partner.id ? 'bg-coupdemain-primary/5 border-r-2 border-coupdemain-primary' : ''}`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-coupdemain-primary/15 flex items-center justify-center text-sm font-semibold text-coupdemain-primary shrink-0">
+                    {initials || '?'}
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{c.lastMsg}</p>
-                  <p className="text-xs text-coupdemain-primary">{c.service}</p>
-                </div>
-                {c.unread > 0 && (
-                  <span className="w-5 h-5 bg-coupdemain-primary text-white text-xs rounded-full flex items-center justify-center shrink-0">
-                    {c.unread}
-                  </span>
-                )}
-              </button>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-900 text-sm">
+                        {c.partner.first_name} {c.partner.last_name || c.partner.username}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(c.lastMsg.created_at).toLocaleDateString('fr-CA', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">
+                      {isMe ? 'Vous : ' : ''}{c.lastMsg.content}
+                    </p>
+                  </div>
+                  {c.unread > 0 && (
+                    <span className="w-5 h-5 bg-coupdemain-primary text-white text-xs rounded-full flex items-center justify-center shrink-0">
+                      {c.unread}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Thread */}
-        <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <div className="px-6 py-4 border-b flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-coupdemain-primary/15 flex items-center justify-center text-sm font-semibold text-coupdemain-primary">
-              {conv.avatar}
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900 text-sm">{conv.name}</p>
-              <p className="text-xs text-gray-500">{conv.service}</p>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-            {thread.map(msg => (
-              <div key={msg.id} className={`flex ${msg.from === 'me' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl text-sm ${
-                  msg.from === 'me'
-                    ? 'bg-coupdemain-primary text-white rounded-br-sm'
-                    : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-                }`}>
-                  <p>{msg.text}</p>
-                  <p className={`text-xs mt-1 ${msg.from === 'me' ? 'text-white/70' : 'text-gray-400'}`}>{msg.time}</p>
-                </div>
+        {selectedConv ? (
+          <div className="flex-1 flex flex-col">
+            <div className="px-6 py-4 border-b flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-coupdemain-primary/15 flex items-center justify-center text-sm font-semibold text-coupdemain-primary">
+                {`${selectedConv.partner.first_name?.[0] ?? ''}${selectedConv.partner.last_name?.[0] ?? ''}`.toUpperCase() || '?'}
               </div>
-            ))}
-            <div ref={bottomRef} />
+              <p className="font-semibold text-gray-900 text-sm">
+                {selectedConv.partner.first_name} {selectedConv.partner.last_name || selectedConv.partner.username}
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+              {thread.map(msg => {
+                const fromMe = msg.sender?.id === user?.id;
+                return (
+                  <div key={msg.id} className={`flex ${fromMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl text-sm ${
+                      fromMe ? 'bg-coupdemain-primary text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                    }`}>
+                      <p>{msg.content}</p>
+                      <p className={`text-xs mt-1 ${fromMe ? 'text-white/70' : 'text-gray-400'}`}>
+                        {new Date(msg.created_at).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={bottomRef} />
+            </div>
+            <div className="px-4 py-3 border-t flex items-center gap-3">
+              <input
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && send()}
+                placeholder="Écrire un message…"
+                className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40"
+              />
+              <button onClick={send} disabled={!input.trim() || sending}
+                className="w-9 h-9 bg-coupdemain-primary text-white rounded-xl flex items-center justify-center hover:bg-coupdemain-primary/90 transition disabled:opacity-40">
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-
-          {/* Input */}
-          <div className="px-4 py-3 border-t flex items-center gap-3">
-            <input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && send()}
-              placeholder="Écrire un message…"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40"
-            />
-            <button
-              onClick={send}
-              disabled={!input.trim()}
-              className="w-9 h-9 bg-coupdemain-primary text-white rounded-xl flex items-center justify-center hover:bg-coupdemain-primary/90 transition disabled:opacity-40"
-            >
-              <Send className="w-4 h-4" />
-            </button>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+            Sélectionnez une conversation
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -1480,6 +1512,313 @@ function ClientRequestsTab() {
   );
 }
 
+// ─── Review Modal ─────────────────────────────────────────────────────────────
+
+function ReviewModal({ booking, onClose, onDone }: { booking: ApiBooking; onClose: () => void; onDone: () => void }) {
+  const [rating, setRating]     = useState(5);
+  const [comment, setComment]   = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError]       = useState('');
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setError('');
+    try {
+      await axios.post('reviews/', { booking: booking.id, rating, comment });
+      onDone();
+      onClose();
+    } catch (e: any) {
+      const data = e?.response?.data;
+      setError(data ? Object.values(data).flat().join(' ') : "Erreur lors de l'envoi.");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h3 className="text-lg font-bold text-gray-900">Laisser un avis</h3>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400 hover:text-gray-600 transition" /></button>
+        </div>
+        <div className="p-6 space-y-5">
+          <div className="text-sm text-gray-600 space-y-1">
+            <p>Service : <span className="font-medium text-gray-900">{booking.service?.title ?? '—'}</span></p>
+            <p>Prestataire : <span className="font-medium text-gray-900">{booking.provider?.first_name} {booking.provider?.last_name}</span></p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Note</label>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button key={n} type="button" onClick={() => setRating(n)}
+                  className={`text-3xl transition ${n <= rating ? 'text-yellow-400' : 'text-gray-200 hover:text-yellow-200'}`}>
+                  ★
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Commentaire</label>
+            <textarea rows={4} value={comment} onChange={e => setComment(e.target.value)}
+              placeholder="Décrivez votre expérience…"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40 resize-none" />
+          </div>
+
+          {error && <p className="text-red-600 text-sm bg-red-50 py-2 px-3 rounded-lg">{error}</p>}
+
+          <div className="flex gap-3 pt-1">
+            <button onClick={onClose}
+              className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
+              Annuler
+            </button>
+            <button onClick={handleSubmit} disabled={!comment.trim() || submitting}
+              className="flex-1 bg-coupdemain-primary text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60">
+              {submitting ? 'Envoi…' : "Publier l'avis"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Client Bookings Tab ──────────────────────────────────────────────────────
+
+function ClientBookingsTab() {
+  const { bookings, loading, fetchBookings, cancelBooking } = useBookings();
+  const navigate = useNavigate();
+  const [cancelling, setCancelling]   = useState<number | null>(null);
+  const [reviewBooking, setReviewBooking] = useState<ApiBooking | null>(null);
+  const [reviewed, setReviewed]       = useState<Set<number>>(new Set());
+
+  useEffect(() => { fetchBookings(); }, []);
+
+  const typed = bookings as unknown as ApiBooking[];
+
+  const active    = typed.filter(b => ['pending', 'confirmed', 'in_progress'].includes(b.status)).length;
+  const completed = typed.filter(b => b.status === 'completed').length;
+  const spent     = typed.filter(b => b.status === 'completed').reduce((s, b) => s + parseFloat(b.total_price || '0'), 0);
+
+  const handleCancel = async (id: number) => {
+    if (!window.confirm('Annuler cette réservation ?')) return;
+    setCancelling(id);
+    try { await cancelBooking(id); } catch { /* silent */ }
+    finally { setCancelling(null); }
+  };
+
+  return (
+    <>
+      {reviewBooking && (
+        <ReviewModal
+          booking={reviewBooking}
+          onClose={() => setReviewBooking(null)}
+          onDone={() => setReviewed(prev => new Set([...prev, reviewBooking!.id]))}
+        />
+      )}
+
+      <div className="grid grid-cols-3 gap-5 mb-8">
+        {[
+          { label: 'Réservations actives', value: active,              icon: <Calendar className="w-7 h-7 text-blue-400" /> },
+          { label: 'Services complétés',   value: completed,           icon: <CheckCircle className="w-7 h-7 text-green-400" /> },
+          { label: 'Total dépensé',        value: `$${spent.toFixed(2)}`, icon: <DollarSign className="w-7 h-7 text-yellow-400" /> },
+        ].map(card => (
+          <div key={card.label} className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-500">{card.label}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{card.value}</p>
+            </div>
+            {card.icon}
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm">
+        <div className="p-6 border-b flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900">Mes réservations</h2>
+          <button onClick={() => navigate('/services')}
+            className="bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm flex items-center gap-2 hover:bg-coupdemain-primary/90 transition">
+            <Plus className="w-4 h-4" />Nouvelle réservation
+          </button>
+        </div>
+
+        {loading ? (
+          <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>
+        ) : typed.length === 0 ? (
+          <div className="p-12 text-center">
+            <Calendar className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <p className="text-gray-600 font-medium">Aucune réservation pour l'instant</p>
+            <p className="text-gray-400 text-sm mt-1 mb-5">Explorez les services disponibles près de chez vous.</p>
+            <button onClick={() => navigate('/services')}
+              className="inline-flex items-center gap-2 bg-coupdemain-primary text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition">
+              <Plus className="w-4 h-4" />Trouver un service
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y">
+            {typed.map(b => (
+              <div key={b.id} className="p-6 hover:bg-gray-50 transition">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">{b.service?.title ?? '—'}</p>
+                    <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500 flex-wrap">
+                      {b.provider && (
+                        <span className="flex items-center gap-1">
+                          <User className="w-3.5 h-3.5" />{b.provider.first_name} {b.provider.last_name}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{new Date(b.date).toLocaleDateString('fr-CA')}</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{b.start_time?.slice(0, 5)}</span>
+                      {b.service_address && (
+                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{b.service_address}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 ml-4">
+                    <p className="font-semibold text-gray-900">${parseFloat(b.total_price || '0').toFixed(2)}</p>
+                    <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs mt-1.5 ${getStatusColor(b.status as BookingStatus)}`}>
+                      {getStatusIcon(b.status as BookingStatus)}{getStatusText(b.status as BookingStatus)}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-3 items-center">
+                  {b.status === 'completed' && !reviewed.has(b.id) && (
+                    <button onClick={() => setReviewBooking(b)}
+                      className="text-xs text-coupdemain-primary font-medium hover:underline">
+                      Laisser un avis
+                    </button>
+                  )}
+                  {b.status === 'completed' && reviewed.has(b.id) && (
+                    <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" />Avis envoyé
+                    </span>
+                  )}
+                  {!['completed', 'cancelled'].includes(b.status) && (
+                    <>
+                      <span className="text-gray-200 text-xs">•</span>
+                      <button onClick={() => handleCancel(b.id)} disabled={cancelling === b.id}
+                        className="text-xs text-red-500 font-medium hover:underline disabled:opacity-50">
+                        {cancelling === b.id ? 'Annulation…' : 'Annuler'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Provider Overview Tab ────────────────────────────────────────────────────
+
+function ProviderOverviewTab() {
+  const { bookings, loading, fetchBookings, confirmBooking, cancelBooking } = useBookings();
+  const { user } = useAuth();
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+
+  useEffect(() => { fetchBookings('provider'); }, []);
+
+  const typed = bookings as unknown as ApiBooking[];
+
+  const today      = new Date().toISOString().split('T')[0];
+  const thisMonth  = new Date().toISOString().slice(0, 7);
+
+  const pending    = typed.filter(b => b.status === 'pending').length;
+  const todayCount = typed.filter(b => b.date === today).length;
+  const revenue    = typed
+    .filter(b => b.status === 'completed' && b.date.startsWith(thisMonth))
+    .reduce((s, b) => s + parseFloat(b.total_price || '0'), 0);
+  const rating     = parseFloat(String(user?.rating ?? 0)).toFixed(1);
+  const doneCount  = typed.filter(b => b.status === 'completed').length;
+  const notCancelled = typed.filter(b => b.status !== 'cancelled').length;
+  const completionRate = notCancelled > 0 ? Math.round((doneCount / notCancelled) * 100) : 0;
+
+  const recent = [...typed]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
+
+  const doAction = async (id: number, action: () => Promise<void>) => {
+    setActionLoading(id);
+    try { await action(); } catch { /* silent */ }
+    finally { setActionLoading(null); }
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-5 gap-5 mb-8">
+        {[
+          { label: 'En attente',     value: pending,                   icon: <AlertCircle className="w-7 h-7 text-yellow-400" /> },
+          { label: "Aujourd'hui",    value: todayCount,                icon: <Calendar className="w-7 h-7 text-blue-400" /> },
+          { label: 'Revenus (mois)', value: `$${revenue.toFixed(2)}`,  icon: <DollarSign className="w-7 h-7 text-green-400" /> },
+          { label: 'Note moyenne',   value: `${rating}/5`,             icon: <Star className="w-7 h-7 text-yellow-400" /> },
+          { label: 'Taux réussite',  value: `${completionRate}%`,      icon: <CheckCircle className="w-7 h-7 text-purple-400" /> },
+        ].map(c => (
+          <div key={c.label} className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
+            <div><p className="text-xs text-gray-500">{c.label}</p><p className="text-2xl font-bold text-gray-900 mt-1">{c.value}</p></div>
+            {c.icon}
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm">
+        <div className="p-6 border-b"><h2 className="font-semibold text-gray-900">Réservations récentes</h2></div>
+        {loading ? (
+          <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>
+        ) : recent.length === 0 ? (
+          <div className="p-12 text-center">
+            <Calendar className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+            <p className="text-gray-600 font-medium">Aucune réservation pour l'instant</p>
+            <p className="text-gray-400 text-sm mt-1">Vos prochaines réservations apparaîtront ici.</p>
+          </div>
+        ) : (
+          <div className="divide-y">
+            {recent.map(b => (
+              <div key={b.id} className="p-6 hover:bg-gray-50 transition">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">{b.service?.title ?? '—'}</p>
+                    <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500 flex-wrap">
+                      {b.client && (
+                        <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{b.client.first_name} {b.client.last_name}</span>
+                      )}
+                      <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{new Date(b.date).toLocaleDateString('fr-CA')}</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{b.start_time?.slice(0, 5)}</span>
+                    </div>
+                    {b.service_address && <p className="text-xs text-gray-400 mt-1">{b.service_address}</p>}
+                  </div>
+                  <div className="text-right shrink-0 ml-4">
+                    <p className="font-semibold text-gray-900">${parseFloat(b.total_price || '0').toFixed(2)}</p>
+                    {b.status === 'pending' ? (
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => doAction(b.id, () => confirmBooking(b.id))} disabled={actionLoading === b.id}
+                          className="bg-green-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-green-700 transition disabled:opacity-50">
+                          Accepter
+                        </button>
+                        <button onClick={() => doAction(b.id, () => cancelBooking(b.id))} disabled={actionLoading === b.id}
+                          className="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-xs hover:bg-red-200 transition disabled:opacity-50">
+                          Refuser
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs mt-1.5 ${getStatusColor(b.status as BookingStatus)}`}>
+                        {getStatusText(b.status as BookingStatus)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── Provider Onboarding Modal ────────────────────────────────────────────────
 
 function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
@@ -1734,8 +2073,6 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
 
 // ─── Dashboard unifié ─────────────────────────────────────────────────────────
 
-type ProviderBookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
-type ProviderBooking = { id: number; client: string; service: string; date: string; time: string; status: ProviderBookingStatus; price: number; address: string };
 type Mode = 'client' | 'provider';
 
 export default function DashboardPage() {
@@ -1759,6 +2096,8 @@ export default function DashboardPage() {
     localStorage.setItem('dashboard_mode', mode);
     setActiveTab(mode === 'provider' ? 'overview' : 'bookings');
   };
+
+  // Suppression des états mock (remplacés par ClientBookingsTab / ProviderOverviewTab)
 
   const isProviderMode = activeMode === 'provider' && !!user?.has_provider_profile;
   const displayName = user?.first_name || user?.username || 'Vous';
@@ -1796,18 +2135,6 @@ export default function DashboardPage() {
 
   const navItems = isProviderMode ? providerNavItems : clientNavItems;
 
-  // Données mock — client
-  const [clientBookings] = useState<Booking[]>([
-    { id: 1, service: 'Plomberie — Réparation de fuite', provider: 'Jean Tremblay', date: '2026-04-15', time: '10:00', status: 'confirmed', price: 150 },
-    { id: 2, service: 'Ménage résidentiel',              provider: 'Marie Côté',    date: '2026-04-10', time: '14:00', status: 'completed', price: 80 },
-  ]);
-
-  // Données mock — vue d'ensemble prestataire
-  const stats = { pendingBookings: 3, todayBookings: 2, monthlyRevenue: 3450, rating: 4.8, completionRate: 95 };
-  const [overviewBookings] = useState<ProviderBooking[]>([
-    { id: 1, client: 'Alexandre Roy',   service: 'Plomberie — Réparation de fuite', date: '2026-04-15', time: '10:00', status: 'pending',   price: 150, address: '123 Rue Example, Montréal' },
-    { id: 2, client: 'Sophie Tremblay', service: 'Installation robinet',             date: '2026-04-15', time: '14:00', status: 'confirmed', price: 200, address: '456 Avenue Test, Laval' },
-  ]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1883,65 +2210,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── MODE CLIENT ── */}
-        {!isProviderMode && activeTab === 'bookings' && (
-          <>
-            <div className="grid grid-cols-4 gap-5 mb-8">
-              {[
-                { label: 'Réservations actives', value: clientBookings.filter(b => b.status === 'confirmed').length, icon: <Calendar className="w-7 h-7 text-blue-400" /> },
-                { label: 'Services complétés',   value: clientBookings.filter(b => b.status === 'completed').length,  icon: <CheckCircle className="w-7 h-7 text-green-400" /> },
-                { label: 'Total dépensé',        value: `$${clientBookings.filter(b => b.status === 'completed').reduce((s, b) => s + b.price, 0)}`, icon: <DollarSign className="w-7 h-7 text-yellow-400" /> },
-                { label: 'Prestataires favoris', value: 3, icon: <Star className="w-7 h-7 text-purple-400" /> },
-              ].map(card => (
-                <div key={card.label} className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-500">{card.label}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{card.value}</p>
-                  </div>
-                  {card.icon}
-                </div>
-              ))}
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm">
-              <div className="p-6 border-b flex items-center justify-between">
-                <h2 className="font-semibold text-gray-900">Mes réservations</h2>
-                <button onClick={() => navigate('/services')}
-                  className="bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm flex items-center gap-2 hover:bg-coupdemain-primary/90 transition">
-                  <Plus className="w-4 h-4" />Nouvelle réservation
-                </button>
-              </div>
-              <div className="divide-y">
-                {clientBookings.map(b => (
-                  <div key={b.id} className="p-6 hover:bg-gray-50 transition">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">{b.service}</p>
-                        <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
-                          <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{b.provider}</span>
-                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{new Date(b.date).toLocaleDateString('fr-CA')}</span>
-                          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{b.time}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">${b.price}</p>
-                        <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs mt-1.5 ${getStatusColor(b.status)}`}>
-                          {getStatusIcon(b.status)}{getStatusText(b.status)}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-3 mt-3">
-                      {b.status === 'completed' && <button className="text-xs text-coupdemain-primary font-medium hover:underline">Laisser un avis</button>}
-                      {b.status === 'completed' && <span className="text-gray-200">•</span>}
-                      <button className="text-xs text-coupdemain-primary font-medium hover:underline">Voir les détails</button>
-                      {b.status !== 'completed' && b.status !== 'cancelled' && (
-                        <><span className="text-gray-200">•</span><button className="text-xs text-red-500 font-medium hover:underline">Annuler</button></>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+        {!isProviderMode && activeTab === 'bookings'      && <ClientBookingsTab />}
         {!isProviderMode && activeTab === 'requests'      && <ClientRequestsTab />}
         {!isProviderMode && activeTab === 'messages'      && <MessagesTab />}
         {!isProviderMode && activeTab === 'notifications' && <NotificationsTab />}
@@ -1949,54 +2218,7 @@ export default function DashboardPage() {
         {!isProviderMode && activeTab === 'settings'      && <SettingsTab />}
 
         {/* ── MODE PRESTATAIRE ── */}
-        {isProviderMode && activeTab === 'overview' && (
-          <>
-            <div className="grid grid-cols-5 gap-5 mb-8">
-              {[
-                { label: 'En attente',     value: stats.pendingBookings,      icon: <AlertCircle className="w-7 h-7 text-yellow-400" /> },
-                { label: "Aujourd'hui",    value: stats.todayBookings,        icon: <Calendar className="w-7 h-7 text-blue-400" /> },
-                { label: 'Revenus (mois)', value: `$${stats.monthlyRevenue}`, icon: <DollarSign className="w-7 h-7 text-green-400" /> },
-                { label: 'Note moyenne',   value: `${stats.rating}/5`,        icon: <Star className="w-7 h-7 text-yellow-400" /> },
-                { label: 'Taux réussite',  value: `${stats.completionRate}%`, icon: <CheckCircle className="w-7 h-7 text-purple-400" /> },
-              ].map(c => (
-                <div key={c.label} className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
-                  <div><p className="text-xs text-gray-500">{c.label}</p><p className="text-2xl font-bold text-gray-900 mt-1">{c.value}</p></div>
-                  {c.icon}
-                </div>
-              ))}
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm">
-              <div className="p-6 border-b"><h2 className="font-semibold text-gray-900">Réservations récentes</h2></div>
-              <div className="divide-y">
-                {overviewBookings.map(b => (
-                  <div key={b.id} className="p-6 hover:bg-gray-50 transition">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">{b.service}</p>
-                        <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
-                          <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{b.client}</span>
-                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{new Date(b.date).toLocaleDateString('fr-CA')}</span>
-                          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{b.time}</span>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1">{b.address}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">${b.price}</p>
-                        {b.status === 'pending' && (
-                          <div className="flex gap-2 mt-2">
-                            <button className="bg-green-600 text-white px-3 py-1 rounded-lg text-xs hover:bg-green-700 transition">Accepter</button>
-                            <button className="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-xs hover:bg-red-200 transition">Refuser</button>
-                          </div>
-                        )}
-                        {b.status === 'confirmed' && <span className="text-blue-600 text-xs">Confirmée</span>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+        {isProviderMode && activeTab === 'overview'       && <ProviderOverviewTab />}
         {isProviderMode && activeTab === 'bookings'      && <ProviderBookingsTab />}
         {isProviderMode && activeTab === 'services'      && <ProviderServicesTab />}
         {isProviderMode && activeTab === 'requests'      && <ProviderRequestsTab />}
