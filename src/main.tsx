@@ -31,6 +31,8 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ServiceProvider } from "./contexts/ServiceContext";
 import { BookingProvider } from "./contexts/BookingContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { ToastProvider } from "./contexts/ToastContext";
+import ToastContainer from "./components/Toast";
 import "./index.css";
 
 axios.defaults.baseURL = "/api/";
@@ -42,13 +44,16 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <BrowserRouter>
         <AuthProvider>
-          <NotificationProvider>
-            <ServiceProvider>
-              <BookingProvider>
-                <App />
-              </BookingProvider>
-            </ServiceProvider>
-          </NotificationProvider>
+          <ToastProvider>
+            <NotificationProvider>
+              <ServiceProvider>
+                <BookingProvider>
+                  <App />
+                  <ToastContainer />
+                </BookingProvider>
+              </ServiceProvider>
+            </NotificationProvider>
+          </ToastProvider>
         </AuthProvider>
       </BrowserRouter>
     </GoogleOAuthProvider>

@@ -68,6 +68,11 @@ const Connexion = () => {
           className="border border-gray-300 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
         />
         {error && <p className="text-red-600 text-sm text-center">{error}</p>}
+        <div className="flex justify-end -mt-1">
+          <Link to="/mot-de-passe-oublie" className="text-xs text-coupdemain-primary hover:underline">
+            Mot de passe oublié ?
+          </Link>
+        </div>
         <button
           type="submit"
           disabled={loading}

@@ -16,6 +16,7 @@ interface User {
   profile_picture?: string | null;
   bio?: string;
   is_verified?: boolean;
+  email_verified?: boolean;
   rating?: number;
   total_reviews?: number;
 }
@@ -39,6 +40,7 @@ interface AuthContextType {
   loginWithGoogle: (accessToken: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
+  resendVerification: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -167,8 +169,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
   };
 
+  const resendVerification = async () => {
+    await axios.post('auth/resend-verification/');
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, loginWithGoogle, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, loginWithGoogle, register, logout, resendVerification }}>
       {children}
     </AuthContext.Provider>
   );

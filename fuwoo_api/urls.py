@@ -9,6 +9,8 @@ from .views import (
     BookingViewSet, ReviewViewSet, MessageViewSet,
     NotificationViewSet, AvailabilityViewSet,
     ServiceRequestViewSet, BidViewSet,
+    password_reset_request, password_reset_confirm,
+    verify_email, resend_verification,
 )
 
 router = DefaultRouter()
@@ -35,4 +37,12 @@ urlpatterns = [
     # Profil utilisateur
     path('profile/', profile, name='profile'),
     path('become-provider/', become_provider, name='become_provider'),
+
+    # Mot de passe oublié
+    path('auth/password-reset/', password_reset_request, name='password_reset_request'),
+    path('auth/password-reset-confirm/', password_reset_confirm, name='password_reset_confirm'),
+
+    # Vérification email
+    path('auth/verify-email/', verify_email, name='verify_email'),
+    path('auth/resend-verification/', resend_verification, name='resend_verification'),
 ]

@@ -9,6 +9,10 @@ import Inscription from "./pages/Inscription";
 import ProfilPage from "./pages/ProfilPage";
 import ServiceDetailPage from "./pages/ServiceDetailPage";
 import DashboardPage from "./pages/DashboardPage";
+import ProviderProfilePage from "./pages/ProviderProfilePage";
+import MotDePasseOublie from "./pages/MotDePasseOublie";
+import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 
 const App = () => {
   return (
@@ -22,6 +26,10 @@ const App = () => {
         <Route path="/profil" element={<ProfilPage />} />
         <Route path="/service/:id" element={<ServiceDetailPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/provider/:id" element={<ProviderProfilePage />} />
+        <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
       </Routes>
     </Layout>
   );

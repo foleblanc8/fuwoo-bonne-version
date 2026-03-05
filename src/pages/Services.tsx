@@ -1,8 +1,9 @@
 // src/pages/Services.tsx
-import { useEffect } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import ServiceCard from "../components/ServiceCard";
+import { ServiceCardSkeleton } from "../components/Skeleton";
 import { useServices } from "../contexts/ServiceContext";
-import { Loader2 } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 
 // Fallback si l'API est down
 const fallbackServices = [
@@ -15,12 +16,54 @@ const fallbackServices = [
 ];
 
 const Services = () => {
-  const { services, loading, fetchServices } = useServices();
+  const { services, categories, loading, fetchServices, fetchCategories } = useServices();
+
+  // Filters state
+  const [search, setSearch] = useState('');
+  const [selectedCat, setSelectedCat] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    fetchCategories();
     fetchServices();
   }, []);
 
+  const buildAndFetch = useCallback((s: string, cat: string, min: string, max: string) => {
+    const filters: Record<string, string> = {};
+    if (s) filters.search = s;
+    if (cat) filters.category = cat;
+    if (min) filters.min_price = min;
+    if (max) filters.max_price = max;
+    fetchServices(Object.keys(filters).length ? filters : undefined);
+  }, [fetchServices]);
+
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      buildAndFetch(val, selectedCat, minPrice, maxPrice);
+    }, 300);
+  };
+
+  const handleFilterChange = (cat: string, min: string, max: string) => {
+    setSelectedCat(cat);
+    setMinPrice(min);
+    setMaxPrice(max);
+    buildAndFetch(search, cat, min, max);
+  };
+
+  const handleReset = () => {
+    setSearch('');
+    setSelectedCat('');
+    setMinPrice('');
+    setMaxPrice('');
+    fetchServices();
+  };
+
+  const hasFilters = search || selectedCat || minPrice || maxPrice;
   const hasApiServices = services.length > 0;
   const displayed = hasApiServices ? services : fallbackServices;
 
@@ -30,17 +73,90 @@ const Services = () => {
       <div className="bg-white border-b border-gray-200 px-6 py-10">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold text-gray-900">Services à domicile</h1>
-          <p className="text-gray-500 mt-2 text-lg">
-            Des professionnels vérifiés, partout au Québec.
-          </p>
+          <p className="text-gray-500 mt-2 text-lg">Des professionnels vérifiés, partout au Québec.</p>
+
+          {/* Barre de recherche */}
+          <div className="mt-6 flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un service…"
+                value={search}
+                onChange={e => handleSearchChange(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-coupdemain-primary text-sm"
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters(f => !f)}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition ${showFilters ? 'bg-coupdemain-primary text-white border-coupdemain-primary' : 'bg-white text-gray-700 border-gray-300 hover:border-coupdemain-primary'}`}
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span className="hidden sm:inline">Filtres</span>
+            </button>
+            {hasFilters && (
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-1 px-4 py-3 rounded-xl border border-gray-300 bg-white text-sm text-gray-500 hover:text-red-500 hover:border-red-300 transition"
+              >
+                <X className="w-4 h-4" />
+                <span className="hidden sm:inline">Réinitialiser</span>
+              </button>
+            )}
+          </div>
+
+          {/* Panneau filtres */}
+          {showFilters && (
+            <div className="mt-3 flex flex-wrap gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              {/* Catégorie */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Catégorie</label>
+                <select
+                  value={selectedCat}
+                  onChange={e => handleFilterChange(e.target.value, minPrice, maxPrice)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary min-w-[160px]"
+                >
+                  <option value="">Toutes</option>
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Prix min */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Prix min ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={minPrice}
+                  onChange={e => handleFilterChange(selectedCat, e.target.value, maxPrice)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+                />
+              </div>
+
+              {/* Prix max */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500">Prix max ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="∞"
+                  value={maxPrice}
+                  onChange={e => handleFilterChange(selectedCat, minPrice, e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-10">
         {loading && (
-          <div className="flex items-center justify-center gap-2 text-gray-400 py-12">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Chargement des services…</span>
+          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[...Array(8)].map((_, i) => <ServiceCardSkeleton key={i} />)}
           </div>
         )}
 
@@ -48,7 +164,15 @@ const Services = () => {
           <>
             <p className="text-sm text-gray-400 mb-6">
               {displayed.length} service{displayed.length > 1 ? "s" : ""} disponible{displayed.length > 1 ? "s" : ""}
+              {hasFilters && !hasApiServices && ' (résultats API indisponibles — données exemple)'}
             </p>
+
+            {displayed.length === 0 && (
+              <div className="text-center py-16 text-gray-400">
+                <p className="text-lg font-medium">Aucun service trouvé</p>
+                <p className="text-sm mt-1">Essayez d'ajuster vos filtres.</p>
+              </div>
+            )}
 
             <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {hasApiServices

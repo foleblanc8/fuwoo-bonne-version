@@ -161,3 +161,8 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
 }
+
+# Email (console pour le développement)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'noreply@coupdemain.ca'
+FRONTEND_URL = 'http://localhost:5173'

@@ -14,6 +14,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from django.conf import settings as django_settings
 from django.db.models import Q, Avg
 from django.db import IntegrityError
 from django.utils.timezone import now
@@ -91,6 +96,19 @@ def register(request):
     if serializer.is_valid():
         try:
             user = serializer.save()
+            # Envoyer email de vérification
+            try:
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = default_token_generator.make_token(user)
+                link = f"{django_settings.FRONTEND_URL}/verify-email?uid={uid}&token={token}"
+                send_mail(
+                    'Vérifiez votre adresse courriel — Coupdemain',
+                    f'Bonjour {user.first_name or user.username},\n\nMerci de vous être inscrit ! Vérifiez votre adresse courriel en cliquant ici :\n{link}',
+                    django_settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                )
+            except Exception:
+                pass  # L'inscription ne doit pas échouer si l'email ne part pas
             refresh = RefreshToken.for_user(user)
             return Response({
                 'refresh': str(refresh),
@@ -221,7 +239,16 @@ class ServiceViewSet(viewsets.ModelViewSet):
                     return Service.objects.filter(provider=user)
             except (ValueError, TypeError):
                 pass
-        return Service.objects.filter(is_active=True)
+        qs = Service.objects.filter(is_active=True)
+        qp = self.request.query_params
+        for k, field in [('min_price', 'price__gte'), ('max_price', 'price__lte'), ('min_rating', 'rating__gte')]:
+            v = qp.get(k)
+            if v:
+                try:
+                    qs = qs.filter(**{field: v})
+                except (ValueError, TypeError):
+                    pass
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(provider=self.request.user)
@@ -344,10 +371,15 @@ class BookingViewSet(viewsets.ModelViewSet):
 
 class ReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ReviewSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
     def get_queryset(self):
-        return Review.objects.filter(client=self.request.user)
+        provider_id = self.request.query_params.get('provider_id')
+        if provider_id:
+            return Review.objects.filter(provider_id=provider_id).select_related('client')
+        if self.request.user.is_authenticated:
+            return Review.objects.filter(client=self.request.user)
+        return Review.objects.none()
     
     def perform_create(self, serializer):
         booking_id = self.request.data.get('booking')
@@ -538,4 +570,84 @@ class BidViewSet(viewsets.ModelViewSet):
         sr.status = 'awarded'
         sr.save()
         return Response({'status': 'accepted'})
-        serializer.save(provider=self.request.user)
+
+
+# ─── Mot de passe oublié ──────────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def password_reset_request(request):
+    email = request.data.get('email', '')
+    try:
+        user = User.objects.get(email=email)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        link = f"{django_settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}"
+        send_mail(
+            'Réinitialisation de mot de passe — Coupdemain',
+            f'Bonjour {user.first_name or user.username},\n\nCliquez sur ce lien pour réinitialiser votre mot de passe :\n{link}\n\nCe lien expire dans 24 heures.',
+            django_settings.DEFAULT_FROM_EMAIL,
+            [email],
+        )
+    except User.DoesNotExist:
+        pass  # Ne pas révéler si l'email existe
+    return Response({'detail': 'Si ce courriel est enregistré, un lien a été envoyé.'})
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def password_reset_confirm(request):
+    uid = request.data.get('uid')
+    token = request.data.get('token')
+    password = request.data.get('password')
+    if not uid or not token or not password:
+        return Response({'detail': 'Données manquantes.'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        pk = force_str(urlsafe_base64_decode(uid))
+        user = User.objects.get(pk=pk)
+        if not default_token_generator.check_token(user, token):
+            return Response({'detail': 'Lien invalide ou expiré.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(password)
+        user.save()
+        return Response({'detail': 'Mot de passe modifié avec succès.'})
+    except Exception:
+        return Response({'detail': 'Lien invalide.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ─── Vérification email ───────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def verify_email(request):
+    uid = request.query_params.get('uid')
+    token = request.query_params.get('token')
+    if not uid or not token:
+        return Response({'detail': 'Paramètres manquants.'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        pk = force_str(urlsafe_base64_decode(uid))
+        user = User.objects.get(pk=pk)
+        if not default_token_generator.check_token(user, token):
+            return Response({'detail': 'Lien invalide ou expiré.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.email_verified = True
+        user.save()
+        return Response({'detail': 'Adresse courriel vérifiée avec succès.'})
+    except Exception:
+        return Response({'detail': 'Lien invalide.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def resend_verification(request):
+    user = request.user
+    if user.email_verified:
+        return Response({'detail': 'Votre courriel est déjà vérifié.'})
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    link = f"{django_settings.FRONTEND_URL}/verify-email?uid={uid}&token={token}"
+    send_mail(
+        'Vérifiez votre adresse courriel — Coupdemain',
+        f'Bonjour {user.first_name or user.username},\n\nCliquez sur ce lien pour vérifier votre adresse courriel :\n{link}',
+        django_settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+    )
+    return Response({'detail': 'Email de vérification envoyé.'})

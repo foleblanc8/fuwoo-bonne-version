@@ -12,6 +12,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useBookings } from '../contexts/BookingContext';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useToast } from '../contexts/ToastContext';
+import { StatCardSkeleton, BookingCardSkeleton, ServiceCardSkeleton } from '../components/Skeleton';
 import axios from 'axios';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -338,6 +340,7 @@ function NotificationsTab() {
 
 function ProfileTab() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [form, setForm] = useState({
     first_name: user?.first_name ?? '',
     last_name:  user?.last_name  ?? '',
@@ -442,8 +445,10 @@ function ProfileTab() {
     try {
       await axios.patch('profile/', form);
       setSaved(true);
+      showToast('Profil mis à jour avec succès.');
     } catch {
       setError('Une erreur est survenue. Veuillez réessayer.');
+      showToast('Erreur lors de la mise à jour du profil.', 'error');
     } finally {
       setSaving(false);
     }
@@ -771,6 +776,7 @@ function SettingsTab() {
 
 function ProviderBookingsTab() {
   const { bookings, loading, fetchBookings, confirmBooking, cancelBooking, completeBooking } = useBookings();
+  const { showToast } = useToast();
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed' | 'completed' | 'cancelled'>('all');
   const [expanded, setExpanded] = useState<number | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -787,9 +793,10 @@ function ProviderBookingsTab() {
     .filter(b => b.status === 'completed')
     .reduce((s, b) => s + parseFloat(b.total_price || '0'), 0);
 
-  const doAction = async (id: number, action: () => Promise<void>) => {
+  const doAction = async (id: number, action: () => Promise<void>, successMsg: string) => {
     setActionLoading(id);
-    try { await action(); await fetchBookings(); } catch { /* silent */ }
+    try { await action(); await fetchBookings(); showToast(successMsg); }
+    catch { showToast('Une erreur est survenue.', 'error'); }
     finally { setActionLoading(null); }
   };
 
@@ -805,20 +812,24 @@ function ProviderBookingsTab() {
     <div>
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-6">
-        {[
-          { label: 'En attente',    value: counts.pending,           icon: <AlertCircle className="w-7 h-7 text-yellow-400" /> },
-          { label: 'Confirmées',    value: counts.confirmed,         icon: <CheckCircle  className="w-7 h-7 text-blue-400"   /> },
-          { label: 'Terminées',     value: counts.completed,         icon: <CheckCircle  className="w-7 h-7 text-green-400"  /> },
-          { label: 'Revenus total', value: `$${revenue.toFixed(0)}`, icon: <DollarSign   className="w-7 h-7 text-green-400"  /> },
-        ].map(c => (
-          <div key={c.label} className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500">{c.label}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{c.value}</p>
+        {loading ? (
+          [...Array(4)].map((_, i) => <StatCardSkeleton key={i} />)
+        ) : (
+          [
+            { label: 'En attente',    value: counts.pending,           icon: <AlertCircle className="w-7 h-7 text-yellow-400" /> },
+            { label: 'Confirmées',    value: counts.confirmed,         icon: <CheckCircle  className="w-7 h-7 text-blue-400"   /> },
+            { label: 'Terminées',     value: counts.completed,         icon: <CheckCircle  className="w-7 h-7 text-green-400"  /> },
+            { label: 'Revenus total', value: `$${revenue.toFixed(0)}`, icon: <DollarSign   className="w-7 h-7 text-green-400"  /> },
+          ].map(c => (
+            <div key={c.label} className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500">{c.label}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{c.value}</p>
+              </div>
+              {c.icon}
             </div>
-            {c.icon}
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm">
@@ -843,7 +854,9 @@ function ProviderBookingsTab() {
         </div>
 
         {loading ? (
-          <p className="p-8 text-center text-gray-400 text-sm">Chargement…</p>
+          <div className="divide-y">
+            {[...Array(3)].map((_, i) => <BookingCardSkeleton key={i} />)}
+          </div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center text-gray-400">
             <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -903,14 +916,14 @@ function ProviderBookingsTab() {
                           <>
                             <button
                               disabled={actionLoading === b.id}
-                              onClick={() => doAction(b.id, () => confirmBooking(b.id))}
+                              onClick={() => doAction(b.id, () => confirmBooking(b.id), 'Réservation confirmée.')}
                               className="flex items-center gap-1.5 bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition disabled:opacity-50"
                             >
                               <CheckCircle className="w-4 h-4" />Accepter
                             </button>
                             <button
                               disabled={actionLoading === b.id}
-                              onClick={() => doAction(b.id, () => cancelBooking(b.id))}
+                              onClick={() => doAction(b.id, () => cancelBooking(b.id), 'Réservation refusée.')}
                               className="flex items-center gap-1.5 bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-100 transition disabled:opacity-50"
                             >
                               <XCircle className="w-4 h-4" />Refuser
@@ -921,14 +934,14 @@ function ProviderBookingsTab() {
                           <>
                             <button
                               disabled={actionLoading === b.id}
-                              onClick={() => doAction(b.id, () => completeBooking(b.id))}
+                              onClick={() => doAction(b.id, () => completeBooking(b.id), 'Service marqué comme terminé.')}
                               className="flex items-center gap-1.5 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-coupdemain-primary/90 transition disabled:opacity-50"
                             >
                               <CheckCircle className="w-4 h-4" />Marquer comme terminée
                             </button>
                             <button
                               disabled={actionLoading === b.id}
-                              onClick={() => doAction(b.id, () => cancelBooking(b.id))}
+                              onClick={() => doAction(b.id, () => cancelBooking(b.id), 'Réservation annulée.')}
                               className="flex items-center gap-1.5 text-gray-500 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-100 transition disabled:opacity-50"
                             >
                               <XCircle className="w-4 h-4" />Annuler
@@ -982,6 +995,7 @@ const defaultServiceForm: ServiceForm = {
 
 function ProviderServicesTab() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [services, setServices]     = useState<ProviderService[]>([]);
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -1118,6 +1132,7 @@ function ProviderServicesTab() {
       pendingPreviews.forEach(url => URL.revokeObjectURL(url));
       setShowModal(false);
       setRefreshKey(k => k + 1);
+      showToast(editId ? 'Service modifié avec succès.' : 'Service créé avec succès.');
     } catch (err: any) {
       const data = err?.response?.data;
       if (data) {
@@ -1126,6 +1141,7 @@ function ProviderServicesTab() {
       } else {
         setSaveError('Une erreur est survenue. Veuillez réessayer.');
       }
+      showToast('Une erreur est survenue.', 'error');
     } finally {
       setSaving(false);
     }
@@ -1142,7 +1158,10 @@ function ProviderServicesTab() {
     try {
       await axios.delete(`services/${id}/`);
       setServices(prev => prev.filter(s => s.id !== id));
-    } catch { /* silent */ }
+      showToast('Service supprimé.', 'info');
+    } catch {
+      showToast('Erreur lors de la suppression.', 'error');
+    }
     finally { setDeleting(null); }
   };
 
@@ -1166,7 +1185,9 @@ function ProviderServicesTab() {
       </div>
 
       {loading ? (
-        <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[...Array(4)].map((_, i) => <ServiceCardSkeleton key={i} />)}
+        </div>
       ) : services.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm p-16 text-center">
           <Briefcase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -2329,7 +2350,8 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
 type Mode = 'client' | 'provider';
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, resendVerification } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const { unreadCount } = useNotifications();
@@ -2486,6 +2508,29 @@ export default function DashboardPage() {
 
       {/* ── Contenu principal ── */}
       <div className="md:ml-64 pt-14 md:pt-0 p-4 md:p-8">
+        {/* Bannière vérification email */}
+        {user && !user.email_verified && (
+          <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-amber-800">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              Vérifiez votre adresse courriel pour sécuriser votre compte.
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  await resendVerification();
+                  showToast('Email de vérification envoyé.', 'info');
+                } catch {
+                  showToast('Erreur lors de l\'envoi. Réessayez.', 'error');
+                }
+              }}
+              className="text-xs font-semibold text-amber-700 hover:underline whitespace-nowrap"
+            >
+              Renvoyer l'email
+            </button>
+          </div>
+        )}
+
         <div className="mb-6 md:mb-8">
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Bonjour, {displayName} 👋</h1>
           <p className="text-gray-500 mt-1 text-sm">

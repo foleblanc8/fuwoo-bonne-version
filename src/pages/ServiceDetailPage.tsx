@@ -1,6 +1,6 @@
 // src/pages/ServiceDetailPage.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { useServices } from '../contexts/ServiceContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +12,7 @@ type Service = {
   title: string;
   description: string;
   provider: {
+    id: number;
     name: string;
     rating: number;
     total_reviews: number;
@@ -62,6 +63,7 @@ const ServiceDetailPage = () => {
           title: data.title,
           description: data.description,
           provider: {
+            id: p.id ?? 0,
             name: [p.first_name, p.last_name].filter(Boolean).join(' ') || p.username || '',
             rating: parseFloat(p.rating) || 0,
             total_reviews: p.total_reviews ?? 0,
@@ -153,9 +155,12 @@ const ServiceDetailPage = () => {
               <div className="text-gray-600">{service.price_unit}</div>
             </div>
 
-            <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
-              <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-gray-600" />
+            <Link to={`/provider/${service.provider.id}`} className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+              <div className="w-12 h-12 bg-gray-300 rounded-full overflow-hidden flex items-center justify-center">
+                {service.provider.profile_picture
+                  ? <img src={service.provider.profile_picture} alt={service.provider.name} className="w-full h-full object-cover" />
+                  : <User className="w-6 h-6 text-gray-600" />
+                }
               </div>
               <div>
                 <div className="font-semibold">{service.provider.name}</div>
@@ -165,7 +170,7 @@ const ServiceDetailPage = () => {
                   <span className="text-gray-500">({service.provider.total_reviews} avis)</span>
                 </div>
               </div>
-            </div>
+            </Link>
 
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2 text-gray-700">
