@@ -982,6 +982,7 @@ function ProviderServicesTab() {
   const [editId, setEditId]         = useState<number | null>(null);
   const [form, setForm]             = useState<ServiceForm>(defaultServiceForm);
   const [saving, setSaving]         = useState(false);
+  const [saveError, setSaveError]   = useState('');
   const [deleting, setDeleting]     = useState<number | null>(null);
   // Images
   const [existingImages, setExistingImages] = useState<ServiceImage[]>([]);
@@ -1013,6 +1014,7 @@ function ProviderServicesTab() {
   const openCreate = () => {
     setForm(defaultServiceForm);
     setEditId(null);
+    setSaveError('');
     resetImageState();
     setShowModal(true);
   };
@@ -1026,6 +1028,7 @@ function ProviderServicesTab() {
       max_distance: String(s.max_distance), instant_booking: s.instant_booking,
     });
     setEditId(s.id);
+    setSaveError('');
     setExistingImages(s.images ?? []);
     setPendingFiles([]);
     setPendingPreviews([]);
@@ -1059,10 +1062,27 @@ function ProviderServicesTab() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaveError('');
+
+    // Validation frontend
+    if (!form.category_id) {
+      setSaveError('Veuillez sélectionner une catégorie.');
+      return;
+    }
+    if (!form.title.trim()) {
+      setSaveError('Le titre est obligatoire.');
+      return;
+    }
+    if (!form.price || parseFloat(form.price) <= 0) {
+      setSaveError('Veuillez entrer un prix valide.');
+      return;
+    }
+
     setSaving(true);
     const payload = {
-      title: form.title, description: form.description,
-      ...(form.category_id ? { category_id: parseInt(form.category_id) } : {}),
+      title: form.title,
+      description: form.description,
+      category_id: parseInt(form.category_id),
       price: parseFloat(form.price),
       price_unit: form.price_unit,
       duration: parseInt(form.duration) || 60,
@@ -1090,8 +1110,17 @@ function ProviderServicesTab() {
       pendingPreviews.forEach(url => URL.revokeObjectURL(url));
       setShowModal(false);
       setRefreshKey(k => k + 1);
-    } catch { /* silent */ }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      const data = err?.response?.data;
+      if (data) {
+        const msgs = Object.values(data).flat().join(' ');
+        setSaveError(msgs || 'Une erreur est survenue.');
+      } else {
+        setSaveError('Une erreur est survenue. Veuillez réessayer.');
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleActive = async (s: ProviderService) => {
@@ -1231,11 +1260,13 @@ function ProviderServicesTab() {
                   className={inputCls + ' resize-none'} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Catégorie <span className="text-red-400">*</span>
+                </label>
                 <select value={form.category_id}
-                  onChange={e => setForm(p => ({ ...p, category_id: e.target.value }))}
-                  className={inputCls}>
-                  <option value="">Sélectionner une catégorie</option>
+                  onChange={e => { setForm(p => ({ ...p, category_id: e.target.value })); setSaveError(''); }}
+                  className={inputCls + (!form.category_id ? ' border-orange-300' : '')}>
+                  <option value="">— Sélectionner une catégorie —</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
@@ -1340,6 +1371,12 @@ function ProviderServicesTab() {
                 <input ref={imgInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImgSelect} />
                 <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP — max 5 Mo par image. La première image deviendra la photo principale.</p>
               </div>
+
+              {saveError && (
+                <p className="text-red-600 text-sm bg-red-50 border border-red-100 py-2 px-3 rounded-xl">
+                  {saveError}
+                </p>
+              )}
 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)}
