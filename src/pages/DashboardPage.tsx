@@ -6,7 +6,7 @@ import {
   CheckCircle, XCircle, User, MessageSquare, Settings, LogOut,
   Plus, Send, Bell, Lock, Trash2, ChevronRight, Camera,
   Phone, MapPin, Mail, Shield, Eye, EyeOff,
-  ChevronDown, ChevronUp, Edit2, X, Briefcase, LocateFixed,
+  ChevronDown, ChevronUp, Edit2, X, Briefcase, LocateFixed, FileText,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,6 +26,31 @@ type Booking = {
   time: string;
   status: BookingStatus;
   price: number;
+};
+
+type ServiceRequest = {
+  id: number;
+  title: string;
+  description: string;
+  category: { id: number; name: string } | null;
+  service_area: string;
+  preferred_date: string | null;
+  deadline: string | null;
+  bid_count: number;
+  status: 'open' | 'awarded' | 'closed' | 'cancelled';
+  images: { image: string }[];
+};
+
+type Bid = {
+  id: number;
+  service_request: number;
+  provider: { id: number; username: string; first_name: string; last_name: string; rating?: number } | null;
+  price: string;
+  price_unit: string;
+  message: string;
+  estimated_duration: number | null;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1094,6 +1119,367 @@ function ProviderServicesTab() {
   );
 }
 
+// ─── Provider Requests Tab ────────────────────────────────────────────────────
+
+function ProviderRequestsTab() {
+  const [requests, setRequests]       = useState<ServiceRequest[]>([]);
+  const [submittedIds, setSubmittedIds] = useState<Set<number>>(new Set());
+  const [loading, setLoading]         = useState(true);
+  const [bidModal, setBidModal]       = useState<ServiceRequest | null>(null);
+  const [bidForm, setBidForm]         = useState({ price: '', price_unit: 'par projet', message: '', estimated_duration: '' });
+  const [submitting, setSubmitting]   = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      axios.get('service-requests/'),
+      axios.get('bids/'),
+    ]).then(([rRes, bRes]) => {
+      const rd = rRes.data as any;
+      setRequests(Array.isArray(rd) ? rd : (rd.results ?? []));
+      const bd = bRes.data as any;
+      const bids: Bid[] = Array.isArray(bd) ? bd : (bd.results ?? []);
+      setSubmittedIds(new Set(bids.map(b => b.service_request)));
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const openBidModal = (req: ServiceRequest) => {
+    setBidForm({ price: '', price_unit: 'par projet', message: '', estimated_duration: '' });
+    setBidModal(req);
+  };
+
+  const handleBidSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bidModal) return;
+    setSubmitting(true);
+    try {
+      await axios.post('bids/', {
+        service_request: bidModal.id,
+        price: parseFloat(bidForm.price),
+        price_unit: bidForm.price_unit,
+        message: bidForm.message,
+        ...(bidForm.estimated_duration ? { estimated_duration: parseInt(bidForm.estimated_duration) } : {}),
+      });
+      setSubmittedIds(prev => new Set(prev).add(bidModal.id));
+      setBidModal(null);
+    } catch { /* silent */ }
+    finally { setSubmitting(false); }
+  };
+
+  const reqStatusBadge = (s: string) =>
+    s === 'open' ? 'text-green-700 bg-green-100' : s === 'awarded' ? 'text-blue-700 bg-blue-100' : 'text-gray-600 bg-gray-100';
+  const reqStatusLabel = (s: string) =>
+    ({ open: 'Ouvert', awarded: 'Attribué', closed: 'Fermé', cancelled: 'Annulé' }[s] ?? s);
+
+  const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40';
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900">Demandes ouvertes</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Soumissionnez sur les demandes qui correspondent à vos services.</p>
+      </div>
+
+      {loading ? (
+        <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>
+      ) : requests.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-sm p-16 text-center">
+          <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-gray-700 font-semibold text-lg">Aucune demande ouverte</p>
+          <p className="text-gray-400 text-sm mt-1">Les nouvelles demandes apparaîtront ici.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {requests.map(req => {
+            const alreadyBid = submittedIds.has(req.id);
+            return (
+              <div key={req.id} className="bg-white rounded-2xl shadow-sm p-5">
+                <div className="flex items-start gap-4">
+                  {req.images?.[0] && (
+                    <img src={req.images[0].image} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="font-semibold text-gray-900">{req.title}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${reqStatusBadge(req.status)}`}>
+                        {reqStatusLabel(req.status)}
+                      </span>
+                      {req.category && (
+                        <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{req.category.name}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap mt-1">
+                      {req.service_area && (
+                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{req.service_area}</span>
+                      )}
+                      {req.preferred_date && (
+                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Souhaité : {new Date(req.preferred_date).toLocaleDateString('fr-CA')}</span>
+                      )}
+                      {req.deadline && (
+                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.deadline).toLocaleDateString('fr-CA')}</span>
+                      )}
+                      <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{req.bid_count} offre{req.bid_count !== 1 ? 's' : ''}</span>
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    {alreadyBid ? (
+                      <span className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
+                        <CheckCircle className="w-4 h-4" />Offre envoyée
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => openBidModal(req)}
+                        disabled={req.status !== 'open'}
+                        className="flex items-center gap-2 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-40"
+                      >
+                        <Send className="w-4 h-4" />Soumettre une offre
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Bid Modal */}
+      {bidModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-lg font-bold text-gray-900">Soumettre une offre</h3>
+              <button onClick={() => setBidModal(null)} className="text-gray-400 hover:text-gray-600 transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-3 bg-gray-50 border-b">
+              <p className="text-sm font-medium text-gray-900">{bidModal.title}</p>
+              {bidModal.service_area && (
+                <p className="text-xs text-gray-500 mt-0.5"><MapPin className="inline w-3 h-3 mr-0.5" />{bidModal.service_area}</p>
+              )}
+            </div>
+            <form onSubmit={handleBidSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix ($) *</label>
+                  <input required type="number" min="0" step="0.01" value={bidForm.price}
+                    onChange={e => setBidForm(p => ({ ...p, price: e.target.value }))}
+                    placeholder="150.00" className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
+                  <select value={bidForm.price_unit}
+                    onChange={e => setBidForm(p => ({ ...p, price_unit: e.target.value }))}
+                    className={inputCls}>
+                    <option value="par projet">Par projet</option>
+                    <option value="par heure">Par heure</option>
+                    <option value="par jour">Par jour</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Message *</label>
+                <textarea required rows={3} value={bidForm.message}
+                  onChange={e => setBidForm(p => ({ ...p, message: e.target.value }))}
+                  placeholder="Décrivez votre approche, votre expérience…"
+                  className={inputCls + ' resize-none'} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Durée estimée (heures, optionnel)</label>
+                <input type="number" min="1" value={bidForm.estimated_duration}
+                  onChange={e => setBidForm(p => ({ ...p, estimated_duration: e.target.value }))}
+                  placeholder="Ex: 3" className={inputCls} />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setBidModal(null)}
+                  className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
+                  Annuler
+                </button>
+                <button type="submit" disabled={submitting}
+                  className="flex-1 bg-coupdemain-primary text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60">
+                  {submitting ? 'Envoi…' : 'Envoyer mon offre'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Client Requests Tab ──────────────────────────────────────────────────────
+
+function ClientRequestsTab() {
+  const [requests, setRequests]       = useState<ServiceRequest[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [expandedId, setExpandedId]   = useState<number | null>(null);
+  const [bids, setBids]               = useState<Record<number, Bid[]>>({});
+  const [bidsLoading, setBidsLoading] = useState<number | null>(null);
+  const [accepting, setAccepting]     = useState<number | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await axios.get('service-requests/');
+        const d = res.data as any;
+        setRequests(Array.isArray(d) ? d : (d.results ?? []));
+      } catch { /* silent */ }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const toggleRequest = async (req: ServiceRequest) => {
+    if (expandedId === req.id) { setExpandedId(null); return; }
+    setExpandedId(req.id);
+    if (!bids[req.id]) {
+      setBidsLoading(req.id);
+      try {
+        const res = await axios.get(`bids/?service_request=${req.id}`);
+        const d = res.data as any;
+        setBids(prev => ({ ...prev, [req.id]: Array.isArray(d) ? d : (d.results ?? []) }));
+      } catch { /* silent */ }
+      finally { setBidsLoading(null); }
+    }
+  };
+
+  const acceptBid = async (bidId: number, reqId: number) => {
+    setAccepting(bidId);
+    try {
+      await axios.post(`bids/${bidId}/accept/`);
+      setRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'awarded' } : r));
+      setBids(prev => ({
+        ...prev,
+        [reqId]: (prev[reqId] ?? []).map(b =>
+          b.id === bidId ? { ...b, status: 'accepted' } : { ...b, status: 'rejected' }
+        ),
+      }));
+    } catch { /* silent */ }
+    finally { setAccepting(null); }
+  };
+
+  const reqStatusBadge = (s: string) =>
+    ({ open: 'text-green-700 bg-green-100', awarded: 'text-blue-700 bg-blue-100', cancelled: 'text-red-600 bg-red-100' }[s] ?? 'text-gray-600 bg-gray-100');
+  const reqStatusLabel = (s: string) =>
+    ({ open: 'Ouvert', awarded: 'Attribué', closed: 'Fermé', cancelled: 'Annulé' }[s] ?? s);
+  const bidStatusBadge = (s: string) =>
+    ({ pending: 'text-yellow-700 bg-yellow-100', accepted: 'text-green-700 bg-green-100', rejected: 'text-red-600 bg-red-100' }[s] ?? 'text-gray-600 bg-gray-100');
+  const bidStatusLabel = (s: string) =>
+    ({ pending: 'En attente', accepted: 'Acceptée', rejected: 'Refusée' }[s] ?? s);
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900">Mes demandes</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Consultez les offres reçues et acceptez celle qui vous convient.</p>
+      </div>
+
+      {loading ? (
+        <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>
+      ) : requests.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-sm p-16 text-center">
+          <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-gray-700 font-semibold text-lg">Aucune demande</p>
+          <p className="text-gray-400 text-sm mt-1">Vos demandes de service apparaîtront ici.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {requests.map(req => {
+            const isOpen = expandedId === req.id;
+            const reqBids = bids[req.id] ?? [];
+            return (
+              <div key={req.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <button
+                  onClick={() => toggleRequest(req)}
+                  className="w-full p-5 flex items-center justify-between text-left hover:bg-gray-50 transition"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="font-semibold text-gray-900">{req.title}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${reqStatusBadge(req.status)}`}>
+                        {reqStatusLabel(req.status)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+                      {req.deadline && (
+                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.deadline).toLocaleDateString('fr-CA')}</span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <User className="w-3.5 h-3.5" />{req.bid_count} offre{req.bid_count !== 1 ? 's' : ''} reçue{req.bid_count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                  {isOpen ? <ChevronUp className="w-5 h-5 text-gray-400 shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" />}
+                </button>
+
+                {isOpen && (
+                  <div className="border-t border-gray-100 p-5 space-y-3">
+                    {bidsLoading === req.id ? (
+                      <p className="text-center text-gray-400 text-sm py-4">Chargement des offres…</p>
+                    ) : reqBids.length === 0 ? (
+                      <p className="text-center text-gray-400 text-sm py-4">Aucune offre reçue pour l'instant.</p>
+                    ) : (
+                      reqBids.map(bid => {
+                        const providerName = bid.provider
+                          ? [bid.provider.first_name, bid.provider.last_name].filter(Boolean).join(' ') || bid.provider.username
+                          : '—';
+                        return (
+                          <div key={bid.id} className="border border-gray-100 rounded-xl p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <p className="font-semibold text-gray-900 text-sm">{providerName}</p>
+                                  {bid.provider?.rating !== undefined && (
+                                    <span className="flex items-center gap-0.5 text-xs text-yellow-600">
+                                      <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                                      {Number(bid.provider.rating).toFixed(1)}
+                                    </span>
+                                  )}
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${bidStatusBadge(bid.status)}`}>
+                                    {bidStatusLabel(bid.status)}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-2">{bid.message}</p>
+                                <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+                                  <span className="font-semibold text-gray-800">
+                                    ${parseFloat(bid.price).toFixed(2)} <span className="font-normal">{bid.price_unit}</span>
+                                  </span>
+                                  {bid.estimated_duration && (
+                                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{bid.estimated_duration}h estimées</span>
+                                  )}
+                                </div>
+                              </div>
+                              {req.status === 'open' && bid.status === 'pending' && (
+                                <button
+                                  onClick={() => acceptBid(bid.id, req.id)}
+                                  disabled={accepting === bid.id}
+                                  className="shrink-0 flex items-center gap-1.5 bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  {accepting === bid.id ? 'Acceptation…' : 'Accepter'}
+                                </button>
+                              )}
+                              {bid.status === 'accepted' && (
+                                <span className="shrink-0 flex items-center gap-1.5 text-green-600 text-sm font-semibold">
+                                  <CheckCircle className="w-4 h-4" />Offre acceptée
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Client Dashboard ─────────────────────────────────────────────────────────
 
 const ClientDashboard = () => {
@@ -1111,6 +1497,7 @@ const ClientDashboard = () => {
 
   const navItems = [
     { key: 'bookings',       label: 'Mes réservations', icon: <Calendar className="w-5 h-5" /> },
+    { key: 'requests',       label: 'Mes demandes',     icon: <FileText className="w-5 h-5" /> },
     { key: 'messages',       label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
     {
       key: 'notifications',
@@ -1234,6 +1621,7 @@ const ClientDashboard = () => {
           </div>
         )}
 
+        {activeTab === 'requests'       && <ClientRequestsTab />}
         {activeTab === 'messages'       && <MessagesTab />}
         {activeTab === 'notifications'  && <NotificationsTab />}
         {activeTab === 'profile'        && <ProfileTab />}
@@ -1264,6 +1652,7 @@ const ProviderDashboard = () => {
     { key: 'overview',  label: "Vue d'ensemble", icon: <TrendingUp className="w-5 h-5" /> },
     { key: 'bookings',  label: 'Réservations',   icon: <Calendar className="w-5 h-5" /> },
     { key: 'services',  label: 'Mes services',   icon: <Briefcase className="w-5 h-5" /> },
+    { key: 'requests',  label: 'Demandes',       icon: <FileText className="w-5 h-5" /> },
     { key: 'messages',  label: 'Messages',       icon: <MessageSquare className="w-5 h-5" /> },
     {
       key: 'notifications',
@@ -1365,6 +1754,7 @@ const ProviderDashboard = () => {
         )}
         {activeTab === 'bookings'      && <ProviderBookingsTab />}
         {activeTab === 'services'      && <ProviderServicesTab />}
+        {activeTab === 'requests'      && <ProviderRequestsTab />}
         {activeTab === 'messages'      && <MessagesTab />}
         {activeTab === 'notifications' && <NotificationsTab />}
         {activeTab === 'profile'       && <ProfileTab />}

@@ -1,5 +1,11 @@
 # fuwoo_api/views.py
 
+import json
+import ssl
+import urllib.request
+import certifi
+
+_ssl_ctx = ssl.create_default_context(cafile=certifi.where())
 from rest_framework import viewsets, permissions, status, filters, serializers
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -34,29 +40,39 @@ User = get_user_model()
 class MyTokenObtainPairSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
-    
+
     def validate(self, attrs):
-        username = attrs.get('username')
-        password = attrs.get('password')
-        
-        if username and password:
-            user = authenticate(username=username, password=password)
-            
-            if not user:
-                raise serializers.ValidationError('Identifiants invalides')
-            
-            if not user.is_active:
-                raise serializers.ValidationError('Compte désactivé')
-            
-            refresh = RefreshToken.for_user(user)
-            
-            return {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-                'user': UserSerializer(user).data
-            }
-        else:
-            raise serializers.ValidationError('Username et password requis')
+        identifier = attrs.get('username')
+        password   = attrs.get('password')
+
+        if not identifier or not password:
+            raise serializers.ValidationError('Identifiant et mot de passe requis')
+
+        # Si l'identifiant contient un @, on cherche d'abord par email
+        user = None
+        if '@' in identifier:
+            try:
+                user_obj = User.objects.get(email__iexact=identifier)
+                user = authenticate(username=user_obj.username, password=password)
+            except User.DoesNotExist:
+                pass
+
+        # Sinon (ou si l'email n'a pas matché), on essaie par username
+        if user is None:
+            user = authenticate(username=identifier, password=password)
+
+        if not user:
+            raise serializers.ValidationError('Identifiants invalides')
+
+        if not user.is_active:
+            raise serializers.ValidationError('Compte désactivé')
+
+        refresh = RefreshToken.for_user(user)
+        return {
+            'refresh': str(refresh),
+            'access':  str(refresh.access_token),
+            'user':    UserSerializer(user).data,
+        }
 
 # Vue de login personnalisée
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -87,6 +103,55 @@ def register(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Connexion via Google OAuth
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def google_auth(request):
+    access_token = request.data.get('access_token')
+    if not access_token:
+        return Response({'error': 'Token manquant'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Récupérer les infos utilisateur depuis Google
+    try:
+        req = urllib.request.Request(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            headers={'Authorization': f'Bearer {access_token}'},
+        )
+        with urllib.request.urlopen(req, timeout=5, context=_ssl_ctx) as resp:
+            info = json.loads(resp.read())
+    except Exception:
+        return Response({'error': 'Token Google invalide'}, status=status.HTTP_400_BAD_REQUEST)
+
+    email = info.get('email')
+    if not email:
+        return Response({'error': 'Email non disponible'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Trouver ou créer l'utilisateur
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        base = email.split('@')[0]
+        username = base
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f'{base}{counter}'
+            counter += 1
+        user = User(
+            username=username,
+            email=email,
+            first_name=info.get('given_name', ''),
+            last_name=info.get('family_name', ''),
+        )
+        user.set_unusable_password()
+        user.save()
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'refresh': str(refresh),
+        'access':  str(refresh.access_token),
+        'user':    UserSerializer(user).data,
+    })
 
 # Vue de profil (gardez votre version mais utilisez UserSerializer)
 @api_view(['GET', 'PUT', 'PATCH'])

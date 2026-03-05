@@ -35,6 +35,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  loginWithGoogle: (accessToken: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
 }
@@ -137,6 +138,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(userData);
   };
 
+  const loginWithGoogle = async (accessToken: string) => {
+    const response = await axios.post<AuthResponse>('auth/google/', { access_token: accessToken });
+    const { access, refresh, user: userData } = response.data;
+    localStorage.setItem('access_token', access);
+    localStorage.setItem('refresh_token', refresh);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setToken(access);
+    setUser(userData);
+  };
+
   const register = async (data: RegisterData) => {
     const response = await axios.post<AuthResponse>('auth/register/', data);
     const { access, refresh, user: userData } = response.data;
@@ -156,7 +167,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, loginWithGoogle, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

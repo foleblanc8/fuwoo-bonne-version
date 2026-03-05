@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple, FaFacebookF } from "react-icons/fa";
+import { useGoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../contexts/AuthContext";
 
 const Connexion = () => {
@@ -11,7 +12,7 @@ const Connexion = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,6 +29,22 @@ const Connexion = () => {
     }
   };
 
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setError("");
+      setLoading(true);
+      try {
+        await loginWithGoogle(tokenResponse.access_token);
+        navigate("/dashboard");
+      } catch {
+        setError("Connexion Google échouée. Veuillez réessayer.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    onError: () => setError("Connexion Google annulée ou refusée."),
+  });
+
   return (
     <div className="p-8 max-w-md mx-auto">
       <h1 className="text-3xl font-bold text-coupdemain-primary text-center">Connexion</h1>
@@ -36,7 +53,7 @@ const Connexion = () => {
       <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
         <input
           type="text"
-          placeholder="Nom d'utilisateur"
+          placeholder="Nom d'utilisateur ou adresse courriel"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
@@ -67,15 +84,19 @@ const Connexion = () => {
       </div>
 
       <div className="flex flex-col gap-4">
-        <button className="flex items-center justify-center gap-3 bg-white text-gray-700 border border-gray-300 py-3 rounded-xl shadow hover:shadow-md transition">
+        <button
+          onClick={() => handleGoogleLogin()}
+          disabled={loading}
+          className="flex items-center justify-center gap-3 bg-white text-gray-700 border border-gray-300 py-3 rounded-xl shadow hover:shadow-md transition disabled:opacity-60"
+        >
           <FcGoogle size={24} />
           Continuer avec Google
         </button>
-        <button className="flex items-center justify-center gap-3 bg-black text-white py-3 rounded-xl shadow hover:shadow-md transition">
+        <button disabled className="flex items-center justify-center gap-3 bg-black text-white py-3 rounded-xl shadow opacity-40 cursor-not-allowed">
           <FaApple size={24} />
           Continuer avec Apple
         </button>
-        <button className="flex items-center justify-center gap-3 bg-blue-600 text-white py-3 rounded-xl shadow hover:shadow-md transition">
+        <button disabled className="flex items-center justify-center gap-3 bg-blue-600 text-white py-3 rounded-xl shadow opacity-40 cursor-not-allowed">
           <FaFacebookF size={24} />
           Continuer avec Facebook
         </button>

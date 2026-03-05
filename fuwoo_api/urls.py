@@ -4,7 +4,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
-    CustomTokenObtainPairView, register, profile, become_provider,
+    CustomTokenObtainPairView, register, google_auth, profile, become_provider,
     UserViewSet, ServiceCategoryViewSet, ServiceViewSet,
     BookingViewSet, ReviewViewSet, MessageViewSet,
     NotificationViewSet, AvailabilityViewSet,
@@ -30,6 +30,7 @@ urlpatterns = [
     path('auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/register/', register, name='register'),
+    path('auth/google/', google_auth, name='google_auth'),
     
     # Profil utilisateur
     path('profile/', profile, name='profile'),
