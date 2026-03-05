@@ -1480,6 +1480,258 @@ function ClientRequestsTab() {
   );
 }
 
+// ─── Provider Onboarding Modal ────────────────────────────────────────────────
+
+function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
+  const { user } = useAuth();
+  const [step, setStep] = useState(1);
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  // Step 1 — profil
+  const [bio, setBio]       = useState(user?.bio || '');
+  const [phone, setPhone]   = useState(user?.phone_number || '');
+  const [address, setAddress] = useState(user?.address || '');
+
+  // Step 2 — premier service
+  const [skipService, setSkipService] = useState(false);
+  const [svcForm, setSvcForm] = useState({
+    category_id: '', title: '', description: '',
+    price: '', price_unit: 'par heure',
+    duration: '60', service_area: '', max_distance: '25',
+  });
+
+  useEffect(() => {
+    axios.get('categories/').then(r => {
+      const d = r.data as any;
+      setCategories(Array.isArray(d) ? d : (d.results ?? []));
+    }).catch(() => {});
+  }, []);
+
+  const goToStep3 = () => {
+    setSkipService(false);
+    setStep(3);
+  };
+
+  const skipToStep3 = () => {
+    setSkipService(true);
+    setStep(3);
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setError('');
+    try {
+      const res = await axios.post('become-provider/');
+      localStorage.setItem('user', JSON.stringify(res.data));
+
+      if (bio || phone || address) {
+        await axios.patch('profile/', {
+          ...(bio    ? { bio }                    : {}),
+          ...(phone  ? { phone_number: phone }    : {}),
+          ...(address ? { address }               : {}),
+        });
+      }
+
+      if (!skipService && svcForm.title && svcForm.price && svcForm.service_area) {
+        const payload: Record<string, any> = {
+          title: svcForm.title,
+          description: svcForm.description,
+          price: svcForm.price,
+          price_unit: svcForm.price_unit,
+          duration: parseInt(svcForm.duration) || 60,
+          service_area: svcForm.service_area,
+          max_distance: parseInt(svcForm.max_distance) || 25,
+        };
+        if (svcForm.category_id) payload.category_id = parseInt(svcForm.category_id);
+        await axios.post('services/', payload);
+      }
+
+      window.location.reload();
+    } catch (e: any) {
+      const data = e?.response?.data;
+      const msgs = data ? Object.values(data).flat().join(' ') : '';
+      setError(msgs || 'Une erreur est survenue. Veuillez réessayer.');
+      setSubmitting(false);
+    }
+  };
+
+  const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Activer le mode Pro</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Étape {step} sur 3</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-1 bg-gray-100">
+          <div className="h-1 bg-coupdemain-primary transition-all duration-300" style={{ width: `${(step / 3) * 100}%` }} />
+        </div>
+
+        <div className="p-6">
+          {/* ── Step 1 : Profil ── */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <div className="mb-2">
+                <p className="font-semibold text-gray-900 text-base">Votre profil prestataire</p>
+                <p className="text-sm text-gray-500 mt-0.5">Ces informations seront visibles par vos futurs clients.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Biographie / Présentation <span className="text-red-400">*</span></label>
+                <textarea rows={4} value={bio} onChange={e => setBio(e.target.value)}
+                  placeholder="Décrivez votre expérience, vos compétences, ce qui vous distingue…"
+                  className={inputCls + ' resize-none'} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Numéro de téléphone</label>
+                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                  placeholder="514 555-1234" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ville / Adresse principale</label>
+                <input type="text" value={address} onChange={e => setAddress(e.target.value)}
+                  placeholder="Montréal, QC" className={inputCls} />
+              </div>
+              <div className="flex justify-end pt-2">
+                <button disabled={!bio.trim()} onClick={() => setStep(2)}
+                  className="bg-coupdemain-primary text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-40">
+                  Suivant →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 2 : Premier service ── */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="mb-2">
+                <p className="font-semibold text-gray-900 text-base">Votre premier service</p>
+                <p className="text-sm text-gray-500 mt-0.5">Créez votre premier service pour apparaître dans les recherches.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                <select value={svcForm.category_id} onChange={e => setSvcForm(p => ({ ...p, category_id: e.target.value }))} className={inputCls}>
+                  <option value="">Sélectionner une catégorie</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Titre du service <span className="text-red-400">*</span></label>
+                <input value={svcForm.title} onChange={e => setSvcForm(p => ({ ...p, title: e.target.value }))}
+                  placeholder="Ex: Plomberie résidentielle" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea rows={3} value={svcForm.description} onChange={e => setSvcForm(p => ({ ...p, description: e.target.value }))}
+                  placeholder="Décrivez ce que vous offrez, votre méthode de travail…"
+                  className={inputCls + ' resize-none'} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix ($) <span className="text-red-400">*</span></label>
+                  <input type="number" min="0" step="0.01" value={svcForm.price}
+                    onChange={e => setSvcForm(p => ({ ...p, price: e.target.value }))}
+                    placeholder="75.00" className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
+                  <select value={svcForm.price_unit} onChange={e => setSvcForm(p => ({ ...p, price_unit: e.target.value }))} className={inputCls}>
+                    <option value="par heure">Par heure</option>
+                    <option value="par projet">Par projet</option>
+                    <option value="par jour">Par jour</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Durée estimée (min)</label>
+                  <input type="number" min="15" step="15" value={svcForm.duration}
+                    onChange={e => setSvcForm(p => ({ ...p, duration: e.target.value }))} className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Distance max (km)</label>
+                  <input type="number" min="1" value={svcForm.max_distance}
+                    onChange={e => setSvcForm(p => ({ ...p, max_distance: e.target.value }))} className={inputCls} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Zone de service <span className="text-red-400">*</span></label>
+                <input value={svcForm.service_area} onChange={e => setSvcForm(p => ({ ...p, service_area: e.target.value }))}
+                  placeholder="Montréal et environs" className={inputCls} />
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <button onClick={() => setStep(1)} className="text-gray-500 text-sm hover:text-gray-700 transition">← Retour</button>
+                <div className="flex gap-3">
+                  <button onClick={skipToStep3}
+                    className="text-gray-500 text-sm border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 transition">
+                    Passer
+                  </button>
+                  <button onClick={goToStep3}
+                    disabled={!svcForm.title.trim() || !svcForm.price || !svcForm.service_area.trim()}
+                    className="bg-coupdemain-primary text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-40">
+                    Suivant →
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 3 : Confirmation ── */}
+          {step === 3 && (
+            <div className="space-y-5">
+              <div className="text-center py-4">
+                <div className="w-16 h-16 bg-coupdemain-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Briefcase className="w-8 h-8 text-coupdemain-primary" />
+                </div>
+                <p className="font-bold text-gray-900 text-xl">Tout est prêt !</p>
+                <p className="text-gray-500 text-sm mt-2">Voici un résumé de votre profil prestataire.</p>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+                {bio     && <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Biographie</span><span className="text-gray-700 line-clamp-2">{bio}</span></div>}
+                {phone   && <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Téléphone</span><span className="text-gray-700">{phone}</span></div>}
+                {address && <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Ville</span><span className="text-gray-700">{address}</span></div>}
+                {!skipService && svcForm.title && (
+                  <div className="border-t pt-3 mt-2 space-y-1.5">
+                    <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Service</span><span className="text-gray-700 font-medium">{svcForm.title}</span></div>
+                    <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Prix</span><span className="text-gray-700">${svcForm.price} {svcForm.price_unit}</span></div>
+                    <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Zone</span><span className="text-gray-700">{svcForm.service_area}</span></div>
+                  </div>
+                )}
+                {skipService && (
+                  <p className="text-gray-400 text-xs italic pt-1">Aucun service créé — vous pourrez en ajouter depuis votre tableau de bord.</p>
+                )}
+              </div>
+
+              {error && (
+                <p className="text-red-600 text-sm text-center bg-red-50 py-2 px-3 rounded-lg">{error}</p>
+              )}
+
+              <div className="flex items-center justify-between pt-2">
+                <button onClick={() => setStep(2)} className="text-gray-500 text-sm hover:text-gray-700 transition">← Retour</button>
+                <button onClick={handleSubmit} disabled={submitting}
+                  className="bg-coupdemain-primary text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60">
+                  {submitting ? 'Activation…' : 'Activer mon profil Pro'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard unifié ─────────────────────────────────────────────────────────
 
 type ProviderBookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
@@ -1490,6 +1742,7 @@ export default function DashboardPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { unreadCount } = useNotifications();
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const [activeMode, setActiveMode] = useState<Mode>(() => {
     const saved = localStorage.getItem('dashboard_mode') as Mode | null;
@@ -1605,12 +1858,7 @@ export default function DashboardPage() {
               <p className="text-xs font-semibold text-coupdemain-primary mb-1">Vous offrez des services ?</p>
               <p className="text-xs text-gray-500 mb-2">Activez votre profil prestataire pour proposer vos compétences.</p>
               <button
-                onClick={async () => {
-                  try {
-                    await import('axios').then(m => m.default.post('become-provider/'));
-                    window.location.reload();
-                  } catch { /* silent */ }
-                }}
+                onClick={() => setShowOnboarding(true)}
                 className="w-full bg-coupdemain-primary text-white text-xs py-1.5 rounded-lg font-semibold hover:bg-coupdemain-primary/90 transition"
               >Activer le mode Pro</button>
             </div>
@@ -1757,6 +2005,8 @@ export default function DashboardPage() {
         {isProviderMode && activeTab === 'profile'       && <ProfileTab />}
         {isProviderMode && activeTab === 'settings'      && <SettingsTab />}
       </div>
+
+      {showOnboarding && <ProviderOnboardingModal onClose={() => setShowOnboarding(false)} />}
     </div>
   );
 }
