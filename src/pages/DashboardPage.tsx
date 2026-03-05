@@ -338,12 +338,66 @@ function ProfileTab() {
     address:    (user as any)?.address ?? '',
     bio:        (user as any)?.bio ?? '',
   });
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved]   = useState(false);
-  const [error, setError]   = useState('');
+  const [saving, setSaving]         = useState(false);
+  const [saved, setSaved]           = useState(false);
+  const [error, setError]           = useState('');
+  const [uploading, setUploading]   = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    (user as any)?.profile_picture ?? null,
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success' | 'denied'>(
     (user as any)?.latitude ? 'success' : 'idle',
   );
+
+  const handlePhotoClick = () => fileInputRef.current?.click();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validation locale
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Veuillez sélectionner une image (JPG, PNG, WebP).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('La photo ne doit pas dépasser 5 Mo.');
+      return;
+    }
+
+    // Aperçu immédiat
+    const localUrl = URL.createObjectURL(file);
+    setPreviewUrl(localUrl);
+    setUploadError('');
+    setUploading(true);
+
+    try {
+      const fd = new FormData();
+      fd.append('profile_picture', file);
+      const res = await axios.patch('profile/', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const updatedUser = res.data as any;
+      // Remplacer le blob par l'URL serveur
+      setPreviewUrl(updatedUser.profile_picture ?? localUrl);
+      // Synchroniser localStorage
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.profile_picture = updatedUser.profile_picture;
+        localStorage.setItem('user', JSON.stringify(parsed));
+      }
+    } catch {
+      setUploadError("Échec de l'envoi. Veuillez réessayer.");
+      setPreviewUrl((user as any)?.profile_picture ?? null);
+    } finally {
+      setUploading(false);
+      // Réinitialiser l'input pour permettre de re-sélectionner le même fichier
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
@@ -395,12 +449,37 @@ function ProfileTab() {
         <h2 className="text-lg font-semibold text-gray-900 mb-6">Photo de profil</h2>
         <div className="flex items-center gap-5">
           <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-coupdemain-primary/15 flex items-center justify-center text-2xl font-bold text-coupdemain-primary">
-              {initials}
-            </div>
-            <button className="absolute bottom-0 right-0 w-7 h-7 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 transition">
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt="Photo de profil"
+                className={`w-20 h-20 rounded-full object-cover border-2 border-gray-100 ${uploading ? 'opacity-50' : ''}`}
+              />
+            ) : (
+              <div className={`w-20 h-20 rounded-full bg-coupdemain-primary/15 flex items-center justify-center text-2xl font-bold text-coupdemain-primary ${uploading ? 'opacity-50' : ''}`}>
+                {initials}
+              </div>
+            )}
+            {uploading && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-full">
+                <div className="w-5 h-5 border-2 border-coupdemain-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handlePhotoClick}
+              disabled={uploading}
+              className="absolute bottom-0 right-0 w-7 h-7 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 transition disabled:opacity-50"
+            >
               <Camera className="w-3.5 h-3.5 text-gray-600" />
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
           </div>
           <div>
             <p className="font-medium text-gray-900">{user?.first_name} {user?.last_name}</p>
@@ -408,6 +487,9 @@ function ProfileTab() {
             <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-coupdemain-primary/10 text-coupdemain-primary font-medium capitalize">
               {user?.role === 'prestataire' ? 'Prestataire' : 'Client'}
             </span>
+            <p className="text-xs text-gray-400 mt-2">JPG, PNG ou WebP — max 5 Mo</p>
+            {uploadError && <p className="text-xs text-red-500 mt-1">{uploadError}</p>}
+            {uploading && <p className="text-xs text-coupdemain-primary mt-1">Envoi en cours…</p>}
           </div>
         </div>
       </div>
