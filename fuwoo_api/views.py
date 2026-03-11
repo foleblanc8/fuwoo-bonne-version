@@ -580,7 +580,12 @@ class BidViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError("Cette demande n'est plus ouverte.")
         if sr.submission_deadline < now():
             raise serializers.ValidationError('La période de soumission est terminée.')
-        bid = serializer.save(provider=user)
+        try:
+            from django.db import transaction as db_transaction
+            with db_transaction.atomic():
+                bid = serializer.save(provider=user)
+        except IntegrityError:
+            raise serializers.ValidationError('Vous avez déjà soumis une offre pour cette demande.')
         # Email au client : nouvelle offre reçue
         provider_name = user.get_full_name() or user.username
         send_bid_received(
