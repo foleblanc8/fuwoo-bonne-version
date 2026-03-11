@@ -27,8 +27,8 @@ type ServiceRequest = {
   description: string;
   category: { id: number; name: string } | null;
   service_area: string;
-  preferred_date: string | null;
-  deadline: string | null;
+  preferred_dates: string;
+  submission_deadline: string | null;
   bid_count: number;
   status: 'open' | 'awarded' | 'closed' | 'cancelled';
   images: { image: string }[];
@@ -585,6 +585,142 @@ function ProfileTab() {
           </button>
         </div>
       </form>
+
+      {/* Section vérification d'identité — prestataires seulement */}
+      {(user as any)?.has_provider_profile && (
+        <IdentityVerificationSection />
+      )}
+    </div>
+  );
+}
+
+// ─── Identity Verification Section ───────────────────────────────────────────
+
+function IdentityVerificationSection() {
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const identityStatus = (user as any)?.identity_status ?? 'not_submitted';
+  const rejectionReason = (user as any)?.identity_rejection_reason ?? '';
+  const [uploading, setUploading] = useState(false);
+  const [localStatus, setLocalStatus] = useState(identityStatus);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
+    not_submitted: { label: 'Non soumis',        color: 'text-gray-600',   bg: 'bg-gray-100' },
+    pending:       { label: 'En cours de révision', color: 'text-amber-700',  bg: 'bg-amber-100' },
+    verified:      { label: 'Identité vérifiée', color: 'text-green-700',  bg: 'bg-green-100' },
+    rejected:      { label: 'Document rejeté',   color: 'text-red-700',    bg: 'bg-red-100' },
+  };
+  const cfg = statusConfig[localStatus] ?? statusConfig.not_submitted;
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowed.includes(file.type)) {
+      showToast('Format accepté : JPG, PNG, WebP ou PDF.', 'error');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Le fichier ne doit pas dépasser 10 Mo.', 'error');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('identity_document', file);
+      await axios.post('auth/submit-identity/', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setLocalStatus('pending');
+      // Mettre à jour le localStorage
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.identity_status = 'pending';
+        localStorage.setItem('user', JSON.stringify(parsed));
+      }
+      showToast('Document soumis ! Nous l\'examinerons sous 24–48h.', 'success');
+    } catch (err: any) {
+      showToast(err?.response?.data?.detail ?? 'Erreur lors de l\'envoi.', 'error');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-6 mt-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Vérification d'identité</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Le badge <span className="text-green-700 font-medium">✓ Vérifié</span> augmente la confiance des clients.
+          </p>
+        </div>
+        <span className={`text-xs font-semibold px-3 py-1 rounded-full ${cfg.bg} ${cfg.color}`}>
+          {cfg.label}
+        </span>
+      </div>
+
+      {localStatus === 'verified' && (
+        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl p-4">
+          <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+          <p className="text-sm text-green-800 font-medium">
+            Votre identité a été vérifiée. Le badge apparaît sur votre profil public.
+          </p>
+        </div>
+      )}
+
+      {localStatus === 'pending' && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-800">
+            Document reçu — révision en cours (24–48h). Vous serez notifié par email.
+          </p>
+        </div>
+      )}
+
+      {localStatus === 'rejected' && (
+        <div className="space-y-3">
+          <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-4">
+            <XCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-red-800 font-medium">Document rejeté</p>
+              {rejectionReason && (
+                <p className="text-sm text-red-700 mt-0.5">{rejectionReason}</p>
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">Veuillez soumettre un nouveau document :</p>
+        </div>
+      )}
+
+      {(localStatus === 'not_submitted' || localStatus === 'rejected') && (
+        <div className="mt-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-2 bg-coupdemain-primary text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60"
+          >
+            <Shield className="w-4 h-4" />
+            {uploading ? 'Envoi en cours…' : 'Soumettre une pièce d\'identité'}
+          </button>
+          <p className="text-xs text-gray-400 mt-2">
+            Passeport, permis de conduire ou carte d'identité — JPG, PNG ou PDF, max 10 Mo
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1425,26 +1561,216 @@ function ProviderServicesTab() {
   );
 }
 
+// ─── Portfolio Tab ────────────────────────────────────────────────────────────
+
+type PortfolioPhoto = { id: number; image: string; caption: string };
+const MAX_PORTFOLIO = 10;
+
+function PortfolioTab() {
+  const { showToast } = useToast();
+  const [photos, setPhotos]     = useState<PortfolioPhoto[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
+  const [editCaption, setEditCaption] = useState<{ id: number; value: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await axios.get('portfolio/');
+        const d = r.data as any;
+        setPhotos(Array.isArray(d) ? d : (d.results ?? []));
+      } catch { /* silent */ }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const remaining = MAX_PORTFOLIO - photos.length;
+    const toUpload = Array.from(files).slice(0, remaining);
+    if (toUpload.length === 0) {
+      showToast(`Maximum ${MAX_PORTFOLIO} photos atteint.`, 'warning');
+      return;
+    }
+    setUploading(true);
+    for (const file of toUpload) {
+      if (!file.type.startsWith('image/')) continue;
+      if (file.size > 8 * 1024 * 1024) { showToast('Max 8 Mo par image.', 'error'); continue; }
+      try {
+        const fd = new FormData();
+        fd.append('image', file);
+        const res = await axios.post('portfolio/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        setPhotos(prev => [...prev, res.data as PortfolioPhoto]);
+      } catch { showToast('Erreur lors de l\'upload.', 'error'); }
+    }
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const deletePhoto = async (id: number) => {
+    setDeleting(id);
+    try {
+      await axios.delete(`portfolio/${id}/`);
+      setPhotos(prev => prev.filter(p => p.id !== id));
+    } catch { showToast('Erreur lors de la suppression.', 'error'); }
+    finally { setDeleting(null); }
+  };
+
+  const saveCaption = async (id: number, caption: string) => {
+    try {
+      await axios.patch(`portfolio/${id}/`, { caption });
+      setPhotos(prev => prev.map(p => p.id === id ? { ...p, caption } : p));
+      setEditCaption(null);
+    } catch { showToast('Erreur lors de la mise à jour.', 'error'); }
+  };
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Portfolio</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Montrez vos réalisations passées aux clients. {photos.length}/{MAX_PORTFOLIO} photos.
+          </p>
+        </div>
+        {photos.length < MAX_PORTFOLIO && (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-2 bg-coupdemain-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60"
+          >
+            <Plus className="w-4 h-4" />
+            {uploading ? 'Envoi…' : 'Ajouter des photos'}
+          </button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={e => handleFiles(e.target.files)}
+        />
+      </div>
+
+      {loading ? (
+        <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>
+      ) : photos.length === 0 ? (
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          className="border-2 border-dashed border-gray-200 rounded-2xl p-16 text-center cursor-pointer hover:border-coupdemain-primary/40 hover:bg-coupdemain-primary/5 transition"
+        >
+          <Camera className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-gray-700 font-semibold">Aucune photo pour l'instant</p>
+          <p className="text-gray-400 text-sm mt-1">Cliquez pour ajouter vos premières réalisations</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {photos.map(photo => (
+            <div key={photo.id} className="group relative bg-white rounded-2xl shadow-sm overflow-hidden">
+              <img
+                src={photo.image}
+                alt={photo.caption || 'Portfolio'}
+                className="w-full aspect-square object-cover"
+              />
+              {/* Actions overlay */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                <button
+                  onClick={() => setEditCaption({ id: photo.id, value: photo.caption })}
+                  className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-700 hover:bg-gray-100 transition"
+                  title="Modifier la légende"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => deletePhoto(photo.id)}
+                  disabled={deleting === photo.id}
+                  className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 transition disabled:opacity-50"
+                  title="Supprimer"
+                >
+                  {deleting === photo.id
+                    ? <div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                    : <Trash2 className="w-3.5 h-3.5" />
+                  }
+                </button>
+              </div>
+              {/* Légende */}
+              {photo.caption && (
+                <div className="px-3 py-2">
+                  <p className="text-xs text-gray-600 truncate">{photo.caption}</p>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Bouton ajout inline */}
+          {photos.length < MAX_PORTFOLIO && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="aspect-square border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-coupdemain-primary/40 hover:text-coupdemain-primary hover:bg-coupdemain-primary/5 transition"
+            >
+              <Plus className="w-6 h-6" />
+              <span className="text-xs font-medium">Ajouter</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Modal légende */}
+      {editCaption && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="font-semibold text-gray-900 mb-3">Modifier la légende</h3>
+            <input
+              autoFocus
+              value={editCaption.value}
+              onChange={e => setEditCaption(p => p ? { ...p, value: e.target.value } : null)}
+              onKeyDown={e => e.key === 'Enter' && saveCaption(editCaption.id, editCaption.value)}
+              placeholder="Ex : Cuisine rénovée à Montréal"
+              maxLength={200}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40"
+            />
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => setEditCaption(null)}
+                className="flex-1 border border-gray-200 text-gray-600 py-2 rounded-xl text-sm hover:bg-gray-50 transition">
+                Annuler
+              </button>
+              <button onClick={() => saveCaption(editCaption.id, editCaption.value)}
+                className="flex-1 bg-coupdemain-primary text-white py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition">
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ─── Provider Requests Tab ────────────────────────────────────────────────────
 
 function ProviderRequestsTab() {
   const [requests, setRequests]       = useState<ServiceRequest[]>([]);
-  const [submittedIds, setSubmittedIds] = useState<Set<number>>(new Set());
+  const [myBids, setMyBids]           = useState<Bid[]>([]);
   const [loading, setLoading]         = useState(true);
   const [bidModal, setBidModal]       = useState<ServiceRequest | null>(null);
   const [bidForm, setBidForm]         = useState({ price: '', price_unit: 'par projet', message: '', estimated_duration: '' });
   const [submitting, setSubmitting]   = useState(false);
 
+  const submittedIds = new Set(myBids.map(b => b.service_request));
+
   useEffect(() => {
     Promise.all([
-      axios.get('service-requests/'),
-      axios.get('bids/'),
+      axios.get('service-requests/?as=provider'),
+      axios.get('bids/?as=provider'),
     ]).then(([rRes, bRes]) => {
       const rd = rRes.data as any;
       setRequests(Array.isArray(rd) ? rd : (rd.results ?? []));
       const bd = bRes.data as any;
-      const bids: Bid[] = Array.isArray(bd) ? bd : (bd.results ?? []);
-      setSubmittedIds(new Set(bids.map(b => b.service_request)));
+      setMyBids(Array.isArray(bd) ? bd : (bd.results ?? []));
     }).finally(() => setLoading(false));
   }, []);
 
@@ -1458,14 +1784,14 @@ function ProviderRequestsTab() {
     if (!bidModal) return;
     setSubmitting(true);
     try {
-      await axios.post('bids/', {
+      const res = await axios.post('bids/', {
         service_request: bidModal.id,
         price: parseFloat(bidForm.price),
         price_unit: bidForm.price_unit,
         message: bidForm.message,
         ...(bidForm.estimated_duration ? { estimated_duration: parseInt(bidForm.estimated_duration) } : {}),
       });
-      setSubmittedIds(prev => new Set(prev).add(bidModal.id));
+      setMyBids(prev => [...prev, res.data as Bid]);
       setBidModal(null);
     } catch { /* silent */ }
     finally { setSubmitting(false); }
@@ -1517,29 +1843,48 @@ function ProviderRequestsTab() {
                       {req.service_area && (
                         <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{req.service_area}</span>
                       )}
-                      {req.preferred_date && (
-                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Souhaité : {new Date(req.preferred_date).toLocaleDateString('fr-CA')}</span>
+                      {req.preferred_dates && (
+                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Souhaité : {req.preferred_dates}</span>
                       )}
-                      {req.deadline && (
-                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.deadline).toLocaleDateString('fr-CA')}</span>
+                      {req.submission_deadline && (
+                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.submission_deadline).toLocaleDateString('fr-CA')}</span>
                       )}
                       <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" />{req.bid_count} offre{req.bid_count !== 1 ? 's' : ''}</span>
                     </div>
                   </div>
                   <div className="shrink-0">
-                    {alreadyBid ? (
-                      <span className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
-                        <CheckCircle className="w-4 h-4" />Offre envoyée
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => openBidModal(req)}
-                        disabled={req.status !== 'open'}
-                        className="flex items-center gap-2 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-40"
-                      >
-                        <Send className="w-4 h-4" />Soumettre une offre
-                      </button>
-                    )}
+                    {(() => {
+                      const bid = myBids.find(b => b.service_request === req.id);
+                      if (!bid) return (
+                        <button
+                          onClick={() => openBidModal(req)}
+                          disabled={req.status !== 'open'}
+                          className="flex items-center gap-2 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-40"
+                        >
+                          <Send className="w-4 h-4" />Soumettre une offre
+                        </button>
+                      );
+                      if (bid.status === 'accepted') return (
+                        <div className="flex flex-col items-end gap-2">
+                          <span className="flex items-center gap-1.5 text-green-600 text-sm font-semibold">
+                            <CheckCircle className="w-4 h-4" />Offre acceptée !
+                          </span>
+                          <a
+                            href={`/api/contracts/${bid.id}/`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 border border-indigo-200 text-indigo-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-50 transition"
+                          >
+                            <FileText className="w-4 h-4" />Contrat PDF
+                          </a>
+                        </div>
+                      );
+                      return (
+                        <span className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
+                          <CheckCircle className="w-4 h-4" />Offre envoyée
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -1623,6 +1968,8 @@ function ClientRequestsTab() {
   const [bids, setBids]               = useState<Record<number, Bid[]>>({});
   const [bidsLoading, setBidsLoading] = useState<number | null>(null);
   const [accepting, setAccepting]     = useState<number | null>(null);
+  const [paying, setPaying]           = useState<number | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     (async () => {
@@ -1662,6 +2009,25 @@ function ClientRequestsTab() {
       }));
     } catch { /* silent */ }
     finally { setAccepting(null); }
+  };
+
+  const payBid = async (bidId: number) => {
+    setPaying(bidId);
+    try {
+      const res = await axios.post('payments/create-checkout/', { bid_id: bidId });
+      window.location.href = (res.data as any).checkout_url;
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail ?? 'Erreur lors du paiement.';
+      showToast(msg, 'error');
+      setPaying(null);
+    }
+  };
+
+  const commissionRate = (price: string) => {
+    const p = parseFloat(price);
+    if (p <= 500)  return 15;
+    if (p <= 2000) return 12;
+    return 10;
   };
 
   const reqStatusBadge = (s: string) =>
@@ -1707,8 +2073,8 @@ function ClientRequestsTab() {
                       </span>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                      {req.deadline && (
-                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.deadline).toLocaleDateString('fr-CA')}</span>
+                      {req.submission_deadline && (
+                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.submission_deadline).toLocaleDateString('fr-CA')}</span>
                       )}
                       <span className="flex items-center gap-1">
                         <User className="w-3.5 h-3.5" />{req.bid_count} offre{req.bid_count !== 1 ? 's' : ''} reçue{req.bid_count !== 1 ? 's' : ''}
@@ -1735,6 +2101,11 @@ function ClientRequestsTab() {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                                   <p className="font-semibold text-gray-900 text-sm">{providerName}</p>
+                                  {(bid.provider as any)?.is_verified && (
+                                    <span className="flex items-center gap-0.5 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                      <Shield className="w-3 h-3" />Vérifié
+                                    </span>
+                                  )}
                                   {bid.provider?.rating !== undefined && (
                                     <span className="flex items-center gap-0.5 text-xs text-yellow-600">
                                       <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
@@ -1766,9 +2137,33 @@ function ClientRequestsTab() {
                                 </button>
                               )}
                               {bid.status === 'accepted' && (
-                                <span className="shrink-0 flex items-center gap-1.5 text-green-600 text-sm font-semibold">
-                                  <CheckCircle className="w-4 h-4" />Offre acceptée
-                                </span>
+                                <div className="shrink-0 flex flex-col items-end gap-2">
+                                  <span className="flex items-center gap-1.5 text-green-600 text-sm font-semibold">
+                                    <CheckCircle className="w-4 h-4" />Offre acceptée
+                                  </span>
+                                  <div className="text-right">
+                                    <p className="text-xs text-gray-400 mb-1">
+                                      Commission Fuwoo {commissionRate(bid.price)}% incluse
+                                    </p>
+                                    <button
+                                      onClick={() => payBid(bid.id)}
+                                      disabled={paying === bid.id}
+                                      className="flex items-center gap-1.5 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-50"
+                                    >
+                                      <DollarSign className="w-4 h-4" />
+                                      {paying === bid.id ? 'Redirection…' : `Payer $${parseFloat(bid.price).toFixed(2)}`}
+                                    </button>
+                                    <a
+                                      href={`/api/contracts/${bid.id}/`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-1.5 border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition"
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                      Contrat PDF
+                                    </a>
+                                  </div>
+                                </div>
                               )}
                             </div>
                           </div>
@@ -2379,6 +2774,20 @@ export default function DashboardPage() {
     setActiveTab(mode === 'provider' ? 'overview' : 'bookings');
   };
 
+  // Gestion du retour Stripe
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get('payment');
+    if (paymentStatus === 'success') {
+      showToast('Paiement confirmé ! Le prestataire a été notifié.', 'success');
+      setActiveTab('requests');
+      navigate('/dashboard', { replace: true });
+    } else if (paymentStatus === 'cancelled') {
+      showToast('Paiement annulé.', 'warning');
+      navigate('/dashboard', { replace: true });
+    }
+  }, []);
+
   // Suppression des états mock (remplacés par ClientBookingsTab / ProviderOverviewTab)
 
   const isProviderMode = activeMode === 'provider' && !!user?.has_provider_profile;
@@ -2408,6 +2817,7 @@ export default function DashboardPage() {
     { key: 'overview',      label: "Vue d'ensemble",   icon: <TrendingUp className="w-5 h-5" /> },
     { key: 'bookings',      label: 'Réservations',     icon: <Calendar className="w-5 h-5" /> },
     { key: 'services',      label: 'Mes services',     icon: <Briefcase className="w-5 h-5" /> },
+    { key: 'portfolio',     label: 'Portfolio',        icon: <Camera className="w-5 h-5" /> },
     { key: 'requests',      label: 'Demandes',         icon: <FileText className="w-5 h-5" /> },
     { key: 'messages',      label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
     { key: 'notifications', label: 'Notifications',    icon: notifIcon },
@@ -2550,6 +2960,7 @@ export default function DashboardPage() {
         {isProviderMode && activeTab === 'overview'       && <ProviderOverviewTab />}
         {isProviderMode && activeTab === 'bookings'      && <ProviderBookingsTab />}
         {isProviderMode && activeTab === 'services'      && <ProviderServicesTab />}
+        {isProviderMode && activeTab === 'portfolio'     && <PortfolioTab />}
         {isProviderMode && activeTab === 'requests'      && <ProviderRequestsTab />}
         {isProviderMode && activeTab === 'messages'      && <MessagesTab />}
         {isProviderMode && activeTab === 'notifications' && <NotificationsTab />}

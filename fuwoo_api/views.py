@@ -4,6 +4,8 @@ import json
 import ssl
 import urllib.request
 import certifi
+import stripe
+from decimal import Decimal
 
 _ssl_ctx = ssl.create_default_context(cafile=certifi.where())
 from rest_framework import viewsets, permissions, status, filters, serializers
@@ -14,10 +16,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import authenticate, get_user_model
+from django.shortcuts import get_object_or_404
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
+from .emails import (
+    send_email_verification, send_password_reset, send_welcome,
+    send_bid_received, send_bid_accepted, send_booking_confirmed,
+    send_identity_verified, send_identity_rejected,
+)
 from django.conf import settings as django_settings
 from django.db.models import Q, Avg
 from django.db import IntegrityError
@@ -26,13 +34,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import (
     ServiceCategory, Service, Booking, Review,
     Message, Notification, Availability,
-    ServiceRequest, ServiceRequestImage, Bid,
+    ServiceRequest, ServiceRequestImage, Bid, Payment, PortfolioPhoto,
 )
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, ServiceCategorySerializer,
     ServiceSerializer, BookingSerializer, ReviewSerializer,
     MessageSerializer, NotificationSerializer, AvailabilitySerializer,
-    ServiceRequestSerializer, BidSerializer,
+    ServiceRequestSerializer, BidSerializer, PortfolioPhotoSerializer,
 )
 from .permissions import IsOwnerOrReadOnly, IsProviderOrReadOnly
 from .utils import haversine_distance
@@ -96,17 +104,13 @@ def register(request):
     if serializer.is_valid():
         try:
             user = serializer.save()
-            # Envoyer email de vérification
+            # Envoyer email de bienvenue + vérification
             try:
                 uid = urlsafe_base64_encode(force_bytes(user.pk))
                 token = default_token_generator.make_token(user)
                 link = f"{django_settings.FRONTEND_URL}/verify-email?uid={uid}&token={token}"
-                send_mail(
-                    'Vérifiez votre adresse courriel — Coupdemain',
-                    f'Bonjour {user.first_name or user.username},\n\nMerci de vous être inscrit ! Vérifiez votre adresse courriel en cliquant ici :\n{link}',
-                    django_settings.DEFAULT_FROM_EMAIL,
-                    [user.email],
-                )
+                send_email_verification(user, link)
+                send_welcome(user)
             except Exception:
                 pass  # L'inscription ne doit pas échouer si l'email ne part pas
             refresh = RefreshToken.for_user(user)
@@ -315,8 +319,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         
         booking.status = 'confirmed'
         booking.save()
-        
-        # Créer une notification
+
         Notification.objects.create(
             user=booking.client,
             type='booking_confirmed',
@@ -324,7 +327,16 @@ class BookingViewSet(viewsets.ModelViewSet):
             message=f'Votre réservation pour {booking.service.title} a été confirmée.',
             related_booking=booking
         )
-        
+        # Email au client
+        provider_name = booking.provider.get_full_name() or booking.provider.username
+        send_booking_confirmed(
+            booking.client,
+            booking.service.title,
+            provider_name,
+            str(booking.date),
+            booking.service_address or '',
+        )
+
         return Response(BookingSerializer(booking).data)
     
     @action(detail=True, methods=['post'])
@@ -473,9 +485,17 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         user = self.request.user
         mode = self.request.query_params.get('as')
         if mode == 'provider' and user.has_provider_profile:
-            return ServiceRequest.objects.filter(
+            # Filtrer par catégories offertes par ce prestataire
+            provider_category_ids = user.services.values_list('category_id', flat=True).distinct()
+            qs = ServiceRequest.objects.filter(
                 status='open', submission_deadline__gt=now()
-            ).order_by('submission_deadline')
+            )
+            # Si le prestataire a des catégories définies, filtrer; sinon montrer tout
+            if provider_category_ids:
+                qs = qs.filter(
+                    Q(category__isnull=True) | Q(category_id__in=provider_category_ids)
+                )
+            return qs.order_by('submission_deadline')
         # Par défaut (mode client) : propres demandes
         return ServiceRequest.objects.filter(client=user).order_by('-created_at')
 
@@ -486,18 +506,24 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         self._notify_nearby_providers(sr)
 
     def _notify_nearby_providers(self, service_request):
-        """Notifie tous les prestataires dans un rayon de 100km."""
+        """Notifie les prestataires dans un rayon de 100km avec la bonne catégorie."""
         if service_request.latitude is None or service_request.longitude is None:
             return
 
-        providers = User.objects.filter(
+        providers_qs = User.objects.filter(
             has_provider_profile=True,
             latitude__isnull=False,
             longitude__isnull=False,
         ).exclude(id=self.request.user.id)
 
+        # Filtrer par catégorie si la demande en a une
+        if service_request.category_id:
+            providers_qs = providers_qs.filter(
+                services__category_id=service_request.category_id
+            ).distinct()
+
         notifications = []
-        for provider in providers:
+        for provider in providers_qs:
             distance = haversine_distance(
                 service_request.latitude, service_request.longitude,
                 provider.latitude, provider.longitude,
@@ -554,7 +580,13 @@ class BidViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError("Cette demande n'est plus ouverte.")
         if sr.submission_deadline < now():
             raise serializers.ValidationError('La période de soumission est terminée.')
-        serializer.save(provider=user)
+        bid = serializer.save(provider=user)
+        # Email au client : nouvelle offre reçue
+        provider_name = user.get_full_name() or user.username
+        send_bid_received(
+            sr.client, sr.title, provider_name,
+            str(bid.price), bid.price_unit,
+        )
 
     @action(detail=True, methods=['post'])
     def accept(self, request, pk=None):
@@ -569,6 +601,12 @@ class BidViewSet(viewsets.ModelViewSet):
         sr.bids.exclude(pk=bid.pk).update(status='rejected')
         sr.status = 'awarded'
         sr.save()
+        # Email au prestataire : offre acceptée
+        client_name = request.user.get_full_name() or request.user.username
+        send_bid_accepted(
+            bid.provider, sr.title, client_name,
+            str(bid.price), bid.price_unit,
+        )
         return Response({'status': 'accepted'})
 
 
@@ -583,12 +621,7 @@ def password_reset_request(request):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
         link = f"{django_settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}"
-        send_mail(
-            'Réinitialisation de mot de passe — Coupdemain',
-            f'Bonjour {user.first_name or user.username},\n\nCliquez sur ce lien pour réinitialiser votre mot de passe :\n{link}\n\nCe lien expire dans 24 heures.',
-            django_settings.DEFAULT_FROM_EMAIL,
-            [email],
-        )
+        send_password_reset(user, link)
     except User.DoesNotExist:
         pass  # Ne pas révéler si l'email existe
     return Response({'detail': 'Si ce courriel est enregistré, un lien a été envoyé.'})
@@ -644,10 +677,255 @@ def resend_verification(request):
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     link = f"{django_settings.FRONTEND_URL}/verify-email?uid={uid}&token={token}"
-    send_mail(
-        'Vérifiez votre adresse courriel — Coupdemain',
-        f'Bonjour {user.first_name or user.username},\n\nCliquez sur ce lien pour vérifier votre adresse courriel :\n{link}',
-        django_settings.DEFAULT_FROM_EMAIL,
-        [user.email],
-    )
+    send_email_verification(user, link)
     return Response({'detail': 'Email de vérification envoyé.'})
+
+
+# ─── Portfolio Photos ─────────────────────────────────────────────────────────
+
+class PortfolioPhotoViewSet(viewsets.ModelViewSet):
+    serializer_class   = PortfolioPhotoSerializer
+    parser_classes     = [MultiPartParser, FormParser, JSONParser]
+    MAX_PHOTOS         = 10
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = PortfolioPhoto.objects.all()
+        provider_id = self.request.query_params.get('provider')
+        if provider_id:
+            qs = qs.filter(provider_id=provider_id)
+        elif self.request.user.is_authenticated:
+            qs = qs.filter(provider=self.request.user)
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if not user.has_provider_profile:
+            raise serializers.ValidationError('Profil prestataire requis.')
+        if PortfolioPhoto.objects.filter(provider=user).count() >= self.MAX_PHOTOS:
+            raise serializers.ValidationError(f'Maximum {self.MAX_PHOTOS} photos de portfolio autorisées.')
+        serializer.save(provider=user)
+
+    def perform_destroy(self, instance):
+        if instance.provider != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Non autorisé.')
+        instance.image.delete(save=False)
+        instance.delete()
+
+
+# ─── Vérification d'identité ──────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_identity(request):
+    """
+    Le prestataire soumet un document d'identité (PDF, JPG, PNG).
+    Passe le statut à 'pending' pour review admin.
+    """
+    user = request.user
+    if not user.has_provider_profile:
+        return Response({'detail': 'Profil prestataire requis.'}, status=status.HTTP_403_FORBIDDEN)
+
+    if user.identity_status == 'verified':
+        return Response({'detail': 'Votre identité est déjà vérifiée.'})
+
+    doc = request.FILES.get('identity_document')
+    if not doc:
+        return Response({'detail': 'Aucun fichier fourni.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    allowed_types = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+    if doc.content_type not in allowed_types:
+        return Response({'detail': 'Format accepté : JPG, PNG, WebP ou PDF.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if doc.size > 10 * 1024 * 1024:
+        return Response({'detail': 'Le fichier ne doit pas dépasser 10 Mo.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user.identity_document = doc
+    user.identity_status   = 'pending'
+    user.identity_rejection_reason = ''
+    user.save(update_fields=['identity_document', 'identity_status', 'identity_rejection_reason'])
+
+    return Response({'detail': 'Document soumis. Nous l\'examinerons sous 24–48h.', 'identity_status': 'pending'})
+
+
+# ─── Paiements Stripe ─────────────────────────────────────────────────────────
+
+def _get_commission_rate(amount: Decimal) -> Decimal:
+    """Retourne le taux de commission selon les paliers configurés."""
+    tiers = django_settings.STRIPE_COMMISSION_TIERS
+    for threshold, rate in tiers:
+        if amount <= threshold:
+            return Decimal(str(rate))
+    return Decimal(str(tiers[-1][1]))
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_checkout_session(request):
+    """
+    Crée une session Stripe Checkout pour payer une offre acceptée.
+    Body: { "bid_id": <int> }
+    """
+    stripe.api_key = django_settings.STRIPE_SECRET_KEY
+
+    bid_id = request.data.get('bid_id')
+    if not bid_id:
+        return Response({'detail': 'bid_id requis.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        bid = Bid.objects.select_related('service_request__client', 'provider').get(pk=bid_id)
+    except Bid.DoesNotExist:
+        return Response({'detail': 'Offre introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if bid.service_request.client != request.user:
+        return Response({'detail': 'Non autorisé.'}, status=status.HTTP_403_FORBIDDEN)
+
+    if bid.status != 'accepted':
+        return Response({'detail': "L'offre doit être acceptée avant le paiement."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Vérifier si un paiement existe déjà
+    if hasattr(bid, 'payment') and bid.payment.status == 'completed':
+        return Response({'detail': 'Cette offre est déjà payée.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    amount = Decimal(str(bid.price))
+    rate   = _get_commission_rate(amount)
+    commission = (amount * rate).quantize(Decimal('0.01'))
+    provider_amount = amount - commission
+
+    frontend_url = django_settings.FRONTEND_URL
+
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'cad',
+                    'unit_amount': int(amount * 100),  # en centimes
+                    'product_data': {
+                        'name': bid.service_request.title,
+                        'description': (
+                            f"Prestataire : {bid.provider.get_full_name() or bid.provider.username} · "
+                            f"Commission Fuwoo {int(rate * 100)}% incluse"
+                        ),
+                    },
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=f"{frontend_url}/dashboard?payment=success&bid={bid.id}",
+            cancel_url=f"{frontend_url}/dashboard?payment=cancelled&bid={bid.id}",
+            metadata={
+                'bid_id':         str(bid.id),
+                'client_id':      str(request.user.id),
+                'provider_id':    str(bid.provider.id),
+                'commission_rate': str(rate),
+                'commission_amount': str(commission),
+                'provider_amount':   str(provider_amount),
+            },
+        )
+    except stripe.StripeError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    # Créer (ou mettre à jour) l'objet Payment en base
+    Payment.objects.update_or_create(
+        bid=bid,
+        defaults={
+            'client':            request.user,
+            'provider':          bid.provider,
+            'amount':            amount,
+            'commission_rate':   rate,
+            'commission_amount': commission,
+            'provider_amount':   provider_amount,
+            'stripe_session_id': session.id,
+            'status':            'pending',
+        },
+    )
+
+    return Response({'checkout_url': session.url})
+
+
+@api_view(['POST'])
+@permission_classes([])  # Stripe ne s'authentifie pas
+def stripe_webhook(request):
+    """Webhook Stripe — confirme le paiement et notifie les parties."""
+    stripe.api_key = django_settings.STRIPE_SECRET_KEY
+    webhook_secret = django_settings.STRIPE_WEBHOOK_SECRET
+
+    payload   = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except (ValueError, stripe.SignatureVerificationError):
+        return Response({'detail': 'Signature invalide.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if event['type'] == 'checkout.session.completed':
+        session  = event['data']['object']
+        meta     = session.get('metadata', {})
+        bid_id   = meta.get('bid_id')
+
+        try:
+            payment = Payment.objects.get(stripe_session_id=session['id'])
+            payment.stripe_payment_intent_id = session.get('payment_intent', '')
+            payment.status       = 'completed'
+            payment.completed_at = now()
+            payment.save()
+
+            # Notifier le prestataire
+            Notification.objects.create(
+                user=payment.provider,
+                type='booking_confirmed',
+                title='Paiement reçu !',
+                message=(
+                    f'Le client a payé {payment.amount} $ pour "{payment.bid.service_request.title}". '
+                    f'Vous recevrez {payment.provider_amount} $ après déduction de la commission.'
+                ),
+            )
+            # Notifier le client
+            Notification.objects.create(
+                user=payment.client,
+                type='booking_confirmed',
+                title='Paiement confirmé',
+                message=f'Votre paiement de {payment.amount} $ a été confirmé. Le prestataire a été notifié.',
+            )
+        except Payment.DoesNotExist:
+            pass  # Peut arriver si le webhook arrive avant la réponse du create_checkout
+
+    return Response({'status': 'ok'})
+
+
+# ─── Contrat PDF ──────────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def download_contract(request, bid_id):
+    """
+    Retourne le contrat PDF pour une soumission acceptée.
+    Accessible par le client ou le prestataire concerné.
+    """
+    from .contract import generate_contract_pdf
+    from django.http import HttpResponse
+
+    bid = get_object_or_404(
+        Bid.objects.select_related('service_request', 'service_request__client',
+                                   'service_request__category', 'provider'),
+        pk=bid_id,
+        status='accepted',
+    )
+
+    # Seuls le client et le prestataire peuvent télécharger
+    user = request.user
+    if user != bid.service_request.client and user != bid.provider:
+        return Response({'detail': 'Accès refusé.'}, status=403)
+
+    pdf_bytes = generate_contract_pdf(bid)
+    filename = f"contrat_fuwoo_{bid.id:06d}.pdf"
+
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response

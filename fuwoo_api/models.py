@@ -38,6 +38,17 @@ class CustomUser(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Vérification d'identité
+    IDENTITY_STATUS_CHOICES = [
+        ('not_submitted', 'Non soumis'),
+        ('pending',       'En attente de révision'),
+        ('verified',      'Vérifié'),
+        ('rejected',      'Rejeté'),
+    ]
+    identity_document        = models.FileField(upload_to='identity_docs/', blank=True, null=True)
+    identity_status          = models.CharField(max_length=20, choices=IDENTITY_STATUS_CHOICES, default='not_submitted')
+    identity_rejection_reason = models.TextField(blank=True)
+
     def __str__(self):
         return f"{self.username} ({self.role})"
 
@@ -323,3 +334,52 @@ class Bid(models.Model):
 
     def __str__(self):
         return f"Bid by {self.provider} on {self.service_request}"
+
+
+class PortfolioPhoto(models.Model):
+    provider = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name='portfolio_photos'
+    )
+    image   = models.ImageField(upload_to='portfolio/')
+    caption = models.CharField(max_length=200, blank=True)
+    order   = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', '-created_at']
+
+    def __str__(self):
+        return f"Portfolio de {self.provider.username} — #{self.id}"
+
+
+class Payment(models.Model):
+    STATUS_CHOICES = [
+        ('pending',  'En attente'),
+        ('completed', 'Complété'),
+        ('failed',   'Échoué'),
+        ('refunded', 'Remboursé'),
+    ]
+
+    bid      = models.OneToOneField(Bid, on_delete=models.CASCADE, related_name='payment')
+    client   = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='payments_made')
+    provider = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='payments_received')
+
+    # Montants
+    amount           = models.DecimalField(max_digits=10, decimal_places=2, help_text="Montant payé par le client ($)")
+    commission_rate  = models.DecimalField(max_digits=5,  decimal_places=4, help_text="Taux de commission appliqué (ex: 0.15)")
+    commission_amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Commission Fuwoo ($)")
+    provider_amount  = models.DecimalField(max_digits=10, decimal_places=2, help_text="Montant reversé au prestataire ($)")
+
+    # Stripe
+    stripe_session_id       = models.CharField(max_length=300, unique=True, blank=True)
+    stripe_payment_intent_id = models.CharField(max_length=300, blank=True)
+
+    status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at   = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Payment #{self.id} — {self.amount}$ ({self.get_status_display()})"

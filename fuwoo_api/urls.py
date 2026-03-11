@@ -11,6 +11,9 @@ from .views import (
     ServiceRequestViewSet, BidViewSet,
     password_reset_request, password_reset_confirm,
     verify_email, resend_verification,
+    create_checkout_session, stripe_webhook,
+    submit_identity, PortfolioPhotoViewSet,
+    download_contract,
 )
 
 router = DefaultRouter()
@@ -24,6 +27,7 @@ router.register(r'notifications', NotificationViewSet, basename='notification')
 router.register(r'availabilities', AvailabilityViewSet, basename='availability')
 router.register(r'service-requests', ServiceRequestViewSet, basename='service-request')
 router.register(r'bids', BidViewSet, basename='bid')
+router.register(r'portfolio', PortfolioPhotoViewSet, basename='portfolio')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -45,4 +49,14 @@ urlpatterns = [
     # Vérification email
     path('auth/verify-email/', verify_email, name='verify_email'),
     path('auth/resend-verification/', resend_verification, name='resend_verification'),
+
+    # Paiements Stripe
+    path('payments/create-checkout/', create_checkout_session, name='create_checkout'),
+    path('payments/webhook/', stripe_webhook, name='stripe_webhook'),
+
+    # Vérification d'identité
+    path('auth/submit-identity/', submit_identity, name='submit_identity'),
+
+    # Contrats PDF
+    path('contracts/<int:bid_id>/', download_contract, name='download_contract'),
 ]

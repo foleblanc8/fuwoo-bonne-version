@@ -1,9 +1,11 @@
 // src/pages/ProviderProfilePage.tsx
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Star, Shield, MapPin, User } from 'lucide-react';
 import ServiceCard from '../components/ServiceCard';
+
+type PortfolioPhoto = { id: number; image: string; caption: string };
 
 type ProviderUser = {
   id: number;
@@ -44,8 +46,10 @@ const ProviderProfilePage = () => {
   const [provider, setProvider] = useState<ProviderUser | null>(null);
   const [services, setServices] = useState<ProviderService[]>([]);
   const [reviews, setReviews] = useState<ProviderReview[]>([]);
+  const [portfolio, setPortfolio] = useState<PortfolioPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [lightbox, setLightbox] = useState<PortfolioPhoto | null>(null);
 
   useEffect(() => {
     if (!providerId) { setNotFound(true); setLoading(false); return; }
@@ -54,13 +58,16 @@ const ProviderProfilePage = () => {
       axios.get(`users/${providerId}/`),
       axios.get(`services/?provider=${providerId}&is_active=true`),
       axios.get(`reviews/?provider_id=${providerId}`),
+      axios.get(`portfolio/?provider=${providerId}`),
     ])
-      .then(([userRes, servicesRes, reviewsRes]) => {
+      .then(([userRes, servicesRes, reviewsRes, portfolioRes]) => {
         setProvider(userRes.data as ProviderUser);
         const sd = servicesRes.data as { results?: ProviderService[] } | ProviderService[];
         setServices(Array.isArray(sd) ? sd : sd.results || []);
         const rd = reviewsRes.data as { results?: ProviderReview[] } | ProviderReview[];
         setReviews(Array.isArray(rd) ? rd : rd.results || []);
+        const pd = portfolioRes.data as { results?: PortfolioPhoto[] } | PortfolioPhoto[];
+        setPortfolio(Array.isArray(pd) ? pd : pd.results || []);
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
@@ -110,6 +117,52 @@ const ProviderProfilePage = () => {
           {provider.bio && <p className="text-gray-600 text-sm max-w-xl">{provider.bio}</p>}
         </div>
       </div>
+
+      {/* Portfolio */}
+      {portfolio.length > 0 && (
+        <section>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Réalisations</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {portfolio.map(photo => (
+              <button
+                key={photo.id}
+                onClick={() => setLightbox(photo)}
+                className="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 focus:outline-none"
+              >
+                <img
+                  src={photo.image}
+                  alt={photo.caption || 'Réalisation'}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                {photo.caption && (
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <p className="text-white text-xs font-medium truncate">{photo.caption}</p>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4"
+          onClick={() => setLightbox(null)}
+        >
+          <div className="max-w-3xl w-full" onClick={e => e.stopPropagation()}>
+            <img
+              src={lightbox.image}
+              alt={lightbox.caption}
+              className="w-full max-h-[80vh] object-contain rounded-2xl"
+            />
+            {lightbox.caption && (
+              <p className="text-white text-sm text-center mt-3">{lightbox.caption}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Services */}
       {services.length > 0 && (

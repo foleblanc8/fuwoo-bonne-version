@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from .models import (
     ServiceCategory, Service, ServiceImage, Booking,
     Review, Message, Notification, Availability,
-    ServiceRequest, ServiceRequestImage, Bid,
+    ServiceRequest, ServiceRequestImage, Bid, PortfolioPhoto,
 )
 
 User = get_user_model()
@@ -16,8 +16,10 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
                  'role', 'has_provider_profile', 'phone_number', 'address',
                  'profile_picture', 'bio', 'is_verified', 'email_verified',
-                 'rating', 'total_reviews', 'latitude', 'longitude']
-        read_only_fields = ['rating', 'total_reviews', 'is_verified', 'email_verified']
+                 'rating', 'total_reviews', 'latitude', 'longitude',
+                 'identity_status', 'identity_rejection_reason']
+        read_only_fields = ['rating', 'total_reviews', 'is_verified', 'email_verified',
+                            'identity_status', 'identity_rejection_reason']
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
@@ -164,3 +166,10 @@ class BidSerializer(serializers.ModelSerializer):
             'message', 'estimated_duration', 'status', 'created_at',
         ]
         read_only_fields = ['provider', 'status']
+
+
+class PortfolioPhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = PortfolioPhoto
+        fields = ['id', 'image', 'caption', 'order', 'created_at']
+        read_only_fields = ['created_at']

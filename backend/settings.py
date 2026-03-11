@@ -162,7 +162,35 @@ REST_FRAMEWORK = {
     ],
 }
 
-# Email (console pour le développement)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'noreply@coupdemain.ca'
+# ─── Email ────────────────────────────────────────────────────────────────────
+# En développement : EMAIL_BACKEND = console (les emails s'affichent dans le terminal)
+# En production    : passe EMAIL_BACKEND à smtp et remplis SENDGRID_API_KEY
+import os
+
+SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
+
+if SENDGRID_API_KEY:
+    EMAIL_BACKEND    = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST       = 'smtp.sendgrid.net'
+    EMAIL_PORT       = 587
+    EMAIL_USE_TLS    = True
+    EMAIL_HOST_USER  = 'apikey'
+    EMAIL_HOST_PASSWORD = SENDGRID_API_KEY
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+DEFAULT_FROM_EMAIL = 'Fuwoo <noreply@fuwoo.ca>'
 FRONTEND_URL = 'http://localhost:5173'
+
+# ─── Stripe ───────────────────────────────────────────────────────────────────
+# Remplace par tes vraies clés depuis https://dashboard.stripe.com/test/apikeys
+STRIPE_SECRET_KEY      = 'sk_test_REMPLACE_MOI'
+STRIPE_PUBLISHABLE_KEY = 'pk_test_REMPLACE_MOI'
+STRIPE_WEBHOOK_SECRET  = 'whsec_REMPLACE_MOI'
+
+# Paliers de commission (montant max en $, taux)
+STRIPE_COMMISSION_TIERS = [
+    (500,   0.15),   # ≤ 500 $ → 15 %
+    (2000,  0.12),   # 501–2 000 $ → 12 %
+    (9999999, 0.10), # > 2 000 $ → 10 %
+]
