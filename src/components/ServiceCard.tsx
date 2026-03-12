@@ -8,8 +8,6 @@ interface ServiceCardProps {
   description?: string;
   categorySlug?: string;
   image?: string;
-  price?: string | number;
-  priceUnit?: string;
   rating?: number | string;
   totalBookings?: number;
   serviceArea?: string;
@@ -22,8 +20,6 @@ export default function ServiceCard({
   description,
   categorySlug,
   image,
-  price,
-  priceUnit,
   rating,
   totalBookings,
   serviceArea,
@@ -45,15 +41,6 @@ export default function ServiceCard({
             (e.target as HTMLImageElement).src = getCategoryImage(undefined);
           }}
         />
-        {/* Badge prix en overlay */}
-        {price && (
-          <div className="absolute bottom-3 left-3">
-            <span className="bg-white/95 backdrop-blur-sm text-gray-900 text-sm font-bold px-3 py-1.5 rounded-full shadow-md">
-              {parseFloat(String(price)).toFixed(0)}${" "}
-              <span className="font-normal text-gray-500 text-xs">{priceUnit}</span>
-            </span>
-          </div>
-        )}
         {/* Badge réservation instantanée */}
         {totalBookings && totalBookings > 30 && (
           <div className="absolute top-3 left-3">
@@ -91,7 +78,7 @@ export default function ServiceCard({
           <p className="text-xs text-gray-400 mt-0.5">{totalBookings} réservations</p>
         )}
 
-        {description && !price && (
+        {description && (
           <p className="text-xs text-gray-500 mt-2 line-clamp-2">{description}</p>
         )}
       </div>

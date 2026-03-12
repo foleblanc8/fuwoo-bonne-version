@@ -4,14 +4,14 @@ import ServiceCard from "../components/ServiceCard";
 import { Search, Star, ShieldCheck, Clock, ArrowRight, MapPin } from "lucide-react";
 
 const popularServices = [
-  { id: 1,  title: "Plomberie résidentielle", categorySlug: "plomberie",          serviceArea: "Montréal",     price: "85",  priceUnit: "par heure",  rating: 4.9,  totalBookings: 54 },
-  { id: 3,  title: "Ménage résidentiel",       categorySlug: "menage-residentiel", serviceArea: "Laval",        price: "65",  priceUnit: "par visite", rating: 4.8,  totalBookings: 98 },
-  { id: 6,  title: "Tonte de pelouse",         categorySlug: "tonte-pelouse",      serviceArea: "Longueuil",    price: "55",  priceUnit: "par visite", rating: 4.7,  totalBookings: 72 },
-  { id: 7,  title: "Déneigement",              categorySlug: "deneigement",        serviceArea: "Rive-Sud",     price: "45",  priceUnit: "par visite", rating: 4.6,  totalBookings: 88 },
-  { id: 9,  title: "Entretien de piscine",     categorySlug: "entretien-piscine",  serviceArea: "Rive-Sud",     price: "180", priceUnit: "par visite", rating: 4.9,  totalBookings: 18 },
-  { id: 14, title: "Aménagement paysager",     categorySlug: "amenagement-paysager",serviceArea: "Rive-Sud",   price: "500", priceUnit: "par projet", rating: 4.95, totalBookings: 8  },
-  { id: 8,  title: "Nettoyage de terrain",     categorySlug: "nettoyage-terrain",  serviceArea: "Grand Montréal",price: "75", priceUnit: "par visite", rating: 4.8,  totalBookings: 29 },
-  { id: 2,  title: "Électricité",              categorySlug: "electricite",        serviceArea: "Montréal",     price: "95",  priceUnit: "par heure",  rating: 4.85, totalBookings: 33 },
+  { id: 1,  title: "Plomberie résidentielle", categorySlug: "plomberie",           serviceArea: "Montréal",      rating: 4.9,  totalBookings: 54 },
+  { id: 3,  title: "Ménage résidentiel",       categorySlug: "menage-residentiel",  serviceArea: "Laval",         rating: 4.8,  totalBookings: 98 },
+  { id: 6,  title: "Tonte de pelouse",         categorySlug: "tonte-pelouse",       serviceArea: "Longueuil",     rating: 4.7,  totalBookings: 72 },
+  { id: 7,  title: "Déneigement",              categorySlug: "deneigement",         serviceArea: "Rive-Sud",      rating: 4.6,  totalBookings: 88 },
+  { id: 9,  title: "Entretien de piscine",     categorySlug: "entretien-piscine",   serviceArea: "Rive-Sud",      rating: 4.9,  totalBookings: 18 },
+  { id: 14, title: "Aménagement paysager",     categorySlug: "amenagement-paysager",serviceArea: "Rive-Sud",      rating: 4.95, totalBookings: 8  },
+  { id: 8,  title: "Nettoyage de terrain",     categorySlug: "nettoyage-terrain",   serviceArea: "Grand Montréal",rating: 4.8,  totalBookings: 29 },
+  { id: 2,  title: "Électricité",              categorySlug: "electricite",         serviceArea: "Montréal",      rating: 4.85, totalBookings: 33 },
 ];
 
 const categories = [
@@ -131,8 +131,6 @@ const Home = () => {
               key={s.id}
               title={s.title}
               categorySlug={s.categorySlug}
-              price={s.price}
-              priceUnit={s.priceUnit}
               rating={s.rating}
               totalBookings={s.totalBookings}
               serviceArea={s.serviceArea}
