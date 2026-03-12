@@ -14,7 +14,7 @@ export const categoryImageMap: Record<string, string> = {
 
   // Extérieur / paysager
   'tonte-pelouse':        `${BASE}/photo-1590820292118-e256c3ac2676?auto=format&fit=crop&w=800&q=80`, // tondeuse jaune et noire sur gazon vert
-  'deneigement':          `${BASE}/photo-1516912481808-3406841bd33c?auto=format&fit=crop&w=800&q=80`, // pelle dans la neige
+  'deneigement':          `${BASE}/photo-1483385573908-0a2108937c4a?auto=format&fit=crop&w=800&q=80`, // personne pelletant la neige
   'nettoyage-terrain':    `${BASE}/photo-1508933620399-369d39e5a79c?auto=format&fit=crop&w=800&q=80`, // ramassage feuilles automne
   'entretien-jardin':     `${BASE}/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=800&q=80`, // jardin fleuri
   'taille-haies':         `${BASE}/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=800&q=80`, // haies/arbustes
