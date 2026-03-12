@@ -25,8 +25,8 @@ def _base(title: str, body_html: str) -> str:
 
         <!-- Header -->
         <tr>
-          <td style="background:#4f46e5;padding:28px 32px;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;">Fuwoo</h1>
+          <td style="background:linear-gradient(135deg,#14532d 0%,#15803d 50%,#0e7490 100%);padding:28px 32px;">
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;">🌿 Fuwoo</h1>
             <p style="margin:4px 0 0;color:rgba(255,255,255,.7);font-size:13px;">La plateforme de services au Québec</p>
           </td>
         </tr>
@@ -43,7 +43,7 @@ def _base(title: str, body_html: str) -> str:
           <td style="background:#f9fafb;padding:20px 32px;border-top:1px solid #e5e7eb;">
             <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;">
               © 2026 Fuwoo — Tous droits réservés<br/>
-              <a href="{settings.FRONTEND_URL}" style="color:#4f46e5;text-decoration:none;">fuwoo.ca</a>
+              <a href="{settings.FRONTEND_URL}" style="color:#15803d;text-decoration:none;">fuwoo.ca</a>
             </p>
           </td>
         </tr>
@@ -58,13 +58,13 @@ def _base(title: str, body_html: str) -> str:
 def _btn(url: str, label: str) -> str:
     return f"""
 <p style="text-align:center;margin:28px 0 0;">
-  <a href="{url}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;
+  <a href="{url}" style="display:inline-block;background:linear-gradient(135deg,#15803d,#0e7490);color:#ffffff;text-decoration:none;
      padding:14px 32px;border-radius:10px;font-size:15px;font-weight:700;letter-spacing:-0.2px;">
     {label}
   </a>
 </p>
 <p style="text-align:center;margin:12px 0 0;font-size:12px;color:#9ca3af;">
-  Ou copiez ce lien : <a href="{url}" style="color:#4f46e5;">{url}</a>
+  Ou copiez ce lien : <a href="{url}" style="color:#15803d;">{url}</a>
 </p>"""
 
 
@@ -154,7 +154,7 @@ def send_bid_received(client, service_request_title: str, provider_name: str, pr
   <tr>
     <td style="font-size:14px;color:#374151;line-height:1.8;">
       <strong>Prestataire :</strong> {provider_name}<br/>
-      <strong>Offre :</strong> <span style="color:#4f46e5;font-weight:700;">{price} $ {price_unit}</span>
+      <strong>Offre :</strong> <span style="color:#15803d;font-weight:700;">{price} $ {price_unit}</span>
     </td>
   </tr>
 </table>

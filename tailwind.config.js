@@ -11,11 +11,11 @@ module.exports = {
       },
       colors: {
         coupdemain: {
-          primary: "#FF5A5F",
-          secondary: "#00A699",
-          accent: "#FC642D",
-          background: "#F7F7F7",
-          text: "#484848",
+          primary: "#15803D",
+          secondary: "#0E7490",
+          accent: "#EA580C",
+          background: "#F7FEF9",
+          text: "#1C2B20",
         },
       },
       keyframes: {
