@@ -13,7 +13,7 @@ export const categoryImageMap: Record<string, string> = {
   'demenagement':         `${BASE}/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=800&q=80`, // boîtes carton
 
   // Extérieur / paysager
-  'tonte-pelouse':        `${BASE}/photo-zfwyrIA6bFw?auto=format&fit=crop&w=800&q=80`,              // tondeuse jaune et noire sur gazon vert
+  'tonte-pelouse':        `${BASE}/photo-1590820292118-e256c3ac2676?auto=format&fit=crop&w=800&q=80`, // tondeuse jaune et noire sur gazon vert
   'deneigement':          `${BASE}/photo-1516912481808-3406841bd33c?auto=format&fit=crop&w=800&q=80`, // pelle dans la neige
   'nettoyage-terrain':    `${BASE}/photo-1508933620399-369d39e5a79c?auto=format&fit=crop&w=800&q=80`, // ramassage feuilles automne
   'entretien-jardin':     `${BASE}/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=800&q=80`, // jardin fleuri
