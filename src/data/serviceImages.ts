@@ -17,7 +17,7 @@ export const categoryImageMap: Record<string, string> = {
   'deneigement':          `${BASE}/photo-1483385573908-0a2108937c4a?auto=format&fit=crop&w=800&q=80`, // personne pelletant la neige
   'nettoyage-terrain':    `${BASE}/photo-1634081727680-fa43e3237d5a?auto=format&fit=crop&w=800&q=80`, // râteau rouge sur tas de feuilles
   'entretien-jardin':     `${BASE}/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=800&q=80`, // jardin fleuri
-  'taille-haies':         `${BASE}/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=800&q=80`, // haies/arbustes
+  'taille-haies':         `${BASE}/photo-1734079692079-172d8243ebd3?auto=format&fit=crop&w=800&q=80`, // personne en veste verte avec tronçonneuse
   'elagage-arbres':       `${BASE}/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=800&q=80`, // grand arbre
   'amenagement-paysager': `${BASE}/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=800&q=80`,   // aménagement paysager
   'entretien-piscine':    `${BASE}/photo-1585156140347-eb5e94dfe4f1?auto=format&fit=crop&w=800&q=80`, // maison avec piscine extérieure
