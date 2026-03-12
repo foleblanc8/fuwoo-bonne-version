@@ -20,7 +20,7 @@ export const categoryImageMap: Record<string, string> = {
   'taille-haies':         `${BASE}/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=800&q=80`, // haies/arbustes
   'elagage-arbres':       `${BASE}/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=800&q=80`, // grand arbre
   'amenagement-paysager': `${BASE}/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=800&q=80`,   // aménagement paysager
-  'entretien-piscine':    `${BASE}/photo-1600707605368-0eda2534e923?auto=format&fit=crop&crop=bottom&w=800&q=80`, // homme nettoyant une piscine
+  'entretien-piscine':    `${BASE}/photo-1585156140347-eb5e94dfe4f1?auto=format&fit=crop&w=800&q=80`, // maison avec piscine extérieure
   'nettoyage-gouttieres': `${BASE}/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80`, // gouttières/toiture
   'nettoyage-terrasse':   `${BASE}/photo-1600566752355-35792bedcfea?auto=format&fit=crop&w=800&q=80`, // beau patio propre
   'lavage-vitres':        `${BASE}/photo-1635445818409-64a0ff92eb39?auto=format&fit=crop&w=800&q=80`, // homme sur échelle travaillant sur un bâtiment
