@@ -13,6 +13,10 @@ import ProviderProfilePage from "./pages/ProviderProfilePage";
 import MotDePasseOublie from "./pages/MotDePasseOublie";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
+import ConditionsUtilisation from "./pages/ConditionsUtilisation";
+import PolitiqueConfidentialite from "./pages/PolitiqueConfidentialite";
+import PolitiqueRemboursement from "./pages/PolitiqueRemboursement";
+import MentionsLegales from "./pages/MentionsLegales";
 
 const App = () => {
   return (
@@ -30,6 +34,10 @@ const App = () => {
         <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/conditions-utilisation" element={<ConditionsUtilisation />} />
+        <Route path="/politique-confidentialite" element={<PolitiqueConfidentialite />} />
+        <Route path="/politique-remboursement" element={<PolitiqueRemboursement />} />
+        <Route path="/mentions-legales" element={<MentionsLegales />} />
       </Routes>
     </Layout>
   );

@@ -57,6 +57,7 @@ type ApiBooking = {
   total_price: string;
   service_address: string;
   created_at: string;
+  has_review?: boolean;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -2263,6 +2264,15 @@ function ClientBookingsTab() {
   const [reviewed, setReviewed]       = useState<Set<number>>(new Set());
 
   useEffect(() => { fetchBookings(); }, []);
+
+  useEffect(() => {
+    const alreadyReviewed = new Set(
+      (bookings as unknown as ApiBooking[])
+        .filter(b => b.has_review)
+        .map(b => b.id)
+    );
+    setReviewed(alreadyReviewed);
+  }, [bookings]);
 
   const typed = bookings as unknown as ApiBooking[];
 

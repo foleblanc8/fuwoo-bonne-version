@@ -361,6 +361,17 @@ class BookingViewSet(viewsets.ModelViewSet):
         
         return Response(BookingSerializer(booking).data)
     
+    @action(detail=True, methods=['get'], url_path='review')
+    def review(self, request, pk=None):
+        booking = self.get_object()
+        if booking.client != request.user:
+            return Response({'detail': 'Non autorisé.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            review = Review.objects.get(booking=booking)
+            return Response(ReviewSerializer(review).data)
+        except Review.DoesNotExist:
+            return Response(None, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         booking = self.get_object()
@@ -394,30 +405,44 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return Review.objects.none()
     
     def perform_create(self, serializer):
-        booking_id = self.request.data.get('booking')
-        try:
-            booking = Booking.objects.get(id=booking_id)
-        except Booking.DoesNotExist:
-            raise serializers.ValidationError("Réservation introuvable.")
-            
+        booking = serializer.validated_data['booking']
+
         if booking.client != self.request.user:
             raise serializers.ValidationError("Vous ne pouvez pas évaluer cette réservation.")
         if booking.status != 'completed':
             raise serializers.ValidationError("Le service doit être terminé pour laisser un avis.")
-        
-        serializer.save(
-            client=self.request.user,
-            provider=booking.provider,
-            service=booking.service,
-            booking=booking
-        )
-        
+
+        try:
+            review = serializer.save(
+                client=self.request.user,
+                provider=booking.provider,
+                service=booking.service,
+            )
+        except IntegrityError:
+            raise serializers.ValidationError("Vous avez déjà laissé un avis pour cette réservation.")
+
         # Mettre à jour la note du prestataire
         provider = booking.provider
-        reviews = Review.objects.filter(provider=provider)
-        provider.rating = reviews.aggregate(Avg('rating'))['rating__avg'] or 0
-        provider.total_reviews = reviews.count()
-        provider.save()
+        provider_reviews = Review.objects.filter(provider=provider)
+        provider.rating = provider_reviews.aggregate(Avg('rating'))['rating__avg'] or 0
+        provider.total_reviews = provider_reviews.count()
+        provider.save(update_fields=['rating', 'total_reviews'])
+
+        # Mettre à jour la note du service
+        service = booking.service
+        service_reviews = Review.objects.filter(service=service)
+        service.rating = service_reviews.aggregate(Avg('rating'))['rating__avg'] or 0
+        service.save(update_fields=['rating'])
+
+        # Notifier le prestataire
+        client_name = self.request.user.get_full_name() or self.request.user.username
+        Notification.objects.create(
+            user=provider,
+            type='new_review',
+            title='Nouvel avis reçu',
+            message=f'{client_name} vous a laissé un avis {review.rating}/5.',
+            related_booking=booking,
+        )
 
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer

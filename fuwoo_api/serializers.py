@@ -82,11 +82,15 @@ class BookingSerializer(serializers.ModelSerializer):
     service_id = serializers.PrimaryKeyRelatedField(
         queryset=Service.objects.all(), source='service', write_only=True
     )
-    
+    has_review = serializers.SerializerMethodField()
+
+    def get_has_review(self, obj):
+        return hasattr(obj, 'review')
+
     class Meta:
         model = Booking
         fields = '__all__'
-        read_only_fields = ['client', 'provider', 'total_price']
+        read_only_fields = ['client', 'provider', 'total_price', 'has_review']
     
     def create(self, validated_data):
         service = validated_data['service']
@@ -97,11 +101,17 @@ class BookingSerializer(serializers.ModelSerializer):
 class ReviewSerializer(serializers.ModelSerializer):
     client = UserSerializer(read_only=True)
     provider = UserSerializer(read_only=True)
-    
+    service_title = serializers.CharField(source='service.title', read_only=True)
+
     class Meta:
         model = Review
-        fields = '__all__'
-        read_only_fields = ['client', 'provider', 'service']
+        fields = [
+            'id', 'booking', 'client', 'provider', 'service_title',
+            'rating', 'comment',
+            'quality_rating', 'punctuality_rating', 'communication_rating',
+            'created_at',
+        ]
+        read_only_fields = ['client', 'provider', 'service_title', 'created_at']
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
