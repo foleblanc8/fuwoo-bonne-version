@@ -1,10 +1,10 @@
 // src/pages/ServiceDetailPage.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useServices } from '../contexts/ServiceContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, Clock, MapPin, Star, User, Shield, Check, X, Upload, ImagePlus, Trash2, LocateFixed } from 'lucide-react';
+import { Calendar, Clock, MapPin, Star, Shield, Check, X, Upload, ImagePlus, Trash2, LocateFixed } from 'lucide-react';
 import { getCategoryImage } from '../data/serviceImages';
 
 type Service = {
@@ -150,27 +150,29 @@ const ServiceDetailPage = () => {
         {/* Sidebar */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6">
-            <div className="text-center mb-6">
-              <div className="text-3xl font-bold text-coupdemain-primary">${service.price}</div>
-              <div className="text-gray-600">{service.price_unit}</div>
-            </div>
-
-            <Link to={`/provider/${service.provider.id}`} className="flex items-center gap-4 mb-6 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
-              <div className="w-12 h-12 bg-gray-300 rounded-full overflow-hidden flex items-center justify-center">
-                {service.provider.profile_picture
-                  ? <img src={service.provider.profile_picture} alt={service.provider.name} className="w-full h-full object-cover" />
-                  : <User className="w-6 h-6 text-gray-600" />
-                }
-              </div>
-              <div>
-                <div className="font-semibold">{service.provider.name}</div>
-                <div className="flex items-center gap-1 text-sm">
-                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                  <span>{service.provider.rating}</span>
-                  <span className="text-gray-500">({service.provider.total_reviews} avis)</span>
+            <div className="mb-6 space-y-3">
+              <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
+                <Shield className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Prestataires vérifiés</p>
+                  <p className="text-xs text-gray-500">Identité et antécédents validés par Coupdemain</p>
                 </div>
               </div>
-            </Link>
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
+                <Star className="w-5 h-5 text-blue-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Avis authentiques</p>
+                  <p className="text-xs text-gray-500">Laissés uniquement par des clients ayant reçu le service</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-xl">
+                <Check className="w-5 h-5 text-yellow-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Soumissions gratuites</p>
+                  <p className="text-xs text-gray-500">Comparez les offres sans engagement</p>
+                </div>
+              </div>
+            </div>
 
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2 text-gray-700">
