@@ -190,27 +190,6 @@
   },
   {
     "model": "fuwoo_api.service",
-    "pk": 11,
-    "fields": {
-      "provider": 12,
-      "category": 14,
-      "title": "Élagage d'arbres — taille et abattage",
-      "description": "Élagage de branches mortes ou dangereuses, abattage contrôlé, réduction de couronne. Travail en hauteur sécurisé, déchiquetage sur place.",
-      "price": "150.00",
-      "price_unit": "par heure",
-      "duration": 180,
-      "service_area": "Rive-Sud",
-      "max_distance": 35,
-      "is_active": true,
-      "instant_booking": false,
-      "rating": "4.85",
-      "total_bookings": 14,
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:00:00Z"
-    }
-  },
-  {
-    "model": "fuwoo_api.service",
     "pk": 12,
     "fields": {
       "provider": 12,
@@ -226,69 +205,6 @@
       "instant_booking": true,
       "rating": "4.75",
       "total_bookings": 31,
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:00:00Z"
-    }
-  },
-  {
-    "model": "fuwoo_api.service",
-    "pk": 13,
-    "fields": {
-      "provider": 12,
-      "category": 16,
-      "title": "Nettoyage de terrasse",
-      "description": "Nettoyage à haute pression de terrasses en bois, patio en béton, allées pavées et escaliers. Élimine mousse, taches et saletés accumulées.",
-      "price": "100.00",
-      "price_unit": "par projet",
-      "duration": 120,
-      "service_area": "Rive-Sud",
-      "max_distance": 25,
-      "is_active": true,
-      "instant_booking": true,
-      "rating": "4.80",
-      "total_bookings": 27,
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:00:00Z"
-    }
-  },
-  {
-    "model": "fuwoo_api.service",
-    "pk": 14,
-    "fields": {
-      "provider": 12,
-      "category": 17,
-      "title": "Aménagement paysager — conception et installation",
-      "description": "Conception d'espaces verts, installation de plates-bandes, pose de gazon, rocailles et bordures. Transformation complète de votre cour.",
-      "price": "500.00",
-      "price_unit": "par projet",
-      "duration": 480,
-      "service_area": "Rive-Sud",
-      "max_distance": 40,
-      "is_active": true,
-      "instant_booking": false,
-      "rating": "4.95",
-      "total_bookings": 8,
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:00:00Z"
-    }
-  },
-  {
-    "model": "fuwoo_api.service",
-    "pk": 15,
-    "fields": {
-      "provider": 12,
-      "category": 4,
-      "title": "Entretien de jardin — plates-bandes et potager",
-      "description": "Désherbage, binage, plantation de vivaces et annuelles, entretien du potager. Service ponctuel ou régulier selon vos besoins.",
-      "price": "60.00",
-      "price_unit": "par heure",
-      "duration": 120,
-      "service_area": "Longueuil",
-      "max_distance": 20,
-      "is_active": true,
-      "instant_booking": true,
-      "rating": "4.70",
-      "total_bookings": 19,
       "created_at": "2026-01-01T00:00:00Z",
       "updated_at": "2026-01-01T00:00:00Z"
     }

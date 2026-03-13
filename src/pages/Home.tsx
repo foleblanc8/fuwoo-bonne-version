@@ -9,7 +9,6 @@ const popularServices = [
   { id: 6,  title: "Tonte de pelouse",         categorySlug: "tonte-pelouse",       serviceArea: "Longueuil",     rating: 4.7,  totalBookings: 72 },
   { id: 7,  title: "Déneigement",              categorySlug: "deneigement",         serviceArea: "Rive-Sud",      rating: 4.6,  totalBookings: 88 },
   { id: 9,  title: "Entretien de piscine",     categorySlug: "entretien-piscine",   serviceArea: "Rive-Sud",      rating: 4.9,  totalBookings: 18 },
-  { id: 14, title: "Aménagement paysager",     categorySlug: "amenagement-paysager",serviceArea: "Rive-Sud",      rating: 4.95, totalBookings: 8  },
   { id: 8,  title: "Nettoyage de terrain",     categorySlug: "nettoyage-terrain",   serviceArea: "Grand Montréal",rating: 4.8,  totalBookings: 29 },
   { id: 2,  title: "Électricité",              categorySlug: "electricite",         serviceArea: "Montréal",      rating: 4.85, totalBookings: 33 },
 ];
