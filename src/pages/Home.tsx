@@ -41,27 +41,27 @@ const Home = () => {
         <div className="absolute top-16 right-1/4 w-72 h-72 bg-green-400/10 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-1/3 w-96 h-48 bg-teal-400/10 rounded-full blur-3xl" />
 
-        <div className="relative max-w-5xl mx-auto px-6 py-32 text-center text-white">
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24 md:py-32 text-center text-white">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium text-green-100 mb-6">
             <MapPin className="w-3.5 h-3.5" />
             Services locaux au Québec
           </div>
 
-          <h1 className="text-5xl md:text-6xl font-extrabold leading-tight tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight">
             Des pros pour votre maison,
             <br />
             <span className="bg-gradient-to-r from-green-300 to-teal-300 bg-clip-text text-transparent">
               à portée de clic.
             </span>
           </h1>
-          <p className="mt-5 text-xl text-white/75 max-w-xl mx-auto">
+          <p className="mt-5 text-base sm:text-lg md:text-xl text-white/75 max-w-xl mx-auto">
             Plomberie, ménage, déneigement, piscine et plus — partout au Québec.
           </p>
 
           {/* Barre de recherche glassmorphism */}
-          <div className="mt-10 max-w-xl mx-auto bg-white/10 backdrop-blur-xl border border-white/25 rounded-2xl p-1.5 flex items-center gap-2 shadow-2xl">
-            <div className="flex-1 flex items-center gap-2 bg-white rounded-xl px-4 py-2.5">
+          <div className="mt-8 sm:mt-10 max-w-xl mx-auto bg-white/10 backdrop-blur-xl border border-white/25 rounded-2xl p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shadow-2xl">
+            <div className="flex-1 flex items-center gap-2 bg-white rounded-xl px-4 py-3">
               <Search className="w-4 h-4 text-gray-400 shrink-0" />
               <input
                 type="text"
@@ -71,7 +71,7 @@ const Home = () => {
             </div>
             <Link
               to="/services"
-              className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-teal-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:from-green-600 hover:to-teal-600 transition-all shadow-sm shrink-0"
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-teal-500 text-white px-5 py-3 rounded-xl font-semibold text-sm hover:from-green-600 hover:to-teal-600 transition-all shadow-sm"
             >
               Rechercher
               <ArrowRight className="w-4 h-4" />
@@ -79,7 +79,7 @@ const Home = () => {
           </div>
 
           {/* Stats inline */}
-          <div className="mt-10 flex items-center justify-center gap-8 text-sm text-white/60">
+          <div className="mt-8 sm:mt-10 flex items-center justify-center gap-4 sm:gap-8 text-sm text-white/60">
             <span><strong className="text-white font-semibold">500+</strong> prestataires</span>
             <span className="text-white/30">•</span>
             <span><strong className="text-white font-semibold">4.9★</strong> note moyenne</span>

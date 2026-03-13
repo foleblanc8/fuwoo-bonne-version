@@ -70,10 +70,10 @@ const Services = () => {
   return (
     <div className="bg-gray-50 min-h-screen">
       {/* Hero */}
-      <div className="bg-white border-b border-gray-200 px-6 py-10">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-6 sm:py-10">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-bold text-gray-900">Services à domicile</h1>
-          <p className="text-gray-500 mt-2 text-lg">Des professionnels vérifiés, partout au Québec.</p>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">Services à domicile</h1>
+          <p className="text-gray-500 mt-2 text-base sm:text-lg">Des professionnels vérifiés, partout au Québec.</p>
 
           {/* Barre de recherche */}
           <div className="mt-6 flex gap-2">
@@ -107,14 +107,14 @@ const Services = () => {
 
           {/* Panneau filtres */}
           {showFilters && (
-            <div className="mt-3 flex flex-wrap gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div className="mt-3 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
               {/* Catégorie */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-gray-500">Catégorie</label>
                 <select
                   value={selectedCat}
                   onChange={e => handleFilterChange(e.target.value, minPrice, maxPrice)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary min-w-[160px]"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary w-full sm:min-w-[160px]"
                 >
                   <option value="">Toutes</option>
                   {categories.map(c => (
@@ -132,7 +132,7 @@ const Services = () => {
                   placeholder="0"
                   value={minPrice}
                   onChange={e => handleFilterChange(selectedCat, e.target.value, maxPrice)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-24 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
                 />
               </div>
 
@@ -145,7 +145,7 @@ const Services = () => {
                   placeholder="∞"
                   value={maxPrice}
                   onChange={e => handleFilterChange(selectedCat, minPrice, e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-24 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
                 />
               </div>
             </div>

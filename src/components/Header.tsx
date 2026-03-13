@@ -103,8 +103,9 @@ const Header = () => {
 
           {/* Burger mobile */}
           <button
-            className="md:hidden p-2 rounded-xl hover:bg-gray-100 transition"
+            className="md:hidden p-3 rounded-xl hover:bg-gray-100 transition"
             onClick={() => setIsOpen(!isOpen)}
+            aria-label="Menu"
           >
             <Menu className="w-5 h-5 text-gray-700" />
           </button>
@@ -134,7 +135,8 @@ const Header = () => {
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-1.5 rounded-lg hover:bg-gray-100 transition"
+            className="p-2.5 rounded-lg hover:bg-gray-100 transition"
+            aria-label="Fermer"
           >
             <X className="w-5 h-5 text-gray-600" />
           </button>
@@ -146,7 +148,7 @@ const Header = () => {
               key={to}
               to={to}
               onClick={() => setIsOpen(false)}
-              className={`py-2.5 px-3 rounded-xl text-sm font-medium hover:bg-green-50 hover:text-coupdemain-primary transition-colors ${
+              className={`py-3.5 px-3 rounded-xl text-sm font-medium hover:bg-green-50 hover:text-coupdemain-primary transition-colors ${
                 location.pathname === to
                   ? "bg-green-50 text-coupdemain-primary font-semibold"
                   : ""
@@ -163,7 +165,7 @@ const Header = () => {
               <Link
                 to="/dashboard"
                 onClick={() => setIsOpen(false)}
-                className="py-2.5 px-3 rounded-xl text-sm font-medium hover:bg-green-50 hover:text-coupdemain-primary transition-colors"
+                className="py-3.5 px-3 rounded-xl text-sm font-medium hover:bg-green-50 hover:text-coupdemain-primary transition-colors"
               >
                 Mon tableau de bord
               </Link>
