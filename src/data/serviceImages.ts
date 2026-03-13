@@ -9,7 +9,7 @@ export const categoryImageMap: Record<string, string> = {
   'nettoyage-profondeur': `${BASE}/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=800&q=80`, // boîtes carton déménagement
   'plomberie':            `${BASE}/photo-1676210134188-4c05dd172f89?auto=format&fit=crop&w=800&q=80`, // homme travaillant sur un tuyau dans un mur
   'electricite':          `${BASE}/photo-1558346490-a72e53ae2d4f?auto=format&fit=crop&w=800&q=80`,   // panneau électrique
-  'peinture':             `${BASE}/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=800&q=80`, // pot de peinture + pinceau
+  'peinture':             `${BASE}/photo-1688372199140-cade7ae820fe?auto=format&fit=crop&w=800&q=80`, // homme peignant un mur en jaune
   'demenagement':         `${BASE}/photo-1614359835514-92f8ba196357?auto=format&fit=crop&w=800&q=80`, // déménagement
 
   // Extérieur / paysager
