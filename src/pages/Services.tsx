@@ -393,28 +393,26 @@ const Services = () => {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {filtered.map(cat => (
               <button key={cat.id} onClick={() => setSelectedCategory(cat)}
-                className="group relative rounded-2xl overflow-hidden aspect-[4/3] shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer">
+                className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300 cursor-pointer text-left">
                 {/* Photo */}
-                <img
-                  src={getCategoryImage(cat.slug)}
-                  alt={cat.name}
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                {/* Contenu */}
-                <div className="absolute inset-0 flex flex-col items-center justify-end p-3 text-center">
-                  <span className="text-2xl mb-1 drop-shadow">
-                    {CATEGORY_EMOJI[cat.slug] ?? '🛠️'}
-                  </span>
-                  <p className="text-white text-xs sm:text-sm font-semibold leading-snug drop-shadow">
-                    {cat.name}
-                  </p>
+                <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                  <img
+                    src={getCategoryImage(cat.slug)}
+                    alt={cat.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
                   {cat.provider_count > 0 && (
-                    <p className="text-white/70 text-xs mt-0.5">
-                      {cat.provider_count} pro{cat.provider_count !== 1 ? 's' : ''}
-                    </p>
+                    <div className="absolute top-3 left-3">
+                      <span className="bg-coupdemain-primary text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+                        {cat.provider_count} pro{cat.provider_count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
                   )}
+                </div>
+                {/* Contenu */}
+                <div className="p-4">
+                  <p className="font-semibold text-gray-900 text-sm leading-snug">{cat.name}</p>
+                  <p className="text-xs text-gray-400 mt-1">{cat.description}</p>
                 </div>
               </button>
             ))}
