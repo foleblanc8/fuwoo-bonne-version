@@ -298,7 +298,8 @@ class ServiceRequest(models.Model):
     category = models.ForeignKey(ServiceCategory, on_delete=models.SET_NULL, null=True, blank=True)
     title = models.CharField(max_length=200)
     description = models.TextField()
-    service_area = models.CharField(max_length=100)
+    service_area = models.CharField(max_length=100)  # Zone publique (ville / quartier)
+    address = models.CharField(max_length=200, blank=True, default='')  # Adresse privée
     preferred_dates = models.TextField(blank=True)
     submission_deadline = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')

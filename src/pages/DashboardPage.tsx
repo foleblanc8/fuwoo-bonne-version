@@ -28,6 +28,7 @@ type ServiceRequest = {
   description: string;
   category: { id: number; name: string } | null;
   service_area: string;
+  address: string | null;
   preferred_dates: string;
   submission_deadline: string | null;
   bid_count: number;
@@ -1504,6 +1505,24 @@ function ProviderRequestsTab() {
                       {req.service_area && (
                         <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{req.service_area}</span>
                       )}
+                      {(() => {
+                        const bid = myBids.find(b => b.service_request === req.id);
+                        if (req.address) {
+                          return (
+                            <span className="flex items-center gap-1 text-green-700 font-medium">
+                              <Lock className="w-3.5 h-3.5" />{req.address}
+                            </span>
+                          );
+                        }
+                        if (bid?.status !== 'accepted') {
+                          return (
+                            <span className="flex items-center gap-1 text-gray-400 italic">
+                              <Lock className="w-3.5 h-3.5" />Adresse partagée si retenu
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
                       {req.preferred_dates && (
                         <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Souhaité : {req.preferred_dates}</span>
                       )}
@@ -1569,6 +1588,9 @@ function ProviderRequestsTab() {
               {bidModal.service_area && (
                 <p className="text-xs text-gray-500 mt-0.5"><MapPin className="inline w-3 h-3 mr-0.5" />{bidModal.service_area}</p>
               )}
+              <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                <Lock className="w-3 h-3" />L'adresse exacte sera partagée si votre offre est retenue.
+              </p>
             </div>
             <form onSubmit={handleBidSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -1734,12 +1756,20 @@ function ClientRequestsTab() {
                       </span>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+                      {req.service_area && (
+                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{req.service_area}</span>
+                      )}
                       {req.submission_deadline && (
                         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.submission_deadline).toLocaleDateString('fr-CA')}</span>
                       )}
                       <span className="flex items-center gap-1">
                         <User className="w-3.5 h-3.5" />{req.bid_count} offre{req.bid_count !== 1 ? 's' : ''} reçue{req.bid_count !== 1 ? 's' : ''}
                       </span>
+                      {req.address && (
+                        <span className="flex items-center gap-1 text-green-700">
+                          <Lock className="w-3.5 h-3.5" />{req.address}
+                        </span>
+                      )}
                     </div>
                   </div>
                   {isOpen ? <ChevronUp className="w-5 h-5 text-gray-400 shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" />}

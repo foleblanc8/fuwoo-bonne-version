@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useServices } from "../contexts/ServiceContext";
 import { useAuth } from "../contexts/AuthContext";
-import { Search, MapPin, LocateFixed, Loader, X, Check, Upload, ImagePlus, Trash2 } from "lucide-react";
+import { Search, MapPin, LocateFixed, Loader, X, Check, Upload, ImagePlus, Trash2, Lock } from "lucide-react";
 import { getCategoryImage } from "../data/serviceImages";
 import axios from "axios";
 
@@ -60,6 +60,7 @@ function RequestModal({
   const [title, setTitle]           = useState(category.name);
   const [description, setDescription] = useState('');
   const [serviceArea, setServiceArea] = useState(locationLabel);
+  const [address, setAddress]       = useState('');
   const [deadlineDate, setDeadlineDate] = useState(() => {
     const d = new Date(); d.setHours(d.getHours() + 48);
     return d.toISOString().split('T')[0];
@@ -107,6 +108,7 @@ function RequestModal({
       form.append('title', title);
       form.append('description', description);
       form.append('service_area', serviceArea);
+      if (address.trim()) form.append('address', address.trim());
       form.append('submission_deadline', new Date(`${deadlineDate}T${deadlineTime}`).toISOString());
       form.append('preferred_dates', `${prefDate}${prefTime ? ' à ' + prefTime : ''}`);
       form.append('category_id', String(category.id));
@@ -181,14 +183,27 @@ function RequestModal({
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary resize-none" />
             </div>
 
-            {/* Adresse */}
+            {/* Zone publique */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Adresse ou ville <span className="text-red-500">*</span>
+                Ville / Quartier <span className="text-red-500">*</span>
               </label>
               <input type="text" value={serviceArea} onChange={e => setServiceArea(e.target.value)} required
-                placeholder="Ex. : 123 rue des Érables, Montréal"
+                placeholder="Ex. : Plateau-Mont-Royal, Montréal"
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary" />
+              <p className="text-xs text-gray-400 mt-1">Visible par tous les prestataires</p>
+            </div>
+
+            {/* Adresse privée */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-gray-400" />
+                Adresse exacte <span className="text-gray-400 font-normal">(optionnel)</span>
+              </label>
+              <input type="text" value={address} onChange={e => setAddress(e.target.value)}
+                placeholder="Ex. : 123 rue des Érables, app. 2"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary" />
+              <p className="text-xs text-gray-400 mt-1">Partagée uniquement avec le prestataire retenu</p>
             </div>
 
             {/* Date souhaitée */}

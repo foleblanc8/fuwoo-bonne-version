@@ -160,11 +160,30 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     def get_bid_count(self, obj):
         return obj.bids.count()
 
+    def _can_see_private(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        user = request.user
+        if obj.client_id == user.id:
+            return True
+        if getattr(user, 'role', None) == 'prestataire':
+            return obj.bids.filter(provider=user, status='accepted').exists()
+        return False
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not self._can_see_private(instance):
+            data['address'] = None
+            data['latitude'] = None
+            data['longitude'] = None
+        return data
+
     class Meta:
         model = ServiceRequest
         fields = [
             'id', 'client', 'category', 'category_id', 'title', 'description',
-            'service_area', 'preferred_dates', 'submission_deadline',
+            'service_area', 'address', 'preferred_dates', 'submission_deadline',
             'status', 'images', 'bid_count', 'created_at', 'updated_at',
             'latitude', 'longitude',
         ]
