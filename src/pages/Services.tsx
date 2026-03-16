@@ -136,7 +136,7 @@ function RequestModal({
               <span className="text-2xl">{CATEGORY_EMOJI[category.slug] ?? '🛠️'}</span>
               <div>
                 <h2 className="text-lg font-bold text-gray-900">{category.name}</h2>
-                <p className="text-xs text-gray-400">{category.provider_count} prestataire{category.provider_count !== 1 ? 's' : ''} disponible{category.provider_count !== 1 ? 's' : ''}</p>
+                <p className="text-xs text-gray-400">{category.provider_count} prestataire{category.provider_count !== 1 ? 's' : ''} offre{category.provider_count !== 1 ? 'nt' : '  '} ce service</p>
               </div>
             </div>
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 transition">
@@ -333,7 +333,7 @@ const Services = () => {
             Quel service cherchez-vous ?
           </h1>
           <p className="text-gray-500 text-sm sm:text-base mb-8">
-            Décrivez votre projet — des prestataires de votre région vous feront une offre.
+            Choisissez un service — des prestataires de votre région vous feront une offre gratuitement.
           </p>
 
           {/* Barre recherche + localisation */}
@@ -341,7 +341,7 @@ const Services = () => {
             {/* Recherche service */}
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <input type="text" placeholder="Plomberie, ménage, déneigement…"
+              <input type="text" placeholder="Rechercher un service…"
                 value={search} onChange={e => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coupdemain-primary text-sm bg-white" />
             </div>

@@ -135,14 +135,14 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Catégories populaires</h2>
-              <p className="text-gray-500 text-sm mt-0.5">Cliquez pour faire une demande de soumission</p>
+              <h2 className="text-2xl font-bold text-gray-900">Nos services</h2>
+              <p className="text-gray-500 text-sm mt-0.5">Cliquez pour demander une soumission gratuite</p>
             </div>
             <Link
               to="/services"
               className="flex items-center gap-1.5 text-coupdemain-primary text-sm font-semibold hover:gap-2.5 transition-all"
             >
-              Tout voir <ArrowRight className="w-4 h-4" />
+              Voir tous les services <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
