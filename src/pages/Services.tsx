@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useServices } from "../contexts/ServiceContext";
 import { useAuth } from "../contexts/AuthContext";
 import { Search, MapPin, LocateFixed, Loader, X, Check, Upload, ImagePlus, Trash2 } from "lucide-react";
+import { getCategoryImage } from "../data/serviceImages";
 import axios from "axios";
 
 // ─── Emoji map ────────────────────────────────────────────────────────────────
@@ -392,15 +393,26 @@ const Services = () => {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
             {filtered.map(cat => (
               <button key={cat.id} onClick={() => setSelectedCategory(cat)}
-                className="group bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 flex flex-col items-center gap-3 hover:border-coupdemain-primary hover:shadow-md transition-all text-center cursor-pointer">
-                <span className="text-4xl group-hover:scale-110 transition-transform duration-200">
-                  {CATEGORY_EMOJI[cat.slug] ?? '🛠️'}
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 leading-snug">{cat.name}</p>
+                className="group relative rounded-2xl overflow-hidden aspect-[4/3] shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer">
+                {/* Photo */}
+                <img
+                  src={getCategoryImage(cat.slug)}
+                  alt={cat.name}
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                {/* Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                {/* Contenu */}
+                <div className="absolute inset-0 flex flex-col items-center justify-end p-3 text-center">
+                  <span className="text-2xl mb-1 drop-shadow">
+                    {CATEGORY_EMOJI[cat.slug] ?? '🛠️'}
+                  </span>
+                  <p className="text-white text-xs sm:text-sm font-semibold leading-snug drop-shadow">
+                    {cat.name}
+                  </p>
                   {cat.provider_count > 0 && (
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {cat.provider_count} prestataire{cat.provider_count !== 1 ? 's' : ''}
+                    <p className="text-white/70 text-xs mt-0.5">
+                      {cat.provider_count} pro{cat.provider_count !== 1 ? 's' : ''}
                     </p>
                   )}
                 </div>
