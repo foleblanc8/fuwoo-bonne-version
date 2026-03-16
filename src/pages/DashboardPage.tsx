@@ -2842,12 +2842,37 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Mobile top bar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-100 flex items-center justify-between px-4 h-14">
-        <button onClick={() => setSidebarOpen(true)} className="text-gray-600 p-1">
-          <Menu className="w-6 h-6" />
-        </button>
-        <span className="text-base font-bold text-coupdemain-primary">Coupdemain</span>
-        <span className="w-8" /> {/* spacer */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-100 px-4 h-auto">
+        <div className="flex items-center justify-between h-14">
+          <button onClick={() => setSidebarOpen(true)} className="text-gray-600 p-2">
+            <Menu className="w-6 h-6" />
+          </button>
+          <span className="text-base font-bold text-coupdemain-primary">Coupdemain</span>
+          <span className="w-10" />
+        </div>
+        {/* Toggle Client / Prestataire visible directement sur mobile */}
+        {user?.has_provider_profile && (
+          <div className="pb-3">
+            <div className="flex bg-gray-100 rounded-xl p-1">
+              <button
+                onClick={() => switchMode('client')}
+                className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
+                  !isProviderMode ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'
+                }`}
+              >
+                Client
+              </button>
+              <button
+                onClick={() => switchMode('provider')}
+                className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
+                  isProviderMode ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'
+                }`}
+              >
+                Prestataire
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Sidebar backdrop (mobile) ── */}
@@ -2927,7 +2952,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Contenu principal ── */}
-      <div className="md:ml-64 pt-14 md:pt-0 p-4 md:p-8">
+      <div className={`md:ml-64 md:pt-0 p-4 md:p-8 ${user?.has_provider_profile ? 'pt-28' : 'pt-14'}`}>
         {/* Bannière vérification email */}
         {user && !user.email_verified && (
           <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-4">
