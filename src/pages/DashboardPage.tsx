@@ -14,6 +14,7 @@ import { useBookings } from '../contexts/BookingContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useToast } from '../contexts/ToastContext';
 import { StatCardSkeleton, BookingCardSkeleton, ServiceCardSkeleton } from '../components/Skeleton';
+import { getCategoryImage } from '../data/serviceImages';
 import axios from 'axios';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1100,462 +1101,121 @@ function ProviderBookingsTab() {
 
 // ─── Provider Services Tab ────────────────────────────────────────────────────
 
-type ServiceImage = { id: number; image: string; is_primary: boolean };
-
-type ProviderService = {
+type AvailableCategory = {
   id: number;
-  title: string;
+  name: string;
+  slug: string;
   description: string;
-  category: { id: number; name: string; slug: string } | null;
-  price: string;
-  price_unit: string;
-  duration: number;
-  service_area: string;
-  max_distance: number;
-  instant_booking: boolean;
   is_active: boolean;
-  rating: number;
-  total_bookings: number;
-  images: ServiceImage[];
 };
 
-type ServiceForm = {
-  title: string; description: string; category_id: string;
-  price: string; price_unit: string; duration: string;
-  service_area: string; max_distance: string; instant_booking: boolean;
-};
-
-const defaultServiceForm: ServiceForm = {
-  title: '', description: '', category_id: '', price: '',
-  price_unit: 'par heure', duration: '60', service_area: '', max_distance: '25', instant_booking: false,
+type ProviderServiceRecord = {
+  id: number;
+  is_active: boolean;
+  category: { id: number; name: string; slug: string } | null;
+  service_area: string;
 };
 
 function ProviderServicesTab() {
   const { user } = useAuth();
   const { showToast } = useToast();
-  const [services, setServices]     = useState<ProviderService[]>([]);
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [showModal, setShowModal]   = useState(false);
-  const [editId, setEditId]         = useState<number | null>(null);
-  const [form, setForm]             = useState<ServiceForm>(defaultServiceForm);
-  const [saving, setSaving]         = useState(false);
-  const [saveError, setSaveError]   = useState('');
-  const [deleting, setDeleting]     = useState<number | null>(null);
-  // Images
-  const [existingImages, setExistingImages] = useState<ServiceImage[]>([]);
-  const [pendingFiles, setPendingFiles]     = useState<File[]>([]);
-  const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
-  const [deletingImg, setDeletingImg]       = useState<number | null>(null);
-  const imgInputRef = useRef<HTMLInputElement>(null);
+  const [categories, setCategories]           = useState<AvailableCategory[]>([]);
+  const [providerServices, setProviderServices] = useState<ProviderServiceRecord[]>([]);
+  const [loading, setLoading]                 = useState(true);
+  const [toggling, setToggling]               = useState<number | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
     setLoading(true);
     Promise.all([
-      axios.get(`services/?provider=${user.id}`),
       axios.get('categories/'),
-    ]).then(([sRes, cRes]) => {
-      const sd = sRes.data as any;
-      setServices(Array.isArray(sd) ? sd : (sd.results ?? []));
-      const cd = cRes.data as any;
-      setCategories(Array.isArray(cd) ? cd : (cd.results ?? []));
+      axios.get(`services/?provider=${user.id}&page_size=100`),
+    ]).then(([catRes, svcRes]) => {
+      const cats = catRes.data as any;
+      setCategories(Array.isArray(cats) ? cats : (cats.results ?? []));
+      const svcs = svcRes.data as any;
+      setProviderServices(Array.isArray(svcs) ? svcs : (svcs.results ?? []));
     }).finally(() => setLoading(false));
-  }, [user?.id, refreshKey]);
+  }, [user?.id]);
 
-  const resetImageState = () => {
-    setPendingFiles([]);
-    setPendingPreviews([]);
-    setExistingImages([]);
-  };
-
-  const openCreate = () => {
-    setForm(defaultServiceForm);
-    setEditId(null);
-    setSaveError('');
-    resetImageState();
-    setShowModal(true);
-  };
-
-  const openEdit = (s: ProviderService) => {
-    setForm({
-      title: s.title, description: s.description,
-      category_id: String(s.category?.id ?? ''),
-      price: s.price, price_unit: s.price_unit,
-      duration: String(s.duration), service_area: s.service_area,
-      max_distance: String(s.max_distance), instant_booking: s.instant_booking,
-    });
-    setEditId(s.id);
-    setSaveError('');
-    setExistingImages(s.images ?? []);
-    setPendingFiles([]);
-    setPendingPreviews([]);
-    setShowModal(true);
-  };
-
-  const handleImgSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    setPendingFiles(prev => [...prev, ...files]);
-    const previews = files.map(f => URL.createObjectURL(f));
-    setPendingPreviews(prev => [...prev, ...previews]);
-    if (imgInputRef.current) imgInputRef.current.value = '';
-  };
-
-  const removePending = (i: number) => {
-    URL.revokeObjectURL(pendingPreviews[i]);
-    setPendingFiles(prev => prev.filter((_, idx) => idx !== i));
-    setPendingPreviews(prev => prev.filter((_, idx) => idx !== i));
-  };
-
-  const handleDeleteExistingImg = async (imgId: number) => {
-    if (!editId) return;
-    setDeletingImg(imgId);
+  const toggleService = async (cat: AvailableCategory) => {
+    if (toggling !== null) return;
+    setToggling(cat.id);
+    const existing = providerServices.find(s => s.category?.id === cat.id);
     try {
-      await axios.delete(`services/${editId}/images/${imgId}/`);
-      setExistingImages(prev => prev.filter(img => img.id !== imgId));
-    } catch { /* silent */ }
-    finally { setDeletingImg(null); }
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaveError('');
-
-    // Validation frontend
-    if (!form.category_id) {
-      setSaveError('Veuillez sélectionner une catégorie.');
-      return;
-    }
-    if (!form.title.trim()) {
-      setSaveError('Le titre est obligatoire.');
-      return;
-    }
-    if (!form.price || parseFloat(form.price) <= 0) {
-      setSaveError('Veuillez entrer un prix valide.');
-      return;
-    }
-
-    setSaving(true);
-    const payload = {
-      title: form.title,
-      description: form.description,
-      category_id: parseInt(form.category_id),
-      price: parseFloat(form.price),
-      price_unit: form.price_unit,
-      duration: parseInt(form.duration) || 60,
-      service_area: form.service_area,
-      max_distance: parseInt(form.max_distance) || 25,
-      instant_booking: form.instant_booking,
-    };
-    try {
-      let serviceId = editId;
-      if (editId) {
-        await axios.patch(`services/${editId}/`, payload);
+      if (existing?.is_active) {
+        await axios.patch(`services/${existing.id}/`, { is_active: false });
+        setProviderServices(prev => prev.map(s => s.id === existing.id ? { ...s, is_active: false } : s));
+        showToast(`${cat.name} retiré de vos services.`, 'info');
+      } else if (existing) {
+        await axios.patch(`services/${existing.id}/`, { is_active: true });
+        setProviderServices(prev => prev.map(s => s.id === existing.id ? { ...s, is_active: true } : s));
+        showToast(`${cat.name} ajouté à vos services.`);
       } else {
-        const res = await axios.post('services/', payload);
-        serviceId = (res.data as any).id;
+        const res = await axios.post('services/', { category_id: cat.id, title: cat.name });
+        setProviderServices(prev => [...prev, res.data as ProviderServiceRecord]);
+        showToast(`${cat.name} ajouté à vos services.`);
       }
-      // Upload des images en attente
-      for (let i = 0; i < pendingFiles.length; i++) {
-        const fd = new FormData();
-        fd.append('image', pendingFiles[i]);
-        if (i === 0 && existingImages.length === 0) fd.append('is_primary', 'true');
-        await axios.post(`services/${serviceId}/upload_image/`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-      }
-      pendingPreviews.forEach(url => URL.revokeObjectURL(url));
-      setShowModal(false);
-      setRefreshKey(k => k + 1);
-      showToast(editId ? 'Service modifié avec succès.' : 'Service créé avec succès.');
-    } catch (err: any) {
-      const data = err?.response?.data;
-      if (data) {
-        const msgs = Object.values(data).flat().join(' ');
-        setSaveError(msgs || 'Une erreur est survenue.');
-      } else {
-        setSaveError('Une erreur est survenue. Veuillez réessayer.');
-      }
+    } catch {
       showToast('Une erreur est survenue.', 'error');
     } finally {
-      setSaving(false);
+      setToggling(null);
     }
   };
 
-  const toggleActive = async (s: ProviderService) => {
-    await axios.patch(`services/${s.id}/`, { is_active: !s.is_active });
-    setServices(prev => prev.map(x => x.id === s.id ? { ...x, is_active: !x.is_active } : x));
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Supprimer ce service définitivement ?')) return;
-    setDeleting(id);
-    try {
-      await axios.delete(`services/${id}/`);
-      setServices(prev => prev.filter(s => s.id !== id));
-      showToast('Service supprimé.', 'info');
-    } catch {
-      showToast('Erreur lors de la suppression.', 'error');
-    }
-    finally { setDeleting(null); }
-  };
-
-  const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40';
+  const activeCount = providerServices.filter(s => s.is_active).length;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Mes services</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {services.length} service{services.length !== 1 ? 's' : ''} créé{services.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-coupdemain-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition"
-        >
-          <Plus className="w-4 h-4" />Ajouter un service
-        </button>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900">Mes services</h2>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {activeCount} service{activeCount !== 1 ? 's' : ''} actif{activeCount !== 1 ? 's' : ''} — activez les services pour lesquels vous acceptez des demandes de soumission.
+        </p>
       </div>
 
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[...Array(4)].map((_, i) => <ServiceCardSkeleton key={i} />)}
-        </div>
-      ) : services.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-sm p-16 text-center">
-          <Briefcase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-gray-700 font-semibold text-lg">Aucun service pour l'instant</p>
-          <p className="text-gray-400 text-sm mt-1 mb-6">Créez votre premier service pour recevoir des réservations.</p>
-          <button onClick={openCreate}
-            className="inline-flex items-center gap-2 bg-coupdemain-primary text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition">
-            <Plus className="w-4 h-4" />Créer un service
-          </button>
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
+          {[...Array(6)].map((_, i) => <ServiceCardSkeleton key={i} />)}
         </div>
       ) : (
-        <div className="space-y-4">
-          {services.map(s => {
-            const primaryImg = s.images?.find(img => img.is_primary) ?? s.images?.[0];
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3">
+          {categories.map(cat => {
+            const svc = providerServices.find(s => s.category?.id === cat.id);
+            const isActive = svc?.is_active ?? false;
+            const isToggling = toggling === cat.id;
             return (
-            <div key={s.id} className="bg-white rounded-2xl shadow-sm p-5 flex items-center gap-5">
-              <div className="w-14 h-14 rounded-xl bg-coupdemain-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
-                {primaryImg ? (
-                  <img src={primaryImg.image} alt={s.title} className="w-full h-full object-cover" />
-                ) : (
-                  <Briefcase className="w-6 h-6 text-coupdemain-primary" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <p className="font-semibold text-gray-900">{s.title}</p>
-                  {s.category && (
-                    <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{s.category.name}</span>
+              <button
+                key={cat.id}
+                onClick={() => toggleService(cat)}
+                disabled={isToggling}
+                className={`group relative bg-white rounded-2xl overflow-hidden shadow-sm border-2 transition-all duration-200 text-left
+                  ${isActive ? 'border-coupdemain-primary shadow-coupdemain-primary/10' : 'border-gray-100 hover:border-gray-300 hover:shadow-md'}
+                  ${isToggling ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}
+              >
+                <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                  <img
+                    src={getCategoryImage(cat.slug)}
+                    alt={cat.name}
+                    className={`w-full h-full object-cover transition-transform duration-500 ${isActive ? 'scale-105' : 'group-hover:scale-105'}`}
+                  />
+                  {isActive && (
+                    <div className="absolute inset-0 bg-coupdemain-primary/20 flex items-center justify-center">
+                      <div className="w-10 h-10 bg-coupdemain-primary rounded-full flex items-center justify-center shadow-lg">
+                        <CheckCircle className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
                   )}
-                  {!s.is_active && (
-                    <span className="text-xs px-2 py-0.5 bg-red-50 text-red-500 rounded-full">Inactif</span>
-                  )}
                 </div>
-                <p className="text-sm text-gray-500 truncate mb-2">{s.description}</p>
-                <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                  <span className="font-semibold text-gray-800">
-                    ${parseFloat(s.price).toFixed(2)} <span className="font-normal">{s.price_unit}</span>
-                  </span>
-                  <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{s.duration} min</span>
-                  <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{s.service_area}</span>
-                  <span className="flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                    {parseFloat(String(s.rating)).toFixed(1)}
-                  </span>
-                  <span>{s.total_bookings} réservation{s.total_bookings !== 1 ? 's' : ''}</span>
+                <div className="p-3">
+                  <p className="font-semibold text-gray-900 text-sm leading-snug">{cat.name}</p>
+                  <p className={`text-xs mt-0.5 font-medium ${isActive ? 'text-coupdemain-primary' : 'text-gray-400'}`}>
+                    {isToggling ? '…' : isActive ? 'Actif — vous recevez des demandes' : 'Inactif'}
+                  </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-xs font-medium ${s.is_active ? 'text-green-600' : 'text-gray-400'}`}>
-                    {s.is_active ? 'Actif' : 'Inactif'}
-                  </span>
-                  <button
-                    onClick={() => toggleActive(s)}
-                    className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${s.is_active ? 'bg-green-500' : 'bg-gray-200'}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${s.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-                <button onClick={() => openEdit(s)}
-                  className="p-2 text-gray-400 hover:text-coupdemain-primary hover:bg-coupdemain-primary/5 rounded-lg transition">
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button onClick={() => handleDelete(s.id)} disabled={deleting === s.id}
-                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+              </button>
             );
           })}
-        </div>
-      )}
-
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
-              <h3 className="text-lg font-bold text-gray-900">
-                {editId ? 'Modifier le service' : 'Nouveau service'}
-              </h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 transition">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleSave} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
-                <input required value={form.title}
-                  onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                  placeholder="Ex: Plomberie résidentielle" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                <textarea required rows={3} value={form.description}
-                  onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  placeholder="Décrivez vos services, votre expérience…"
-                  className={inputCls + ' resize-none'} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Catégorie <span className="text-red-400">*</span>
-                </label>
-                <select value={form.category_id}
-                  onChange={e => { setForm(p => ({ ...p, category_id: e.target.value })); setSaveError(''); }}
-                  className={inputCls + (!form.category_id ? ' border-orange-300' : '')}>
-                  <option value="">— Sélectionner une catégorie —</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix ($) *</label>
-                  <input required type="number" min="0" step="0.01" value={form.price}
-                    onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
-                    placeholder="75.00" className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
-                  <select value={form.price_unit}
-                    onChange={e => setForm(p => ({ ...p, price_unit: e.target.value }))}
-                    className={inputCls}>
-                    <option value="par heure">Par heure</option>
-                    <option value="par visite">Par visite</option>
-                    <option value="par jour">Par jour</option>
-                    <option value="forfait">Forfait</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Durée (min)</label>
-                  <input type="number" min="15" step="15" value={form.duration}
-                    onChange={e => setForm(p => ({ ...p, duration: e.target.value }))}
-                    className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Zone de service</label>
-                  <input value={form.service_area}
-                    onChange={e => setForm(p => ({ ...p, service_area: e.target.value }))}
-                    placeholder="Montréal, Laval…" className={inputCls} />
-                </div>
-              </div>
-              <div className="flex items-center justify-between py-3 px-4 border border-gray-100 rounded-xl">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Réservation instantanée</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Les clients réservent sans confirmation manuelle</p>
-                </div>
-                <button type="button"
-                  onClick={() => setForm(p => ({ ...p, instant_booking: !p.instant_booking }))}
-                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${form.instant_booking ? 'bg-coupdemain-primary' : 'bg-gray-200'}`}>
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${form.instant_booking ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-              {/* Section images */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Photos du service</label>
-
-                {/* Images existantes (mode édition) */}
-                {existingImages.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {existingImages.map(img => (
-                      <div key={img.id} className="relative group w-20 h-20 rounded-xl overflow-hidden border border-gray-200">
-                        <img src={img.image} alt="" className="w-full h-full object-cover" />
-                        {img.is_primary && (
-                          <span className="absolute bottom-0 left-0 right-0 bg-coupdemain-primary text-white text-[9px] text-center py-0.5">
-                            Principale
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteExistingImg(img.id)}
-                          disabled={deletingImg === img.id}
-                          className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full items-center justify-center hidden group-hover:flex transition disabled:opacity-50"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Nouvelles images en attente */}
-                {pendingPreviews.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {pendingPreviews.map((url, i) => (
-                      <div key={i} className="relative group w-20 h-20 rounded-xl overflow-hidden border-2 border-dashed border-coupdemain-primary/40">
-                        <img src={url} alt="" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => removePending(i)}
-                          className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full items-center justify-center hidden group-hover:flex transition"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => imgInputRef.current?.click()}
-                  className="flex items-center gap-2 border border-dashed border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-500 hover:border-coupdemain-primary hover:text-coupdemain-primary transition w-full justify-center"
-                >
-                  <Camera className="w-4 h-4" />
-                  Ajouter des photos
-                </button>
-                <input ref={imgInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImgSelect} />
-                <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP — max 5 Mo par image. La première image deviendra la photo principale.</p>
-              </div>
-
-              {saveError && (
-                <p className="text-red-600 text-sm bg-red-50 border border-red-100 py-2 px-3 rounded-xl">
-                  {saveError}
-                </p>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)}
-                  className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
-                  Annuler
-                </button>
-                <button type="submit" disabled={saving}
-                  className="flex-1 bg-coupdemain-primary text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60">
-                  {saving ? 'Enregistrement…' : editId ? 'Mettre à jour' : 'Créer le service'}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
     </div>
@@ -2105,6 +1765,12 @@ function ClientRequestsTab() {
                                   {(bid.provider as any)?.is_verified && (
                                     <span className="flex items-center gap-0.5 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
                                       <Shield className="w-3 h-3" />Vérifié
+                                    </span>
+                                  )}
+                                  {(bid.provider as any)?.date_joined &&
+                                    Date.now() - new Date((bid.provider as any).date_joined).getTime() < 30 * 24 * 60 * 60 * 1000 && (
+                                    <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                                      Nouveau
                                     </span>
                                   )}
                                   {bid.provider?.rating !== undefined && (

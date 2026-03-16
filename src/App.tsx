@@ -7,7 +7,6 @@ import APropos from "./pages/APropos";
 import Connexion from "./pages/connexion";
 import Inscription from "./pages/Inscription";
 import ProfilPage from "./pages/ProfilPage";
-import ServiceDetailPage from "./pages/ServiceDetailPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProviderProfilePage from "./pages/ProviderProfilePage";
 import MotDePasseOublie from "./pages/MotDePasseOublie";
@@ -28,7 +27,6 @@ const App = () => {
         <Route path="/connexion" element={<Connexion />} />
         <Route path="/inscription" element={<Inscription />} />
         <Route path="/profil" element={<ProfilPage />} />
-        <Route path="/service/:id" element={<ServiceDetailPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/provider/:id" element={<ProviderProfilePage />} />
         <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />

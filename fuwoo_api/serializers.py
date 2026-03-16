@@ -17,9 +17,9 @@ class UserSerializer(serializers.ModelSerializer):
                  'role', 'has_provider_profile', 'phone_number', 'address',
                  'profile_picture', 'bio', 'is_verified', 'email_verified',
                  'rating', 'total_reviews', 'latitude', 'longitude',
-                 'identity_status', 'identity_rejection_reason']
+                 'identity_status', 'identity_rejection_reason', 'date_joined']
         read_only_fields = ['rating', 'total_reviews', 'is_verified', 'email_verified',
-                            'identity_status', 'identity_rejection_reason']
+                            'identity_status', 'identity_rejection_reason', 'date_joined']
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)

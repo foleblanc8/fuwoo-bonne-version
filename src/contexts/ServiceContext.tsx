@@ -37,10 +37,6 @@ interface ServiceContextType {
   fetchCategories: () => Promise<void>;
   fetchServices: (filters?: any) => Promise<void>;
   searchServices: (query: string) => Promise<void>;
-  getServiceById: (id: number) => Promise<Service>;
-  createService: (serviceData: any) => Promise<Service>;
-  updateService: (id: number, serviceData: any) => Promise<Service>;
-  deleteService: (id: number) => Promise<void>;
   setSelectedCategory: (category: Category | null) => void;
 }
 
@@ -98,26 +94,6 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
-  const getServiceById = async (id: number): Promise<Service> => {
-    const response = await axios.get<Service>(`services/${id}/`);
-    return response.data;
-  };
-
-  const createService = async (serviceData: any): Promise<Service> => {
-    const response = await axios.post<Service>('services/', serviceData);
-    return response.data;
-  };
-
-  const updateService = async (id: number, serviceData: any): Promise<Service> => {
-    const response = await axios.patch<Service>(`services/${id}/`, serviceData);
-    return response.data;
-  };
-
-  const deleteService = async (id: number): Promise<void> => {
-    await axios.delete(`services/${id}/`);
-    setServices(services.filter(s => s.id !== id));
-  };
-
   return (
     <ServiceContext.Provider
       value={{
@@ -128,10 +104,6 @@ export const ServiceProvider: React.FC<{ children: ReactNode }> = ({ children })
         fetchCategories,
         fetchServices,
         searchServices,
-        getServiceById,
-        createService,
-        updateService,
-        deleteService,
         setSelectedCategory,
       }}
     >

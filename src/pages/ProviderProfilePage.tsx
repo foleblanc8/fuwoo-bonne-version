@@ -18,14 +18,13 @@ type ProviderUser = {
   rating: number;
   total_reviews: number;
   address: string | null;
+  date_joined: string | null;
 };
 
 type ProviderService = {
   id: number;
   title: string;
   category: { id: number; name: string; slug: string } | null;
-  price: string;
-  price_unit: string;
   rating: number;
   total_bookings: number;
   service_area: string;
@@ -82,6 +81,9 @@ const ProviderProfilePage = () => {
   );
 
   const fullName = [provider.first_name, provider.last_name].filter(Boolean).join(' ') || provider.username;
+  const isNew = provider.date_joined
+    ? (Date.now() - new Date(provider.date_joined).getTime()) < 30 * 24 * 60 * 60 * 1000
+    : false;
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
@@ -99,6 +101,11 @@ const ProviderProfilePage = () => {
             {provider.is_verified && (
               <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
                 <Shield className="w-3 h-3" /> Vérifié
+              </span>
+            )}
+            {isNew && (
+              <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                Nouveau
               </span>
             )}
           </div>
@@ -174,12 +181,9 @@ const ProviderProfilePage = () => {
                 key={s.id}
                 title={s.title}
                 categorySlug={s.category?.slug}
-                price={s.price}
-                priceUnit={s.price_unit}
                 rating={s.rating}
                 totalBookings={s.total_bookings}
                 serviceArea={s.service_area}
-                linkTo={`/service/${s.id}`}
               />
             ))}
           </div>

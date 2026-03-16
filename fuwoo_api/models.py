@@ -77,14 +77,14 @@ class Service(models.Model):
     )
     category = models.ForeignKey(ServiceCategory, on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
-    description = models.TextField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    price_unit = models.CharField(max_length=50)  # par heure, par projet, etc.
-    duration = models.IntegerField(help_text="Durée estimée en minutes")
-    
+    description = models.TextField(blank=True, default='')
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    price_unit = models.CharField(max_length=50, blank=True, default='soumission')
+    duration = models.IntegerField(help_text="Durée estimée en minutes", default=60)
+
     # Localisation
-    service_area = models.CharField(max_length=100)  # Ville ou zone
-    max_distance = models.IntegerField(help_text="Distance max en km")
+    service_area = models.CharField(max_length=100, blank=True, default='')
+    max_distance = models.IntegerField(help_text="Distance max en km", default=100)
     
     # Disponibilité
     is_active = models.BooleanField(default=True)
