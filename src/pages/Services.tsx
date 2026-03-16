@@ -1,286 +1,439 @@
 // src/pages/Services.tsx
-import { useEffect, useState, useRef, useCallback } from "react";
-import ServiceCard from "../components/ServiceCard";
-import { ServiceCardSkeleton } from "../components/Skeleton";
+import React, { useEffect, useState, useRef } from "react";
 import { useServices } from "../contexts/ServiceContext";
-import { Search, SlidersHorizontal, X, MapPin, LocateFixed, Loader } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext";
+import { Search, MapPin, LocateFixed, Loader, X, Check, Upload, ImagePlus, Trash2 } from "lucide-react";
+import axios from "axios";
 
-// Fallback si l'API est down
-const fallbackServices = [
-  { id: 1, title: "Plomberie résidentielle", categorySlug: "plomberie", serviceArea: "Montréal", price: "85", priceUnit: "par heure", rating: 4.9, totalBookings: 54 },
-  { id: 2, title: "Ménage résidentiel", categorySlug: "menage-residentiel", serviceArea: "Laval", price: "65", priceUnit: "par visite", rating: 4.8, totalBookings: 98 },
-  { id: 3, title: "Tonte de pelouse", categorySlug: "tonte-pelouse", serviceArea: "Longueuil", price: "55", priceUnit: "par visite", rating: 4.7, totalBookings: 72 },
-  { id: 4, title: "Déneigement", categorySlug: "deneigement", serviceArea: "Rive-Sud", price: "45", priceUnit: "par visite", rating: 4.6, totalBookings: 88 },
-  { id: 5, title: "Nettoyage de terrain", categorySlug: "nettoyage-terrain", serviceArea: "Grand Montréal", price: "75", priceUnit: "par visite", rating: 4.8, totalBookings: 29 },
-  { id: 6, title: "Entretien de piscine", categorySlug: "entretien-piscine", serviceArea: "Rive-Sud", price: "180", priceUnit: "par visite", rating: 4.9, totalBookings: 18 },
-];
+// ─── Emoji map ────────────────────────────────────────────────────────────────
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  "menage-residentiel":   "🧹",
+  "nettoyage-profondeur": "🧽",
+  "tonte-pelouse":        "🌿",
+  "entretien-jardin":     "🌸",
+  "deneigement":          "❄️",
+  "peinture":             "🎨",
+  "plomberie":            "🔧",
+  "electricite":          "⚡",
+  "demenagement":         "📦",
+  "lavage-vitres":        "🪟",
+  "nettoyage-terrain":    "🍂",
+  "entretien-piscine":    "🏊",
+  "taille-haies":         "✂️",
+  "elagage-arbres":       "🌳",
+  "nettoyage-gouttieres": "🌧️",
+  "nettoyage-terrasse":   "🏡",
+  "amenagement-paysager": "🗺️",
+  "extermination":        "🐛",
+};
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Category = {
+  id: number;
+  name: string;
+  slug: string;
+  icon: string;
+  description: string;
+  is_active: boolean;
+  provider_count: number;
+};
+
+// ─── Request Modal ─────────────────────────────────────────────────────────────
+
+function RequestModal({
+  category,
+  locationLabel,
+  geoCoords,
+  onClose,
+}: {
+  category: Category;
+  locationLabel: string;
+  geoCoords: { lat: number; lng: number } | null;
+  onClose: () => void;
+}) {
+  const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [title, setTitle]           = useState(category.name);
+  const [description, setDescription] = useState('');
+  const [serviceArea, setServiceArea] = useState(locationLabel);
+  const [deadlineDate, setDeadlineDate] = useState(() => {
+    const d = new Date(); d.setHours(d.getHours() + 48);
+    return d.toISOString().split('T')[0];
+  });
+  const [deadlineTime, setDeadlineTime] = useState('10:00');
+  const [prefDate, setPrefDate]     = useState('');
+  const [prefTime, setPrefTime]     = useState('');
+  const [photos, setPhotos]         = useState<File[]>([]);
+  const [previews, setPreviews]     = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess]       = useState(false);
+  const [error, setError]           = useState('');
+
+  const handlePhotos = (files: FileList | null) => {
+    if (!files) return;
+    const combined = [...photos, ...Array.from(files).filter(f => f.type.startsWith('image/'))].slice(0, 8);
+    setPhotos(combined);
+    const urls = combined.map(f => URL.createObjectURL(f));
+    setPreviews(prev => { prev.forEach(URL.revokeObjectURL); return urls; });
+  };
+
+  const removePhoto = (i: number) => {
+    const updated = photos.filter((_, idx) => idx !== i);
+    setPhotos(updated);
+    const urls = updated.map(f => URL.createObjectURL(f));
+    setPreviews(prev => { prev.forEach(URL.revokeObjectURL); return urls; });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) { setError('Vous devez être connecté pour envoyer une demande.'); return; }
+    if (photos.length === 0) { setError('Ajoutez au moins une photo du travail à effectuer.'); return; }
+    if (prefDate && prefTime) {
+      const serviceDateTime = new Date(`${prefDate}T${prefTime}`);
+      const deadlineDateTime = new Date(`${deadlineDate}T${deadlineTime}`);
+      if (serviceDateTime.getTime() - deadlineDateTime.getTime() < 24 * 60 * 60 * 1000) {
+        setError("Le délai de soumission doit être au moins 24h avant la date souhaitée du service.");
+        return;
+      }
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      const form = new FormData();
+      form.append('title', title);
+      form.append('description', description);
+      form.append('service_area', serviceArea);
+      form.append('submission_deadline', new Date(`${deadlineDate}T${deadlineTime}`).toISOString());
+      form.append('preferred_dates', `${prefDate}${prefTime ? ' à ' + prefTime : ''}`);
+      form.append('category_id', String(category.id));
+      if (geoCoords) {
+        form.append('latitude', String(geoCoords.lat));
+        form.append('longitude', String(geoCoords.lng));
+      }
+      photos.forEach(p => form.append('images', p));
+      await axios.post('service-requests/', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setSuccess(true);
+    } catch {
+      setError('Une erreur est survenue. Veuillez réessayer.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+
+        {/* Header */}
+        <div className="sticky top-0 bg-white rounded-t-3xl sm:rounded-t-2xl px-6 pt-5 pb-4 border-b border-gray-100 z-10">
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{CATEGORY_EMOJI[category.slug] ?? '🛠️'}</span>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">{category.name}</h2>
+                <p className="text-xs text-gray-400">{category.provider_count} prestataire{category.provider_count !== 1 ? 's' : ''} disponible{category.provider_count !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 transition">
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        {success ? (
+          <div className="px-6 py-12 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Demande envoyée !</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Les prestataires de la région ont été notifiés. Vous recevrez des offres dans votre tableau de bord.
+            </p>
+            <button onClick={onClose}
+              className="bg-coupdemain-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition">
+              Fermer
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
+
+            {/* Titre */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Titre <span className="text-red-500">*</span>
+              </label>
+              <input type="text" value={title} onChange={e => setTitle(e.target.value)} required
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary" />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Décrivez le travail <span className="text-red-500">*</span>
+              </label>
+              <textarea value={description} onChange={e => setDescription(e.target.value)} required rows={4}
+                placeholder="Ex. : Robinet qui coule dans la cuisine, besoin de remplacement…"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary resize-none" />
+            </div>
+
+            {/* Adresse */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Adresse ou ville <span className="text-red-500">*</span>
+              </label>
+              <input type="text" value={serviceArea} onChange={e => setServiceArea(e.target.value)} required
+                placeholder="Ex. : 123 rue des Érables, Montréal"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary" />
+            </div>
+
+            {/* Date souhaitée */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Date et heure souhaitées <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2">
+                <input type="date" value={prefDate} onChange={e => setPrefDate(e.target.value)} required
+                  min={new Date().toISOString().split('T')[0]}
+                  className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary" />
+                <select value={prefTime} onChange={e => setPrefTime(e.target.value)} required
+                  className="w-32 border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary">
+                  <option value="">Heure</option>
+                  {['8:00','9:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'].map(h => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Délai soumission */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Les prestataires peuvent soumissionner jusqu'au <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2">
+                <input type="date" value={deadlineDate} onChange={e => setDeadlineDate(e.target.value)} required
+                  min={new Date().toISOString().split('T')[0]}
+                  className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary" />
+                <select value={deadlineTime} onChange={e => setDeadlineTime(e.target.value)}
+                  className="w-32 border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary">
+                  {['8:00','9:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00','18:00'].map(h => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Photos */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Photos <span className="text-red-500">*</span>
+                <span className="font-normal text-gray-400 ml-1">(max 8)</span>
+              </label>
+              {previews.length > 0 && (
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {previews.map((src, i) => (
+                    <div key={i} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100">
+                      <img src={src} alt="" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => removePhoto(i)}
+                        className="absolute top-1 right-1 bg-white/90 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition">
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                  {previews.length < 8 && (
+                    <button type="button" onClick={() => fileInputRef.current?.click()}
+                      className="aspect-square rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-coupdemain-primary hover:bg-coupdemain-primary/5 transition">
+                      <ImagePlus className="w-5 h-5 text-gray-400" />
+                    </button>
+                  )}
+                </div>
+              )}
+              {previews.length === 0 && (
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-gray-300 rounded-xl py-6 flex flex-col items-center gap-2 hover:border-coupdemain-primary hover:bg-coupdemain-primary/5 transition text-gray-400">
+                  <Upload className="w-6 h-6" />
+                  <span className="text-sm">Ajouter des photos</span>
+                  <span className="text-xs">JPG, PNG — max 8</span>
+                </button>
+              )}
+              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden"
+                onChange={e => handlePhotos(e.target.files)} />
+            </div>
+
+            {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
+
+            {!user && (
+              <p className="text-sm text-amber-700 bg-amber-50 rounded-xl px-4 py-3">
+                Vous devez être <a href="/connexion" className="underline font-medium">connecté</a> pour envoyer une demande.
+              </p>
+            )}
+
+            <button type="submit" disabled={submitting || !user}
+              className="w-full bg-coupdemain-primary text-white py-4 rounded-xl font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60 text-base">
+              {submitting ? 'Envoi…' : 'Envoyer ma demande de soumission'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Page principale ───────────────────────────────────────────────────────────
 
 const Services = () => {
-  const { services, categories, loading, fetchServices, fetchCategories } = useServices();
+  const { categories, fetchCategories } = useServices();
+  const [search, setSearch]             = useState('');
+  const [city, setCity]                 = useState('');
+  const [geoCoords, setGeoCoords]       = useState<{ lat: number; lng: number } | null>(null);
+  const [geoStatus, setGeoStatus]       = useState<'idle' | 'loading' | 'success'>('idle');
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
-  // Filters state
-  const [search, setSearch] = useState('');
-  const [selectedCat, setSelectedCat] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [city, setCity] = useState('');
-  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success'>('idle');
-  const [showFilters, setShowFilters] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    fetchCategories();
-    fetchServices();
-  }, []);
-
-  const buildAndFetch = useCallback((
-    s: string, cat: string, min: string, max: string,
-    c: string, coords: { lat: number; lng: number } | null
-  ) => {
-    const filters: Record<string, string> = {};
-    if (s) filters.search = s;
-    if (cat) filters.category = cat;
-    if (min) filters.min_price = min;
-    if (max) filters.max_price = max;
-    if (coords) {
-      filters.lat = String(coords.lat);
-      filters.lng = String(coords.lng);
-    } else if (c) {
-      filters.city = c;
-    }
-    fetchServices(Object.keys(filters).length ? filters : undefined);
-  }, [fetchServices]);
-
-  const handleSearchChange = (val: string) => {
-    setSearch(val);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      buildAndFetch(val, selectedCat, minPrice, maxPrice, city, geoCoords);
-    }, 300);
-  };
-
-  const handleFilterChange = (cat: string, min: string, max: string) => {
-    setSelectedCat(cat);
-    setMinPrice(min);
-    setMaxPrice(max);
-    buildAndFetch(search, cat, min, max, city, geoCoords);
-  };
-
-  const handleCityChange = (val: string) => {
-    setCity(val);
-    setGeoCoords(null);
-    setGeoStatus('idle');
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      buildAndFetch(search, selectedCat, minPrice, maxPrice, val, null);
-    }, 300);
-  };
+  useEffect(() => { fetchCategories(); }, []);
 
   const handleGeolocate = () => {
     if (!navigator.geolocation) return;
     setGeoStatus('loading');
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setGeoCoords(coords);
+      pos => {
+        setGeoCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setCity('');
         setGeoStatus('success');
-        buildAndFetch(search, selectedCat, minPrice, maxPrice, '', coords);
       },
       () => setGeoStatus('idle'),
       { timeout: 8000 }
     );
   };
 
-  const handleReset = () => {
-    setSearch('');
-    setSelectedCat('');
-    setMinPrice('');
-    setMaxPrice('');
+  const clearLocation = () => {
     setCity('');
     setGeoCoords(null);
     setGeoStatus('idle');
-    fetchServices();
   };
 
-  const hasFilters = search || selectedCat || minPrice || maxPrice || city || geoCoords;
-  const hasApiServices = services.length > 0;
-  const displayed = hasApiServices ? services : fallbackServices;
+  const locationLabel = geoStatus === 'success' ? 'Position actuelle' : city;
+
+  const filtered = (categories as unknown as Category[]).filter(c =>
+    c.is_active !== false &&
+    c.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {/* Hero */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-6 sm:py-10">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">Services à domicile</h1>
-          <p className="text-gray-500 mt-2 text-base sm:text-lg">Des professionnels vérifiés, partout au Québec.</p>
 
-          {/* Barre de recherche */}
-          <div className="mt-6 flex flex-col sm:flex-row gap-2">
+      {/* Hero */}
+      <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-8 sm:py-12">
+        <div className="max-w-3xl mx-auto text-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+            Quel service cherchez-vous ?
+          </h1>
+          <p className="text-gray-500 text-sm sm:text-base mb-8">
+            Décrivez votre projet — des prestataires de votre région vous feront une offre.
+          </p>
+
+          {/* Barre recherche + localisation */}
+          <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mx-auto">
+            {/* Recherche service */}
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Rechercher un service…"
-                value={search}
-                onChange={e => handleSearchChange(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-coupdemain-primary text-sm"
-              />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input type="text" placeholder="Plomberie, ménage, déneigement…"
+                value={search} onChange={e => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coupdemain-primary text-sm bg-white" />
             </div>
-            <div className="relative flex-1 sm:max-w-[220px]">
+
+            {/* Localisation */}
+            <div className="relative sm:w-64">
               <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-              <input
-                type="text"
+              <input type="text"
                 placeholder="Ville ou région…"
                 value={geoStatus === 'success' ? '' : city}
-                onChange={e => handleCityChange(e.target.value)}
+                onChange={e => { setCity(e.target.value); setGeoCoords(null); setGeoStatus('idle'); }}
                 disabled={geoStatus === 'success'}
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-coupdemain-primary text-sm disabled:bg-green-50 disabled:border-green-300 disabled:text-green-700 disabled:cursor-not-allowed"
-              />
+                className="w-full pl-10 pr-10 py-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coupdemain-primary text-sm bg-white disabled:bg-green-50 disabled:border-green-300" />
               {geoStatus === 'success' && (
                 <span className="absolute left-10 top-1/2 -translate-y-1/2 text-sm text-green-700 font-medium pointer-events-none">
-                  Position actuelle
+                  Position actuelle ✓
                 </span>
               )}
-              <button
-                type="button"
-                onClick={geoStatus === 'success' ? handleReset : handleGeolocate}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-coupdemain-primary transition"
-                title={geoStatus === 'success' ? 'Retirer la géolocalisation' : 'Utiliser ma position'}
-              >
+              <button type="button"
+                onClick={geoStatus === 'success' ? clearLocation : handleGeolocate}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-coupdemain-primary transition p-1"
+                title={geoStatus === 'success' ? 'Retirer la géolocalisation' : 'Utiliser ma position'}>
                 {geoStatus === 'loading'
                   ? <Loader className="w-4 h-4 animate-spin text-coupdemain-primary" />
                   : geoStatus === 'success'
                   ? <X className="w-4 h-4 text-green-600" />
-                  : <LocateFixed className="w-4 h-4" />
-                }
+                  : <LocateFixed className="w-4 h-4" />}
               </button>
             </div>
-            <button
-              onClick={() => setShowFilters(f => !f)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition ${showFilters ? 'bg-coupdemain-primary text-white border-coupdemain-primary' : 'bg-white text-gray-700 border-gray-300 hover:border-coupdemain-primary'}`}
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-              <span className="hidden sm:inline">Filtres</span>
-            </button>
-            {hasFilters && (
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-1 px-4 py-3 rounded-xl border border-gray-300 bg-white text-sm text-gray-500 hover:text-red-500 hover:border-red-300 transition"
-              >
-                <X className="w-4 h-4" />
-                <span className="hidden sm:inline">Réinitialiser</span>
-              </button>
-            )}
           </div>
 
-          {/* Panneau filtres */}
-          {showFilters && (
-            <div className="mt-3 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
-              {/* Catégorie */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-500">Catégorie</label>
-                <select
-                  value={selectedCat}
-                  onChange={e => handleFilterChange(e.target.value, minPrice, maxPrice)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary w-full sm:min-w-[160px]"
-                >
-                  <option value="">Toutes</option>
-                  {categories.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Prix min */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-500">Prix min ($)</label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={minPrice}
-                  onChange={e => handleFilterChange(selectedCat, e.target.value, maxPrice)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-24 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
-                />
-              </div>
-
-              {/* Prix max */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-500">Prix max ($)</label>
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="∞"
-                  value={maxPrice}
-                  onChange={e => handleFilterChange(selectedCat, minPrice, e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-24 focus:outline-none focus:ring-2 focus:ring-coupdemain-primary"
-                />
-              </div>
-            </div>
+          {/* Localisation active */}
+          {locationLabel && (
+            <p className="mt-3 text-sm text-gray-500">
+              Affichage des services pour : <span className="font-medium text-gray-800">{locationLabel}</span>
+            </p>
           )}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-10">
-        {loading && (
-          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {[...Array(8)].map((_, i) => <ServiceCardSkeleton key={i} />)}
+      {/* Grille catégories */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        {filtered.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <p className="text-lg font-medium">Aucune catégorie trouvée</p>
+            <p className="text-sm mt-1">Essayez un autre terme.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+            {filtered.map(cat => (
+              <button key={cat.id} onClick={() => setSelectedCategory(cat)}
+                className="group bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 flex flex-col items-center gap-3 hover:border-coupdemain-primary hover:shadow-md transition-all text-center cursor-pointer">
+                <span className="text-4xl group-hover:scale-110 transition-transform duration-200">
+                  {CATEGORY_EMOJI[cat.slug] ?? '🛠️'}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 leading-snug">{cat.name}</p>
+                  {cat.provider_count > 0 && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {cat.provider_count} prestataire{cat.provider_count !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+              </button>
+            ))}
           </div>
         )}
 
-        {!loading && (
-          <>
-            <p className="text-sm text-gray-400 mb-6">
-              {displayed.length} service{displayed.length > 1 ? "s" : ""} disponible{displayed.length > 1 ? "s" : ""}
-              {hasFilters && !hasApiServices && ' (résultats API indisponibles — données exemple)'}
-            </p>
-
-            {displayed.length === 0 && (
-              <div className="text-center py-16 text-gray-400">
-                <p className="text-lg font-medium">Aucun service trouvé</p>
-                <p className="text-sm mt-1">Essayez d'ajuster vos filtres.</p>
-              </div>
-            )}
-
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {hasApiServices
-                ? services.map((s) => (
-                    <ServiceCard
-                      key={s.id}
-                      title={s.title}
-                      categorySlug={s.category?.slug}
-                      price={s.price}
-                      priceUnit={s.price_unit}
-                      rating={s.rating}
-                      totalBookings={s.total_bookings}
-                      serviceArea={s.service_area}
-                      providerName={
-                        s.provider?.first_name
-                          ? `${s.provider.first_name} ${s.provider.last_name}`
-                          : s.provider?.username
-                      }
-                      linkTo={`/service/${s.id}`}
-                    />
-                  ))
-                : fallbackServices.map((s) => (
-                    <ServiceCard
-                      key={s.id}
-                      title={s.title}
-                      categorySlug={s.categorySlug}
-                      price={s.price}
-                      priceUnit={s.priceUnit}
-                      rating={s.rating}
-                      totalBookings={s.totalBookings}
-                      serviceArea={s.serviceArea}
-                      linkTo={`/service/${s.id}`}
-                    />
-                  ))}
+        {/* Comment ça marche */}
+        <div className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+          {[
+            { emoji: '📋', title: 'Décrivez votre projet', desc: 'Quelques lignes et des photos suffisent.' },
+            { emoji: '📬', title: 'Recevez des offres', desc: 'Des prestataires de votre région vous contactent.' },
+            { emoji: '✅', title: 'Choisissez la meilleure', desc: 'Comparez et acceptez l\'offre qui vous convient.' },
+          ].map(step => (
+            <div key={step.title} className="flex flex-col items-center gap-3">
+              <span className="text-4xl">{step.emoji}</span>
+              <h3 className="font-semibold text-gray-900">{step.title}</h3>
+              <p className="text-sm text-gray-500">{step.desc}</p>
             </div>
-          </>
-        )}
+          ))}
+        </div>
       </div>
+
+      {/* Modal demande */}
+      {selectedCategory && (
+        <RequestModal
+          category={selectedCategory}
+          locationLabel={locationLabel}
+          geoCoords={geoCoords}
+          onClose={() => setSelectedCategory(null)}
+        />
+      )}
     </div>
   );
 };

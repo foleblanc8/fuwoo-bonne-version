@@ -47,9 +47,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 class ServiceCategorySerializer(serializers.ModelSerializer):
+    provider_count = serializers.SerializerMethodField()
+
+    def get_provider_count(self, obj):
+        return Service.objects.filter(category=obj, is_active=True).values('provider').distinct().count()
+
     class Meta:
         model = ServiceCategory
-        fields = '__all__'
+        fields = ['id', 'name', 'slug', 'icon', 'description', 'is_active', 'created_at', 'provider_count']
 
 class ServiceImageSerializer(serializers.ModelSerializer):
     class Meta:
