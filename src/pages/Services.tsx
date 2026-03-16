@@ -3,7 +3,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import ServiceCard from "../components/ServiceCard";
 import { ServiceCardSkeleton } from "../components/Skeleton";
 import { useServices } from "../contexts/ServiceContext";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X, MapPin, LocateFixed, Loader } from "lucide-react";
 
 // Fallback si l'API est down
 const fallbackServices = [
@@ -23,6 +23,9 @@ const Services = () => {
   const [selectedCat, setSelectedCat] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+  const [city, setCity] = useState('');
+  const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const [showFilters, setShowFilters] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -31,12 +34,21 @@ const Services = () => {
     fetchServices();
   }, []);
 
-  const buildAndFetch = useCallback((s: string, cat: string, min: string, max: string) => {
+  const buildAndFetch = useCallback((
+    s: string, cat: string, min: string, max: string,
+    c: string, coords: { lat: number; lng: number } | null
+  ) => {
     const filters: Record<string, string> = {};
     if (s) filters.search = s;
     if (cat) filters.category = cat;
     if (min) filters.min_price = min;
     if (max) filters.max_price = max;
+    if (coords) {
+      filters.lat = String(coords.lat);
+      filters.lng = String(coords.lng);
+    } else if (c) {
+      filters.city = c;
+    }
     fetchServices(Object.keys(filters).length ? filters : undefined);
   }, [fetchServices]);
 
@@ -44,7 +56,7 @@ const Services = () => {
     setSearch(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      buildAndFetch(val, selectedCat, minPrice, maxPrice);
+      buildAndFetch(val, selectedCat, minPrice, maxPrice, city, geoCoords);
     }, 300);
   };
 
@@ -52,7 +64,33 @@ const Services = () => {
     setSelectedCat(cat);
     setMinPrice(min);
     setMaxPrice(max);
-    buildAndFetch(search, cat, min, max);
+    buildAndFetch(search, cat, min, max, city, geoCoords);
+  };
+
+  const handleCityChange = (val: string) => {
+    setCity(val);
+    setGeoCoords(null);
+    setGeoStatus('idle');
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      buildAndFetch(search, selectedCat, minPrice, maxPrice, val, null);
+    }, 300);
+  };
+
+  const handleGeolocate = () => {
+    if (!navigator.geolocation) return;
+    setGeoStatus('loading');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setGeoCoords(coords);
+        setCity('');
+        setGeoStatus('success');
+        buildAndFetch(search, selectedCat, minPrice, maxPrice, '', coords);
+      },
+      () => setGeoStatus('idle'),
+      { timeout: 8000 }
+    );
   };
 
   const handleReset = () => {
@@ -60,10 +98,13 @@ const Services = () => {
     setSelectedCat('');
     setMinPrice('');
     setMaxPrice('');
+    setCity('');
+    setGeoCoords(null);
+    setGeoStatus('idle');
     fetchServices();
   };
 
-  const hasFilters = search || selectedCat || minPrice || maxPrice;
+  const hasFilters = search || selectedCat || minPrice || maxPrice || city || geoCoords;
   const hasApiServices = services.length > 0;
   const displayed = hasApiServices ? services : fallbackServices;
 
@@ -76,7 +117,7 @@ const Services = () => {
           <p className="text-gray-500 mt-2 text-base sm:text-lg">Des professionnels vérifiés, partout au Québec.</p>
 
           {/* Barre de recherche */}
-          <div className="mt-6 flex gap-2">
+          <div className="mt-6 flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -86,6 +127,35 @@ const Services = () => {
                 onChange={e => handleSearchChange(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-coupdemain-primary text-sm"
               />
+            </div>
+            <div className="relative flex-1 sm:max-w-[220px]">
+              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Ville ou région…"
+                value={geoStatus === 'success' ? '' : city}
+                onChange={e => handleCityChange(e.target.value)}
+                disabled={geoStatus === 'success'}
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-coupdemain-primary text-sm disabled:bg-green-50 disabled:border-green-300 disabled:text-green-700 disabled:cursor-not-allowed"
+              />
+              {geoStatus === 'success' && (
+                <span className="absolute left-10 top-1/2 -translate-y-1/2 text-sm text-green-700 font-medium pointer-events-none">
+                  Position actuelle
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={geoStatus === 'success' ? handleReset : handleGeolocate}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-coupdemain-primary transition"
+                title={geoStatus === 'success' ? 'Retirer la géolocalisation' : 'Utiliser ma position'}
+              >
+                {geoStatus === 'loading'
+                  ? <Loader className="w-4 h-4 animate-spin text-coupdemain-primary" />
+                  : geoStatus === 'success'
+                  ? <X className="w-4 h-4 text-green-600" />
+                  : <LocateFixed className="w-4 h-4" />
+                }
+              </button>
             </div>
             <button
               onClick={() => setShowFilters(f => !f)}

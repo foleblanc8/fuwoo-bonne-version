@@ -245,6 +245,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
                 pass
         qs = Service.objects.filter(is_active=True)
         qp = self.request.query_params
+
         for k, field in [('min_price', 'price__gte'), ('max_price', 'price__lte'), ('min_rating', 'rating__gte')]:
             v = qp.get(k)
             if v:
@@ -252,6 +253,28 @@ class ServiceViewSet(viewsets.ModelViewSet):
                     qs = qs.filter(**{field: v})
                 except (ValueError, TypeError):
                     pass
+
+        # Filtre par ville (icontains sur service_area)
+        city = qp.get('city')
+        if city:
+            qs = qs.filter(service_area__icontains=city)
+
+        # Filtre par géolocalisation (haversine sur les coords du prestataire)
+        lat = qp.get('lat')
+        lng = qp.get('lng')
+        radius = qp.get('radius', '50')  # km, défaut 50
+        if lat and lng:
+            try:
+                lat_f, lng_f, radius_f = float(lat), float(lng), float(radius)
+                ids = [
+                    s.id for s in qs.select_related('provider')
+                    if s.provider.latitude is not None and s.provider.longitude is not None
+                    and haversine_distance(lat_f, lng_f, s.provider.latitude, s.provider.longitude) <= radius_f
+                ]
+                qs = qs.filter(id__in=ids)
+            except (ValueError, TypeError):
+                pass
+
         return qs
 
     def perform_create(self, serializer):
