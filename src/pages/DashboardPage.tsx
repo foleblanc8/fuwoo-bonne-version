@@ -2842,7 +2842,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Mobile top bar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-100 px-4 h-auto">
+      <div className="md:hidden sticky top-0 z-30 bg-white border-b border-gray-100 px-4">
         <div className="flex items-center justify-between h-14">
           <button onClick={() => setSidebarOpen(true)} className="text-gray-600 p-2">
             <Menu className="w-6 h-6" />
@@ -2952,7 +2952,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Contenu principal ── */}
-      <div className={`md:ml-64 md:pt-0 p-4 md:p-8 ${user?.has_provider_profile ? 'pt-28' : 'pt-14'}`}>
+      <div className="md:ml-64 p-4 md:p-8">
         {/* Bannière vérification email */}
         {user && !user.email_verified && (
           <div className="mb-5 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-4">
