@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { JSX } from 'react';
 import {
-  Calendar, Clock, DollarSign, Star, TrendingUp, AlertCircle,
+  Calendar, Clock, DollarSign, Star, TrendingUp, AlertCircle, BarChart2,
   CheckCircle, XCircle, User, MessageSquare, Settings, LogOut,
   Plus, Send, Bell, Lock, Trash2, ChevronRight, Camera,
   Phone, MapPin, Mail, Shield, Eye, EyeOff,
@@ -2088,6 +2088,167 @@ function ClientBookingsTab() {
   );
 }
 
+// ─── Provider CRM Tab ─────────────────────────────────────────────────────────
+
+type CRMBid = {
+  id: number;
+  service_request: number;
+  service_request_detail: {
+    id: number;
+    title: string;
+    category: { id: number; name: string } | null;
+    service_area: string;
+    address: string | null;
+    preferred_dates: string;
+    client: { id: number; first_name: string; last_name: string; username: string } | null;
+  } | null;
+  price: string;
+  price_unit: string;
+  message: string;
+  estimated_duration: number | null;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+};
+
+function ProviderCRMTab() {
+  const [bids, setBids]     = useState<CRMBid[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'pending' | 'accepted' | 'rejected'>('pending');
+
+  useEffect(() => {
+    axios.get('bids/?as=provider').then(res => {
+      const d = res.data as any;
+      setBids(Array.isArray(d) ? d : (d.results ?? []));
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const pending  = bids.filter(b => b.status === 'pending');
+  const accepted = bids.filter(b => b.status === 'accepted');
+  const rejected = bids.filter(b => b.status === 'rejected');
+  const revenue  = accepted.reduce((s, b) => s + parseFloat(b.price || '0'), 0);
+  const rate     = bids.length > 0 ? Math.round((accepted.length / bids.length) * 100) : 0;
+
+  const filtered = filter === 'pending' ? pending : filter === 'accepted' ? accepted : rejected;
+
+  const filterLabel = (f: string, arr: CRMBid[]) => {
+    const labels: Record<string, string> = { pending: 'En attente', accepted: 'Acceptées', rejected: 'Refusées' };
+    return `${labels[f]} (${arr.length})`;
+  };
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900">CRM — Pipeline</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Suivez vos offres et vos clients.</p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'Offres soumises',    value: bids.length,           icon: <Send className="w-6 h-6 text-blue-400" /> },
+          { label: 'En attente',          value: pending.length,        icon: <Clock className="w-6 h-6 text-yellow-400" /> },
+          { label: "Taux d'acceptation", value: `${rate}%`,            icon: <TrendingUp className="w-6 h-6 text-green-400" /> },
+          { label: 'Revenus potentiels', value: `$${revenue.toFixed(2)}`, icon: <DollarSign className="w-6 h-6 text-emerald-400" /> },
+        ].map(s => (
+          <div key={s.label} className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-500">{s.label}</p>
+              <p className="text-xl font-bold text-gray-900 mt-0.5">{s.value}</p>
+            </div>
+            {s.icon}
+          </div>
+        ))}
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {(['pending', 'accepted', 'rejected'] as const).map(f => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+              filter === f
+                ? 'bg-coupdemain-primary text-white shadow-sm'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            {filterLabel(f, f === 'pending' ? pending : f === 'accepted' ? accepted : rejected)}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+          <BarChart2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+          <p className="text-gray-600 font-medium">Aucune offre dans cette catégorie</p>
+          <p className="text-gray-400 text-sm mt-1">Soumissionnez sur des demandes ouvertes.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(bid => {
+            const req = bid.service_request_detail;
+            const client = req?.client;
+            const initials = client
+              ? ([client.first_name?.[0], client.last_name?.[0]].filter(Boolean).join('') || client.username?.[0] || '?').toUpperCase()
+              : '?';
+            const statusColor = bid.status === 'accepted'
+              ? 'bg-green-100 text-green-700'
+              : bid.status === 'rejected'
+              ? 'bg-red-100 text-red-600'
+              : 'bg-yellow-100 text-yellow-700';
+            const statusLabel = { pending: 'En attente', accepted: 'Acceptée', rejected: 'Refusée' }[bid.status];
+
+            return (
+              <div key={bid.id} className="bg-white rounded-2xl shadow-sm p-5">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 shrink-0">
+                    {initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{req?.title ?? '—'}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${statusColor}`}>
+                        {statusLabel}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+                      {req?.category && (
+                        <span className="px-2 py-0.5 bg-gray-100 rounded-full">{req.category.name}</span>
+                      )}
+                      {req?.service_area && (
+                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{req.service_area}</span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <DollarSign className="w-3 h-3" /><strong className="text-gray-700">${parseFloat(bid.price).toFixed(2)}</strong> {bid.price_unit}
+                      </span>
+                      <span>{new Date(bid.created_at).toLocaleDateString('fr-CA')}</span>
+                    </div>
+                    {bid.message && (
+                      <p className="text-xs text-gray-400 mt-2 line-clamp-2 italic">"{bid.message}"</p>
+                    )}
+                    {bid.status === 'accepted' && req?.address && (
+                      <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-1.5 text-xs text-green-700 font-medium">
+                        <Lock className="w-3.5 h-3.5" />Adresse client : {req.address}
+                      </div>
+                    )}
+                    {bid.status === 'accepted' && req?.preferred_dates && (
+                      <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-600">
+                        <Calendar className="w-3.5 h-3.5" />Date souhaitée : {req.preferred_dates}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Provider Overview Tab ────────────────────────────────────────────────────
 
 function ProviderOverviewTab() {
@@ -2199,7 +2360,7 @@ function ProviderOverviewTab() {
 function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: number; name: string; slug: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -2208,13 +2369,8 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
   const [phone, setPhone]   = useState(user?.phone_number || '');
   const [address, setAddress] = useState(user?.address || '');
 
-  // Step 2 — premier service
-  const [skipService, setSkipService] = useState(false);
-  const [svcForm, setSvcForm] = useState({
-    category_id: '', title: '', description: '',
-    price: '', price_unit: 'par heure',
-    duration: '60', service_area: '', max_distance: '25',
-  });
+  // Step 2 — sélection des services
+  const [selectedCats, setSelectedCats] = useState<number[]>([]);
 
   useEffect(() => {
     axios.get('categories/').then(r => {
@@ -2222,16 +2378,6 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
       setCategories(Array.isArray(d) ? d : (d.results ?? []));
     }).catch(() => {});
   }, []);
-
-  const goToStep3 = () => {
-    setSkipService(false);
-    setStep(3);
-  };
-
-  const skipToStep3 = () => {
-    setSkipService(true);
-    setStep(3);
-  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -2248,18 +2394,8 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
         });
       }
 
-      if (!skipService && svcForm.title && svcForm.price && svcForm.service_area) {
-        const payload: Record<string, any> = {
-          title: svcForm.title,
-          description: svcForm.description,
-          price: svcForm.price,
-          price_unit: svcForm.price_unit,
-          duration: parseInt(svcForm.duration) || 60,
-          service_area: svcForm.service_area,
-          max_distance: parseInt(svcForm.max_distance) || 25,
-        };
-        if (svcForm.category_id) payload.category_id = parseInt(svcForm.category_id);
-        await axios.post('services/', payload);
+      for (const catId of selectedCats) {
+        await axios.post('services/', { category_id: catId, title: categories.find(c => c.id === catId)?.name ?? '' });
       }
 
       window.location.reload();
@@ -2325,73 +2461,49 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {/* ── Step 2 : Premier service ── */}
+          {/* ── Step 2 : Vos services ── */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="mb-2">
-                <p className="font-semibold text-gray-900 text-base">Votre premier service</p>
-                <p className="text-sm text-gray-500 mt-0.5">Créez votre premier service pour apparaître dans les recherches.</p>
+                <p className="font-semibold text-gray-900 text-base">Quels services offrez-vous ?</p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Sélectionnez les types de services pour lesquels vous acceptez des demandes de soumission.
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-                <select value={svcForm.category_id} onChange={e => setSvcForm(p => ({ ...p, category_id: e.target.value }))} className={inputCls}>
-                  <option value="">Sélectionner une catégorie</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Titre du service <span className="text-red-400">*</span></label>
-                <input value={svcForm.title} onChange={e => setSvcForm(p => ({ ...p, title: e.target.value }))}
-                  placeholder="Ex: Plomberie résidentielle" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea rows={3} value={svcForm.description} onChange={e => setSvcForm(p => ({ ...p, description: e.target.value }))}
-                  placeholder="Décrivez ce que vous offrez, votre méthode de travail…"
-                  className={inputCls + ' resize-none'} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prix ($) <span className="text-red-400">*</span></label>
-                  <input type="number" min="0" step="0.01" value={svcForm.price}
-                    onChange={e => setSvcForm(p => ({ ...p, price: e.target.value }))}
-                    placeholder="75.00" className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
-                  <select value={svcForm.price_unit} onChange={e => setSvcForm(p => ({ ...p, price_unit: e.target.value }))} className={inputCls}>
-                    <option value="par heure">Par heure</option>
-                    <option value="par projet">Par projet</option>
-                    <option value="par jour">Par jour</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Durée estimée (min)</label>
-                  <input type="number" min="15" step="15" value={svcForm.duration}
-                    onChange={e => setSvcForm(p => ({ ...p, duration: e.target.value }))} className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Distance max (km)</label>
-                  <input type="number" min="1" value={svcForm.max_distance}
-                    onChange={e => setSvcForm(p => ({ ...p, max_distance: e.target.value }))} className={inputCls} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Zone de service <span className="text-red-400">*</span></label>
-                <input value={svcForm.service_area} onChange={e => setSvcForm(p => ({ ...p, service_area: e.target.value }))}
-                  placeholder="Montréal et environs" className={inputCls} />
+              <div className="grid grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                {categories.map(cat => {
+                  const isSelected = selectedCats.includes(cat.id);
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCats(prev =>
+                        isSelected ? prev.filter(id => id !== cat.id) : [...prev, cat.id]
+                      )}
+                      className={`relative rounded-xl overflow-hidden border-2 transition-all text-left ${isSelected ? 'border-coupdemain-primary' : 'border-gray-100 hover:border-gray-200'}`}
+                    >
+                      <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
+                        <img src={getCategoryImage(cat.slug)} alt={cat.name} className="w-full h-full object-cover" />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-coupdemain-primary/20 flex items-center justify-center">
+                            <CheckCircle className="w-8 h-8 text-white drop-shadow" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs font-medium text-gray-900 px-2 py-1.5 leading-snug">{cat.name}</p>
+                    </button>
+                  );
+                })}
               </div>
               <div className="flex items-center justify-between pt-2">
                 <button onClick={() => setStep(1)} className="text-gray-500 text-sm hover:text-gray-700 transition">← Retour</button>
                 <div className="flex gap-3">
-                  <button onClick={skipToStep3}
+                  <button onClick={() => setStep(3)}
                     className="text-gray-500 text-sm border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 transition">
                     Passer
                   </button>
-                  <button onClick={goToStep3}
-                    disabled={!svcForm.title.trim() || !svcForm.price || !svcForm.service_area.trim()}
+                  <button onClick={() => setStep(3)}
+                    disabled={selectedCats.length === 0}
                     className="bg-coupdemain-primary text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-40">
                     Suivant →
                   </button>
@@ -2415,15 +2527,16 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
                 {bio     && <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Biographie</span><span className="text-gray-700 line-clamp-2">{bio}</span></div>}
                 {phone   && <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Téléphone</span><span className="text-gray-700">{phone}</span></div>}
                 {address && <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Ville</span><span className="text-gray-700">{address}</span></div>}
-                {!skipService && svcForm.title && (
-                  <div className="border-t pt-3 mt-2 space-y-1.5">
-                    <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Service</span><span className="text-gray-700 font-medium">{svcForm.title}</span></div>
-                    <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Prix</span><span className="text-gray-700">${svcForm.price} {svcForm.price_unit}</span></div>
-                    <div className="flex gap-2"><span className="text-gray-400 w-24 shrink-0">Zone</span><span className="text-gray-700">{svcForm.service_area}</span></div>
+                {selectedCats.length > 0 && (
+                  <div className="border-t pt-3 mt-2">
+                    <div className="flex gap-2">
+                      <span className="text-gray-400 w-24 shrink-0">Services</span>
+                      <span className="text-gray-700">{selectedCats.map(id => categories.find(c => c.id === id)?.name).filter(Boolean).join(', ')}</span>
+                    </div>
                   </div>
                 )}
-                {skipService && (
-                  <p className="text-gray-400 text-xs italic pt-1">Aucun service créé — vous pourrez en ajouter depuis votre tableau de bord.</p>
+                {selectedCats.length === 0 && (
+                  <p className="text-gray-400 text-xs italic pt-1">Aucun service sélectionné — vous pourrez en activer depuis votre tableau de bord.</p>
                 )}
               </div>
 
@@ -2521,10 +2634,11 @@ export default function DashboardPage() {
 
   const providerNavItems = [
     { key: 'overview',      label: "Vue d'ensemble",   icon: <TrendingUp className="w-5 h-5" /> },
-    { key: 'bookings',      label: 'Réservations',     icon: <Calendar className="w-5 h-5" /> },
+    { key: 'requests',      label: 'Demandes',         icon: <FileText className="w-5 h-5" /> },
+    { key: 'crm',           label: 'CRM',              icon: <BarChart2 className="w-5 h-5" /> },
     { key: 'services',      label: 'Mes services',     icon: <Briefcase className="w-5 h-5" /> },
     { key: 'portfolio',     label: 'Portfolio',        icon: <Camera className="w-5 h-5" /> },
-    { key: 'requests',      label: 'Demandes',         icon: <FileText className="w-5 h-5" /> },
+    { key: 'bookings',      label: 'Réservations',     icon: <Calendar className="w-5 h-5" /> },
     { key: 'messages',      label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
     { key: 'notifications', label: 'Notifications',    icon: notifIcon },
     { key: 'profile',       label: 'Mon profil',        icon: <User className="w-5 h-5" /> },
@@ -2687,12 +2801,32 @@ export default function DashboardPage() {
         {!isProviderMode && activeTab === 'profile'       && <ProfileTab />}
         {!isProviderMode && activeTab === 'settings'      && <SettingsTab />}
 
+        {/* GPS banner pour prestataires sans position */}
+        {isProviderMode && !(user as any)?.latitude && (
+          <div className="mb-6 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">Position GPS non configurée</p>
+              <p className="text-sm text-amber-700 mt-0.5">
+                Définissez votre localisation pour recevoir des demandes de clients près de chez vous.
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveTab('profile')}
+              className="text-xs font-semibold text-amber-800 bg-amber-200 hover:bg-amber-300 px-3 py-1.5 rounded-lg transition shrink-0"
+            >
+              Configurer →
+            </button>
+          </div>
+        )}
+
         {/* ── MODE PRESTATAIRE ── */}
-        {isProviderMode && activeTab === 'overview'       && <ProviderOverviewTab />}
-        {isProviderMode && activeTab === 'bookings'      && <ProviderBookingsTab />}
+        {isProviderMode && activeTab === 'overview'      && <ProviderOverviewTab />}
+        {isProviderMode && activeTab === 'requests'      && <ProviderRequestsTab />}
+        {isProviderMode && activeTab === 'crm'           && <ProviderCRMTab />}
         {isProviderMode && activeTab === 'services'      && <ProviderServicesTab />}
         {isProviderMode && activeTab === 'portfolio'     && <PortfolioTab />}
-        {isProviderMode && activeTab === 'requests'      && <ProviderRequestsTab />}
+        {isProviderMode && activeTab === 'bookings'      && <ProviderBookingsTab />}
         {isProviderMode && activeTab === 'messages'      && <MessagesTab />}
         {isProviderMode && activeTab === 'notifications' && <NotificationsTab />}
         {isProviderMode && activeTab === 'profile'       && <ProfileTab />}

@@ -192,11 +192,12 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
 
 class BidSerializer(serializers.ModelSerializer):
     provider = UserSerializer(read_only=True)
+    service_request_detail = ServiceRequestSerializer(source='service_request', read_only=True)
 
     class Meta:
         model = Bid
         fields = [
-            'id', 'service_request', 'provider', 'price', 'price_unit',
+            'id', 'service_request', 'service_request_detail', 'provider', 'price', 'price_unit',
             'message', 'estimated_duration', 'status', 'created_at',
         ]
         read_only_fields = ['provider', 'status']
