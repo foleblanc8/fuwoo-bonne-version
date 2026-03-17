@@ -489,25 +489,39 @@ class ReviewViewSet(viewsets.ModelViewSet):
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         user = self.request.user
-        return Message.objects.filter(
-            Q(sender=user) | Q(receiver=user)
-        ).order_by('created_at')
-    
+        partner_id = self.request.query_params.get('partner')
+        qs = Message.objects.filter(Q(sender=user) | Q(receiver=user))
+        if partner_id:
+            qs = qs.filter(Q(sender_id=partner_id) | Q(receiver_id=partner_id))
+        return qs.order_by('created_at')
+
     def perform_create(self, serializer):
         serializer.save(sender=self.request.user)
-    
+
+    @action(detail=False, methods=['post'])
+    def mark_read(self, request):
+        partner_id = request.data.get('partner_id')
+        if not partner_id:
+            return Response({'error': 'partner_id required'}, status=400)
+        Message.objects.filter(
+            sender_id=partner_id,
+            receiver=request.user,
+            is_read=False
+        ).update(is_read=True)
+        return Response({'status': 'ok'})
+
     @action(detail=False, methods=['get'])
     def conversations(self, request):
-        # Retourner les conversations uniques
         user = request.user
-        conversations = Message.objects.filter(
+        # Latest message per conversation partner
+        from django.db.models import Max
+        partners = Message.objects.filter(
             Q(sender=user) | Q(receiver=user)
-        ).values('sender', 'receiver').distinct()
-        
-        return Response(conversations)
+        ).values('sender', 'receiver').annotate(last=Max('created_at'))
+        return Response(list(partners))
 
 class NotificationViewSet(viewsets.ModelViewSet):
     serializer_class = NotificationSerializer

@@ -103,16 +103,42 @@ function MessagesTab() {
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (silent = false) => {
     try {
       const res = await axios.get('messages/');
       const d = res.data as any;
       setAllMessages(Array.isArray(d) ? d : (d.results ?? []));
     } catch { /* silent */ }
-    finally { setLoading(false); }
+    finally { if (!silent) setLoading(false); }
   };
 
+  // Initial load
   useEffect(() => { fetchMessages(); }, []);
+
+  // Poll every 5 seconds for new messages
+  useEffect(() => {
+    const interval = setInterval(() => fetchMessages(true), 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Listen for external "open-messages" events (from bid cards)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const partnerId = (e as CustomEvent).detail?.partnerId;
+      if (partnerId) setSelectedUserId(partnerId);
+    };
+    window.addEventListener('open-messages', handler);
+    return () => window.removeEventListener('open-messages', handler);
+  }, []);
+
+  // Mark messages as read when conversation is opened
+  useEffect(() => {
+    if (!selectedUserId) return;
+    axios.post('messages/mark_read/', { partner_id: selectedUserId }).catch(() => {});
+    setAllMessages(prev => prev.map(m =>
+      m.sender?.id === selectedUserId ? { ...m, is_read: true } : m
+    ));
+  }, [selectedUserId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1557,6 +1583,19 @@ function ProviderRequestsTab() {
                           >
                             <FileText className="w-4 h-4" />Contrat PDF
                           </a>
+                          {(bid as any).service_request_detail?.client && (
+                            <button
+                              onClick={() => {
+                                const clientId = (bid as any).service_request_detail.client.id;
+                                window.dispatchEvent(new CustomEvent('open-messages', { detail: { partnerId: clientId } }));
+                                window.dispatchEvent(new CustomEvent('switch-tab', { detail: { tab: 'messages' } }));
+                              }}
+                              className="flex items-center gap-1.5 border border-coupdemain-primary/30 text-coupdemain-primary bg-coupdemain-primary/5 px-4 py-2 rounded-xl text-sm font-medium hover:bg-coupdemain-primary/10 transition"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                              Contacter le client
+                            </button>
+                          )}
                         </div>
                       );
                       return (
@@ -1875,6 +1914,18 @@ function ClientRequestsTab() {
                                       <FileText className="w-4 h-4" />
                                       Contrat PDF
                                     </a>
+                                    {bid.provider && (
+                                      <button
+                                        onClick={() => {
+                                          window.dispatchEvent(new CustomEvent('open-messages', { detail: { partnerId: bid.provider!.id } }));
+                                          window.dispatchEvent(new CustomEvent('switch-tab', { detail: { tab: 'messages' } }));
+                                        }}
+                                        className="flex items-center gap-1.5 border border-coupdemain-primary/30 text-coupdemain-primary bg-coupdemain-primary/5 px-4 py-2 rounded-xl text-sm font-medium hover:bg-coupdemain-primary/10 transition"
+                                      >
+                                        <MessageSquare className="w-4 h-4" />
+                                        Contacter
+                                      </button>
+                                    )}
                                     {req.status === 'awarded' && (
                                       <button
                                         onClick={() => completeRequest(req.id)}
@@ -3124,14 +3175,23 @@ export default function DashboardPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentStatus = params.get('payment');
+    const bidId = params.get('bid');
     if (paymentStatus === 'success') {
-      showToast('Paiement confirmé ! Le prestataire a été notifié.', 'success');
-      setActiveTab('requests');
-      navigate('/dashboard', { replace: true });
+      navigate(`/paiement-confirme?bid=${bidId ?? ''}`, { replace: true });
     } else if (paymentStatus === 'cancelled') {
       showToast('Paiement annulé.', 'warning');
       navigate('/dashboard', { replace: true });
     }
+  }, []);
+
+  // Listen for tab-switch events from child components (e.g. "Contacter" button)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent).detail?.tab;
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('switch-tab', handler);
+    return () => window.removeEventListener('switch-tab', handler);
   }, []);
 
   // Suppression des états mock (remplacés par ClientBookingsTab / ProviderOverviewTab)
@@ -3320,6 +3380,27 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {/* ── ONBOARDING CLIENT — première visite ── */}
+        {!isProviderMode && !(user as any)?.has_made_request && activeTab !== 'requests' && (
+          <div className="mb-5 flex items-start gap-3 bg-coupdemain-primary/5 border border-coupdemain-primary/20 rounded-2xl p-4">
+            <div className="w-8 h-8 bg-coupdemain-primary/15 rounded-full flex items-center justify-center shrink-0">
+              <Send className="w-4 h-4 text-coupdemain-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-900">Publiez votre première demande</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Décrivez votre projet et recevez des soumissions gratuites de prestataires vérifiés en moins de 24h.
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveTab('requests')}
+              className="text-xs font-semibold text-coupdemain-primary bg-coupdemain-primary/10 hover:bg-coupdemain-primary/20 px-3 py-1.5 rounded-lg transition shrink-0"
+            >
+              Publier →
+            </button>
+          </div>
+        )}
+
         {/* ── MODE CLIENT ── */}
         {!isProviderMode && activeTab === 'bookings'      && <ClientBookingsTab />}
         {!isProviderMode && activeTab === 'requests'      && <ClientRequestsTab />}
@@ -3327,6 +3408,27 @@ export default function DashboardPage() {
         {!isProviderMode && activeTab === 'notifications' && <NotificationsTab />}
         {!isProviderMode && activeTab === 'profile'       && <ProfileTab />}
         {!isProviderMode && activeTab === 'settings'      && <SettingsTab />}
+
+        {/* ── ONBOARDING PRESTATAIRE — profil incomplet ── */}
+        {isProviderMode && !((user as any)?.bio) && !((user as any)?.profile_picture) && activeTab !== 'profile' && (
+          <div className="mb-5 flex items-start gap-3 bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
+            <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
+              <User className="w-4 h-4 text-indigo-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-900">Complétez votre profil prestataire</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Ajoutez une photo, une bio et vos spécialités pour inspirer confiance et recevoir plus de contrats.
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveTab('profile')}
+              className="text-xs font-semibold text-indigo-700 bg-indigo-100 hover:bg-indigo-200 px-3 py-1.5 rounded-lg transition shrink-0"
+            >
+              Compléter →
+            </button>
+          </div>
+        )}
 
         {/* GPS banner pour prestataires sans position */}
         {isProviderMode && !(user as any)?.latitude && (

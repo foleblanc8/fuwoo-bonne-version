@@ -122,11 +122,14 @@ class ReviewSerializer(serializers.ModelSerializer):
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
     receiver = UserSerializer(read_only=True)
-    
+    receiver_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), write_only=True, source='receiver'
+    )
+
     class Meta:
         model = Message
-        fields = '__all__'
-        read_only_fields = ['sender']
+        fields = ['id', 'sender', 'receiver', 'receiver_id', 'booking', 'content', 'is_read', 'created_at']
+        read_only_fields = ['sender', 'is_read', 'created_at']
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
