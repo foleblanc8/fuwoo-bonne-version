@@ -1,0 +1,37 @@
+{
+  "name": "Coupdemain",
+  "short_name": "Coupdemain",
+  "description": "Soumissions gratuites de pros locaux au Québec",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "lang": "fr",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Publier une demande",
+      "url": "/services",
+      "description": "Créer une nouvelle demande de service"
+    },
+    {
+      "name": "Mon tableau de bord",
+      "url": "/dashboard",
+      "description": "Accéder à mon espace"
+    }
+  ]
+}

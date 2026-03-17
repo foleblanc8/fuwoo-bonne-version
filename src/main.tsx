@@ -26,6 +26,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import axios from "axios";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { HelmetProvider } from "react-helmet-async";
 import App from "./App";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ServiceProvider } from "./contexts/ServiceContext";
@@ -41,6 +42,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
+    <HelmetProvider>
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <BrowserRouter>
         <AuthProvider>
@@ -57,5 +59,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         </AuthProvider>
       </BrowserRouter>
     </GoogleOAuthProvider>
+    </HelmetProvider>
   </React.StrictMode>
 );

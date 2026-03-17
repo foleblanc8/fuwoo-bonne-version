@@ -188,7 +188,8 @@ class Booking(models.Model):
 
 
 class Review(models.Model):
-    booking = models.OneToOneField(Booking, on_delete=models.CASCADE)
+    booking = models.OneToOneField(Booking, on_delete=models.CASCADE, null=True, blank=True)
+    bid = models.ForeignKey('Bid', on_delete=models.SET_NULL, null=True, blank=True, related_name='reviews')
     client = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
@@ -199,8 +200,8 @@ class Review(models.Model):
         on_delete=models.CASCADE,
         related_name='reviews_received'
     )
-    service = models.ForeignKey(Service, on_delete=models.CASCADE)
-    
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, null=True, blank=True)
+
     rating = models.IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
@@ -223,10 +224,22 @@ class Review(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        unique_together = ['booking', 'client']
-    
+        constraints = [
+            models.UniqueConstraint(
+                fields=['booking', 'client'],
+                condition=models.Q(booking__isnull=False),
+                name='unique_review_per_booking_client',
+            ),
+            models.UniqueConstraint(
+                fields=['bid', 'client'],
+                condition=models.Q(bid__isnull=False),
+                name='unique_review_per_bid_client',
+            ),
+        ]
+
     def __str__(self):
-        return f"Review for {self.service.title} - {self.rating}/5"
+        title = self.service.title if self.service else (str(self.bid) if self.bid else 'N/A')
+        return f"Review for {title} - {self.rating}/5"
 
 
 class Message(models.Model):
@@ -293,7 +306,7 @@ class Notification(models.Model):
 
 
 class ServiceRequest(models.Model):
-    STATUS_CHOICES = [('open', 'Ouverte'), ('awarded', 'Attribuée'), ('cancelled', 'Annulée')]
+    STATUS_CHOICES = [('open', 'Ouverte'), ('awarded', 'Attribuée'), ('completed', 'Terminée'), ('cancelled', 'Annulée')]
     client = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='service_requests')
     category = models.ForeignKey(ServiceCategory, on_delete=models.SET_NULL, null=True, blank=True)
     title = models.CharField(max_length=200)
@@ -351,6 +364,60 @@ class PortfolioPhoto(models.Model):
 
     def __str__(self):
         return f"Portfolio de {self.provider.username} — #{self.id}"
+
+
+class CRMClient(models.Model):
+    PIPELINE_CHOICES = [
+        ('lead',      'Lead'),
+        ('contacted', 'Contacté'),
+        ('quoted',    'Soumission envoyée'),
+        ('active',    'Client actif'),
+        ('recurring', 'Récurrent'),
+        ('inactive',  'Inactif'),
+    ]
+    SOURCE_CHOICES = [
+        ('bid',    'Offre acceptée'),
+        ('manual', 'Ajout manuel'),
+    ]
+
+    provider           = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='crm_clients')
+    user               = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='crm_entries')
+    name               = models.CharField(max_length=200)
+    email              = models.EmailField(blank=True)
+    phone              = models.CharField(max_length=20, blank=True)
+    address            = models.TextField(blank=True)
+    pipeline_stage     = models.CharField(max_length=20, choices=PIPELINE_CHOICES, default='lead')
+    source             = models.CharField(max_length=10, choices=SOURCE_CHOICES, default='manual')
+    total_revenue      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    last_service_date  = models.DateField(null=True, blank=True)
+    service_count      = models.IntegerField(default=0)
+    reminder_date      = models.DateField(null=True, blank=True)
+    reminder_note      = models.TextField(blank=True)
+    created_at         = models.DateTimeField(auto_now_add=True)
+    updated_at         = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"CRM {self.provider.username} → {self.name}"
+
+
+class CRMNote(models.Model):
+    crm_client = models.ForeignKey(CRMClient, on_delete=models.CASCADE, related_name='notes')
+    author     = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    content    = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class CRMServiceLink(models.Model):
+    """Links an accepted Bid to a CRMClient for service history tracking."""
+    crm_client = models.ForeignKey(CRMClient, on_delete=models.CASCADE, related_name='service_links')
+    bid        = models.OneToOneField('Bid', on_delete=models.CASCADE, related_name='crm_link')
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class Payment(models.Model):

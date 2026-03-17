@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Star, Shield, MapPin, User } from 'lucide-react';
 import ServiceCard from '../components/ServiceCard';
+import SEO from '../components/SEO';
 
 type PortfolioPhoto = { id: number; image: string; caption: string };
 
@@ -87,6 +88,13 @@ const ProviderProfilePage = () => {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-8">
+      <SEO
+        title={fullName}
+        description={provider.bio
+          ? `${fullName} — ${provider.bio.slice(0, 140)}`
+          : `Profil de ${fullName} sur Coupdemain. Note ${Number(provider.rating).toFixed(1)}/5 basée sur ${provider.total_reviews} avis.`}
+        url={`/provider/${providerId}`}
+      />
       {/* Bannière profil */}
       <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-6">
         <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">

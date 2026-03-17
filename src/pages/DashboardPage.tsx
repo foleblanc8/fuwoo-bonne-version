@@ -32,7 +32,7 @@ type ServiceRequest = {
   preferred_dates: string;
   submission_deadline: string | null;
   bid_count: number;
-  status: 'open' | 'awarded' | 'closed' | 'cancelled';
+  status: 'open' | 'awarded' | 'completed' | 'closed' | 'cancelled';
   images: { image: string }[];
 };
 
@@ -1651,7 +1651,10 @@ function ClientRequestsTab() {
   const [bids, setBids]               = useState<Record<number, Bid[]>>({});
   const [bidsLoading, setBidsLoading] = useState<number | null>(null);
   const [accepting, setAccepting]     = useState<number | null>(null);
+  const [completing, setCompleting]   = useState<number | null>(null);
   const [paying, setPaying]           = useState<number | null>(null);
+  const [reviewBid, setReviewBid]     = useState<{ bid: Bid; providerName: string } | null>(null);
+  const [reviewedBidIds, setReviewedBidIds] = useState<Set<number>>(new Set());
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -1706,6 +1709,19 @@ function ClientRequestsTab() {
     }
   };
 
+  const completeRequest = async (reqId: number) => {
+    setCompleting(reqId);
+    try {
+      await axios.post(`service-requests/${reqId}/complete/`);
+      setRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'completed' } : r));
+      showToast('Service marqué comme terminé !', 'success');
+    } catch {
+      showToast('Impossible de marquer comme terminé.', 'error');
+    } finally {
+      setCompleting(null);
+    }
+  };
+
   const commissionRate = (price: string) => {
     const p = parseFloat(price);
     if (p <= 500)  return 15;
@@ -1714,9 +1730,9 @@ function ClientRequestsTab() {
   };
 
   const reqStatusBadge = (s: string) =>
-    ({ open: 'text-green-700 bg-green-100', awarded: 'text-blue-700 bg-blue-100', cancelled: 'text-red-600 bg-red-100' }[s] ?? 'text-gray-600 bg-gray-100');
+    ({ open: 'text-green-700 bg-green-100', awarded: 'text-blue-700 bg-blue-100', completed: 'text-emerald-700 bg-emerald-100', cancelled: 'text-red-600 bg-red-100' }[s] ?? 'text-gray-600 bg-gray-100');
   const reqStatusLabel = (s: string) =>
-    ({ open: 'Ouvert', awarded: 'Attribué', closed: 'Fermé', cancelled: 'Annulé' }[s] ?? s);
+    ({ open: 'Ouvert', awarded: 'Attribué', completed: 'Terminé', closed: 'Fermé', cancelled: 'Annulé' }[s] ?? s);
   const bidStatusBadge = (s: string) =>
     ({ pending: 'text-yellow-700 bg-yellow-100', accepted: 'text-green-700 bg-green-100', rejected: 'text-red-600 bg-red-100' }[s] ?? 'text-gray-600 bg-gray-100');
   const bidStatusLabel = (s: string) =>
@@ -1838,8 +1854,8 @@ function ClientRequestsTab() {
                                   <span className="flex items-center gap-1.5 text-green-600 text-sm font-semibold">
                                     <CheckCircle className="w-4 h-4" />Offre acceptée
                                   </span>
-                                  <div className="text-right">
-                                    <p className="text-xs text-gray-400 mb-1">
+                                  <div className="flex flex-col gap-1.5 items-end">
+                                    <p className="text-xs text-gray-400">
                                       Commission Fuwoo {commissionRate(bid.price)}% incluse
                                     </p>
                                     <button
@@ -1859,6 +1875,35 @@ function ClientRequestsTab() {
                                       <FileText className="w-4 h-4" />
                                       Contrat PDF
                                     </a>
+                                    {req.status === 'awarded' && (
+                                      <button
+                                        onClick={() => completeRequest(req.id)}
+                                        disabled={completing === req.id}
+                                        className="flex items-center gap-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 transition disabled:opacity-50"
+                                      >
+                                        <CheckCircle className="w-4 h-4" />
+                                        {completing === req.id ? 'Mise à jour…' : 'Marquer comme terminé'}
+                                      </button>
+                                    )}
+                                    {req.status === 'completed' && !reviewedBidIds.has(bid.id) && (
+                                      <button
+                                        onClick={() => {
+                                          const providerName = bid.provider
+                                            ? [bid.provider.first_name, bid.provider.last_name].filter(Boolean).join(' ') || bid.provider.username
+                                            : '—';
+                                          setReviewBid({ bid, providerName });
+                                        }}
+                                        className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-yellow-100 transition"
+                                      >
+                                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                                        Laisser un avis
+                                      </button>
+                                    )}
+                                    {req.status === 'completed' && reviewedBidIds.has(bid.id) && (
+                                      <span className="flex items-center gap-1.5 text-xs text-gray-400 px-3 py-1.5">
+                                        <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />Avis publié
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               )}
@@ -1873,6 +1918,18 @@ function ClientRequestsTab() {
             );
           })}
         </div>
+      )}
+
+      {reviewBid && (
+        <BidReviewModal
+          bid={reviewBid.bid}
+          providerName={reviewBid.providerName}
+          onClose={() => setReviewBid(null)}
+          onDone={() => {
+            setReviewedBidIds(prev => new Set([...prev, reviewBid.bid.id]));
+            showToast('Avis publié ! Merci pour votre retour.', 'success');
+          }}
+        />
       )}
     </div>
   );
@@ -1929,6 +1986,111 @@ function ReviewModal({ booking, onClose, onDone }: { booking: ApiBooking; onClos
             <label className="block text-sm font-medium text-gray-700 mb-1">Commentaire</label>
             <textarea rows={4} value={comment} onChange={e => setComment(e.target.value)}
               placeholder="Décrivez votre expérience…"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40 resize-none" />
+          </div>
+
+          {error && <p className="text-red-600 text-sm bg-red-50 py-2 px-3 rounded-lg">{error}</p>}
+
+          <div className="flex gap-3 pt-1">
+            <button onClick={onClose}
+              className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
+              Annuler
+            </button>
+            <button onClick={handleSubmit} disabled={!comment.trim() || submitting}
+              className="flex-1 bg-coupdemain-primary text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60">
+              {submitting ? 'Envoi…' : "Publier l'avis"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Bid Review Modal ─────────────────────────────────────────────────────────
+
+function BidReviewModal({ bid, providerName, onClose, onDone }: {
+  bid: Bid;
+  providerName: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [rating, setRating]   = useState(5);
+  const [comment, setComment] = useState('');
+  const [quality, setQuality] = useState(5);
+  const [punctuality, setPunctuality] = useState(5);
+  const [communication, setCommunication] = useState(5);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError]     = useState('');
+
+  const handleSubmit = async () => {
+    if (!comment.trim()) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await axios.post('reviews/', {
+        bid: bid.id,
+        rating,
+        comment,
+        quality_rating: quality,
+        punctuality_rating: punctuality,
+        communication_rating: communication,
+      });
+      onDone();
+      onClose();
+    } catch (e: any) {
+      const data = e?.response?.data;
+      setError(data ? Object.values(data).flat().join(' ') : "Erreur lors de l'envoi.");
+      setSubmitting(false);
+    }
+  };
+
+  const StarRow = ({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) => (
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-gray-600">{label}</span>
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map(n => (
+          <button key={n} type="button" onClick={() => onChange(n)}
+            className={`text-xl transition ${n <= value ? 'text-yellow-400' : 'text-gray-200 hover:text-yellow-200'}`}>
+            ★
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h3 className="text-lg font-bold text-gray-900">Évaluer le prestataire</h3>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400 hover:text-gray-600 transition" /></button>
+        </div>
+        <div className="p-6 space-y-5">
+          <p className="text-sm text-gray-500">Prestataire : <span className="font-semibold text-gray-900">{providerName}</span></p>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Note globale</label>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button key={n} type="button" onClick={() => setRating(n)}
+                  className={`text-3xl transition ${n <= rating ? 'text-yellow-400' : 'text-gray-200 hover:text-yellow-200'}`}>
+                  ★
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2 bg-gray-50 rounded-xl p-4">
+            <StarRow label="Qualité du travail" value={quality} onChange={setQuality} />
+            <StarRow label="Ponctualité" value={punctuality} onChange={setPunctuality} />
+            <StarRow label="Communication" value={communication} onChange={setCommunication} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Commentaire <span className="text-red-400">*</span></label>
+            <textarea rows={4} value={comment} onChange={e => setComment(e.target.value)}
+              placeholder="Décrivez votre expérience avec ce prestataire…"
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40 resize-none" />
           </div>
 
@@ -2090,160 +2252,525 @@ function ClientBookingsTab() {
 
 // ─── Provider CRM Tab ─────────────────────────────────────────────────────────
 
-type CRMBid = {
+type CRMNote = { id: number; author: { username: string; first_name: string; last_name: string }; content: string; created_at: string };
+type CRMServiceLink = { id: number; service_request_title: string; service_area: string; price: string; price_unit: string; date: string; bid_status: string };
+type CRMClient = {
   id: number;
-  service_request: number;
-  service_request_detail: {
-    id: number;
-    title: string;
-    category: { id: number; name: string } | null;
-    service_area: string;
-    address: string | null;
-    preferred_dates: string;
-    client: { id: number; first_name: string; last_name: string; username: string } | null;
-  } | null;
-  price: string;
-  price_unit: string;
-  message: string;
-  estimated_duration: number | null;
-  status: 'pending' | 'accepted' | 'rejected';
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  pipeline_stage: string;
+  source: string;
+  total_revenue: string;
+  last_service_date: string | null;
+  service_count: number;
+  reminder_date: string | null;
+  reminder_note: string;
   created_at: string;
+  updated_at: string;
+  user: number | null;
+  notes?: CRMNote[];
+  service_links?: CRMServiceLink[];
 };
 
-function ProviderCRMTab() {
-  const [bids, setBids]     = useState<CRMBid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'pending' | 'accepted' | 'rejected'>('pending');
+const PIPELINE_STAGES: { value: string; label: string; color: string }[] = [
+  { value: 'lead',      label: 'Lead',               color: 'bg-gray-100 text-gray-600' },
+  { value: 'contacted', label: 'Contacté',            color: 'bg-blue-100 text-blue-700' },
+  { value: 'quoted',    label: 'Soumission envoyée',  color: 'bg-yellow-100 text-yellow-700' },
+  { value: 'active',    label: 'Client actif',        color: 'bg-green-100 text-green-700' },
+  { value: 'recurring', label: 'Récurrent',           color: 'bg-emerald-100 text-emerald-700' },
+  { value: 'inactive',  label: 'Inactif',             color: 'bg-red-100 text-red-600' },
+];
 
+function stageInfo(value: string) {
+  return PIPELINE_STAGES.find(s => s.value === value) ?? PIPELINE_STAGES[0];
+}
+
+// ── Revenue bar chart (CSS only, no deps) ──
+function CRMRevenueChart() {
+  const [months, setMonths] = useState<{ month: string; revenue: number }[]>([]);
   useEffect(() => {
-    axios.get('bids/?as=provider').then(res => {
-      const d = res.data as any;
-      setBids(Array.isArray(d) ? d : (d.results ?? []));
-    }).catch(() => {}).finally(() => setLoading(false));
+    axios.get('crm/revenue-chart/').then(r => setMonths(r.data as any)).catch(() => {});
   }, []);
+  const max = Math.max(...months.map(m => m.revenue), 1);
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-5">
+      <h3 className="text-sm font-semibold text-gray-700 mb-4">Revenus mensuels (6 mois)</h3>
+      <div className="flex items-end gap-3 h-28">
+        {months.map(m => {
+          const pct = Math.round((m.revenue / max) * 100);
+          return (
+            <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+              <span className="text-[10px] text-gray-400">{m.revenue > 0 ? `$${m.revenue.toFixed(0)}` : ''}</span>
+              <div className="w-full rounded-t-lg bg-emerald-500 transition-all" style={{ height: `${Math.max(pct, 2)}%` }} />
+              <span className="text-[10px] text-gray-400 text-center leading-tight">{m.month.split(' ')[0]}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
-  const pending  = bids.filter(b => b.status === 'pending');
-  const accepted = bids.filter(b => b.status === 'accepted');
-  const rejected = bids.filter(b => b.status === 'rejected');
-  const revenue  = accepted.reduce((s, b) => s + parseFloat(b.price || '0'), 0);
-  const rate     = bids.length > 0 ? Math.round((accepted.length / bids.length) * 100) : 0;
+// ── Client drawer ──
+function CRMClientDrawer({ client, onClose, onSaved }: { client: CRMClient; onClose: () => void; onSaved: (c: CRMClient) => void }) {
+  const [data, setData] = useState<CRMClient>(client);
+  const [notes, setNotes] = useState<CRMNote[]>(client.notes ?? []);
+  const [links, setLinks] = useState<CRMServiceLink[]>(client.service_links ?? []);
+  const [newNote, setNewNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [addingNote, setAddingNote] = useState(false);
 
-  const filtered = filter === 'pending' ? pending : filter === 'accepted' ? accepted : rejected;
+  // Load detail if needed
+  useEffect(() => {
+    axios.get(`crm/${client.id}/`).then(r => {
+      const d = r.data as CRMClient;
+      setData(d);
+      setNotes(d.notes ?? []);
+      setLinks(d.service_links ?? []);
+    }).catch(() => {});
+  }, [client.id]);
 
-  const filterLabel = (f: string, arr: CRMBid[]) => {
-    const labels: Record<string, string> = { pending: 'En attente', accepted: 'Acceptées', rejected: 'Refusées' };
-    return `${labels[f]} (${arr.length})`;
+  const save = () => {
+    setSaving(true);
+    axios.patch(`crm/${data.id}/`, {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      pipeline_stage: data.pipeline_stage,
+      reminder_date: data.reminder_date || null,
+      reminder_note: data.reminder_note,
+    }).then(r => {
+      onSaved(r.data as CRMClient);
+      setSaving(false);
+    }).catch(() => { setSaving(false); });
+  };
+
+  const submitNote = () => {
+    if (!newNote.trim()) return;
+    setAddingNote(true);
+    axios.post(`crm/${data.id}/notes/`, { content: newNote }).then(r => {
+      setNotes(prev => [r.data as CRMNote, ...prev]);
+      setNewNote('');
+      setAddingNote(false);
+    }).catch(() => { setAddingNote(false); });
+  };
+
+  const deleteNote = (noteId: number) => {
+    axios.delete(`crm/${data.id}/notes/${noteId}/`).then(() => {
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+    }).catch(() => {});
+  };
+
+  const stage = stageInfo(data.pipeline_stage);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div
+        className="relative w-full max-w-lg h-full bg-white shadow-2xl overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
+          <div>
+            <h2 className="font-bold text-gray-900 text-lg">{data.name}</h2>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${stage.color}`}>{stage.label}</span>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Contact info */}
+          <section>
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Contact</h3>
+            <div className="space-y-2">
+              <input
+                type="text" placeholder="Nom complet"
+                value={data.name}
+                onChange={e => setData(d => ({ ...d, name: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary"
+              />
+              <input
+                type="email" placeholder="Courriel"
+                value={data.email}
+                onChange={e => setData(d => ({ ...d, email: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary"
+              />
+              <input
+                type="tel" placeholder="Téléphone"
+                value={data.phone}
+                onChange={e => setData(d => ({ ...d, phone: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary"
+              />
+              <input
+                type="text" placeholder="Adresse"
+                value={data.address}
+                onChange={e => setData(d => ({ ...d, address: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary"
+              />
+            </div>
+          </section>
+
+          {/* Pipeline */}
+          <section>
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Étape pipeline</h3>
+            <div className="flex flex-wrap gap-2">
+              {PIPELINE_STAGES.map(s => (
+                <button
+                  key={s.value}
+                  onClick={() => setData(d => ({ ...d, pipeline_stage: s.value }))}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition ${
+                    data.pipeline_stage === s.value
+                      ? `${s.color} border-transparent shadow-sm`
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Reminder */}
+          <section>
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Rappel de suivi</h3>
+            <input
+              type="date"
+              value={data.reminder_date ?? ''}
+              onChange={e => setData(d => ({ ...d, reminder_date: e.target.value || null }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary mb-2"
+            />
+            <input
+              type="text" placeholder="Note de rappel (optionnel)"
+              value={data.reminder_note}
+              onChange={e => setData(d => ({ ...d, reminder_note: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary"
+            />
+          </section>
+
+          {/* Stats */}
+          <section className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Services', value: data.service_count },
+              { label: 'Revenus', value: `$${parseFloat(data.total_revenue || '0').toFixed(0)}` },
+              { label: 'Dernier service', value: data.last_service_date ? new Date(data.last_service_date).toLocaleDateString('fr-CA') : '—' },
+            ].map(s => (
+              <div key={s.label} className="bg-gray-50 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-gray-900">{s.value}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{s.label}</p>
+              </div>
+            ))}
+          </section>
+
+          {/* Service history */}
+          {links.length > 0 && (
+            <section>
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Historique des services</h3>
+              <div className="space-y-2">
+                {links.map(lnk => (
+                  <div key={lnk.id} className="bg-gray-50 rounded-xl p-3 text-sm">
+                    <p className="font-medium text-gray-800 truncate">{lnk.service_request_title}</p>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                      <span>{lnk.service_area}</span>
+                      <span className="font-semibold text-gray-700">${parseFloat(lnk.price).toFixed(2)} {lnk.price_unit}</span>
+                      <span>{new Date(lnk.date).toLocaleDateString('fr-CA')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Notes */}
+          <section>
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Notes internes</h3>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                placeholder="Ajouter une note…"
+                value={newNote}
+                onChange={e => setNewNote(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') submitNote(); }}
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary"
+              />
+              <button
+                onClick={submitNote}
+                disabled={addingNote || !newNote.trim()}
+                className="px-4 py-2 bg-coupdemain-primary text-white rounded-xl text-sm font-medium disabled:opacity-50"
+              >
+                +
+              </button>
+            </div>
+            {notes.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4">Aucune note pour l'instant.</p>
+            ) : (
+              <div className="space-y-2">
+                {notes.map(note => (
+                  <div key={note.id} className="bg-gray-50 rounded-xl px-3 py-2 flex items-start gap-2 group">
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-700">{note.content}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{new Date(note.created_at).toLocaleDateString('fr-CA')}</p>
+                    </div>
+                    <button
+                      onClick={() => deleteNote(note.id)}
+                      className="opacity-0 group-hover:opacity-100 transition text-gray-400 hover:text-red-500 mt-0.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Save */}
+          <button
+            onClick={save}
+            disabled={saving}
+            className="w-full py-3 bg-coupdemain-primary text-white rounded-xl font-semibold text-sm disabled:opacity-50"
+          >
+            {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Add client modal ──
+function CRMAddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated: (c: CRMClient) => void }) {
+  const [form, setForm] = useState({ name: '', email: '', phone: '', address: '', pipeline_stage: 'lead' });
+  const [saving, setSaving] = useState(false);
+  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm(prev => ({ ...prev, [k]: e.target.value }));
+
+  const submit = () => {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    axios.post('crm/', form).then(r => {
+      onCreated(r.data as CRMClient);
+      onClose();
+      setSaving(false);
+    }).catch(() => { setSaving(false); });
   };
 
   return (
-    <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-900">CRM — Pipeline</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Suivez vos offres et vos clients.</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Offres soumises',    value: bids.length,           icon: <Send className="w-6 h-6 text-blue-400" /> },
-          { label: 'En attente',          value: pending.length,        icon: <Clock className="w-6 h-6 text-yellow-400" /> },
-          { label: "Taux d'acceptation", value: `${rate}%`,            icon: <TrendingUp className="w-6 h-6 text-green-400" /> },
-          { label: 'Revenus potentiels', value: `$${revenue.toFixed(2)}`, icon: <DollarSign className="w-6 h-6 text-emerald-400" /> },
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500">{s.label}</p>
-              <p className="text-xl font-bold text-gray-900 mt-0.5">{s.value}</p>
-            </div>
-            {s.icon}
-          </div>
-        ))}
-      </div>
-
-      {/* Filter tabs */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {(['pending', 'accepted', 'rejected'] as const).map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
-              filter === f
-                ? 'bg-coupdemain-primary text-white shadow-sm'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            {filterLabel(f, f === 'pending' ? pending : f === 'accepted' ? accepted : rejected)}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl" onClick={e => e.stopPropagation()}>
+        <h2 className="font-bold text-gray-900 text-lg mb-4">Nouveau client</h2>
+        <div className="space-y-3">
+          <input type="text" placeholder="Nom complet *" value={form.name} onChange={f('name')}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary" />
+          <input type="email" placeholder="Courriel" value={form.email} onChange={f('email')}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary" />
+          <input type="tel" placeholder="Téléphone" value={form.phone} onChange={f('phone')}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary" />
+          <input type="text" placeholder="Adresse" value={form.address} onChange={f('address')}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary" />
+          <select value={form.pipeline_stage} onChange={f('pipeline_stage')}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary">
+            {PIPELINE_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">Annuler</button>
+          <button onClick={submit} disabled={saving || !form.name.trim()}
+            className="flex-1 py-2.5 bg-coupdemain-primary text-white rounded-xl text-sm font-semibold disabled:opacity-50">
+            {saving ? 'Création…' : 'Créer'}
           </button>
-        ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProviderCRMTab() {
+  const [clients, setClients] = useState<CRMClient[]>([]);
+  const [stats, setStats] = useState<{ total_clients: number; total_revenue: number; recurring_count: number; reminders_due: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [stageFilter, setStageFilter] = useState('');
+  const [selectedClient, setSelectedClient] = useState<CRMClient | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const load = (q?: string, stage?: string) => {
+    const params = new URLSearchParams();
+    if (q) params.set('search', q);
+    if (stage) params.set('stage', stage);
+    return axios.get(`crm/?${params}`).then(r => {
+      const d = r.data as any;
+      setClients(Array.isArray(d) ? d : (d.results ?? []));
+    });
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      load(search, stageFilter),
+      axios.get('crm/stats/').then(r => setStats(r.data as any)).catch(() => {}),
+    ]).then(() => setLoading(false)).catch(() => setLoading(false));
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    const t = setTimeout(() => load(search, stageFilter), 300);
+    return () => clearTimeout(t);
+  }, [search, stageFilter]);
+
+  const importBids = () => {
+    setImporting(true);
+    axios.post('crm/import_bids/').then(r => {
+      const { imported } = r.data as { imported: number };
+      if (imported > 0) load(search, stageFilter);
+      axios.get('crm/stats/').then(s => setStats(s.data as any)).catch(() => {});
+      setImporting(false);
+    }).catch(() => { setImporting(false); });
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+
+  return (
+    <div>
+      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">CRM clients</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Gérez vos relations clients et votre pipeline.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={importBids}
+            disabled={importing}
+            className="px-4 py-2 text-sm border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {importing ? 'Import…' : 'Importer offres acceptées'}
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-2 bg-coupdemain-primary text-white text-sm rounded-xl font-semibold"
+          >
+            + Nouveau client
+          </button>
+        </div>
       </div>
 
+      {/* Stats bar */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {[
+            { label: 'Clients',        value: stats.total_clients,                               icon: <User className="w-5 h-5 text-blue-400" /> },
+            { label: 'Revenus réels',  value: `$${stats.total_revenue.toFixed(0)}`,              icon: <DollarSign className="w-5 h-5 text-emerald-400" /> },
+            { label: 'Récurrents',     value: stats.recurring_count,                             icon: <TrendingUp className="w-5 h-5 text-green-400" /> },
+            { label: 'Rappels à faire', value: stats.reminders_due,                              icon: <Bell className="w-5 h-5 text-amber-400" /> },
+          ].map(s => (
+            <div key={s.label} className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500">{s.label}</p>
+                <p className="text-xl font-bold text-gray-900 mt-0.5">{s.value}</p>
+              </div>
+              {s.icon}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Revenue chart */}
+      <div className="mb-6">
+        <CRMRevenueChart />
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex gap-3 mb-4 flex-wrap">
+        <input
+          type="text"
+          placeholder="Rechercher un client…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="flex-1 min-w-40 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary bg-white"
+        />
+        <select
+          value={stageFilter}
+          onChange={e => setStageFilter(e.target.value)}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-coupdemain-primary bg-white"
+        >
+          <option value="">Toutes les étapes</option>
+          {PIPELINE_STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+      </div>
+
+      {/* Client list */}
       {loading ? (
         <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>
-      ) : filtered.length === 0 ? (
+      ) : clients.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
           <BarChart2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-600 font-medium">Aucune offre dans cette catégorie</p>
-          <p className="text-gray-400 text-sm mt-1">Soumissionnez sur des demandes ouvertes.</p>
+          <p className="text-gray-600 font-medium">Aucun client pour l'instant</p>
+          <p className="text-gray-400 text-sm mt-1">Importez vos offres acceptées ou ajoutez un client manuellement.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(bid => {
-            const req = bid.service_request_detail;
-            const client = req?.client;
-            const initials = client
-              ? ([client.first_name?.[0], client.last_name?.[0]].filter(Boolean).join('') || client.username?.[0] || '?').toUpperCase()
-              : '?';
-            const statusColor = bid.status === 'accepted'
-              ? 'bg-green-100 text-green-700'
-              : bid.status === 'rejected'
-              ? 'bg-red-100 text-red-600'
-              : 'bg-yellow-100 text-yellow-700';
-            const statusLabel = { pending: 'En attente', accepted: 'Acceptée', rejected: 'Refusée' }[bid.status];
-
+          {clients.map(c => {
+            const stage = stageInfo(c.pipeline_stage);
+            const reminderDue = c.reminder_date && c.reminder_date <= today;
+            const initials = c.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?';
             return (
-              <div key={bid.id} className="bg-white rounded-2xl shadow-sm p-5">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 shrink-0">
-                    {initials}
+              <button
+                key={c.id}
+                onClick={() => setSelectedClient(c)}
+                className="w-full bg-white rounded-2xl shadow-sm p-4 text-left hover:shadow-md transition-shadow flex items-center gap-4"
+              >
+                <div className="w-10 h-10 rounded-full bg-coupdemain-primary/10 flex items-center justify-center text-sm font-bold text-coupdemain-primary shrink-0">
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <p className="font-semibold text-gray-900 text-sm">{c.name}</p>
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${stage.color}`}>{stage.label}</span>
+                    {reminderDue && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 flex items-center gap-1">
+                        <Bell className="w-2.5 h-2.5" /> Rappel
+                      </span>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="font-semibold text-gray-900 text-sm truncate">{req?.title ?? '—'}</p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${statusColor}`}>
-                        {statusLabel}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-                      {req?.category && (
-                        <span className="px-2 py-0.5 bg-gray-100 rounded-full">{req.category.name}</span>
-                      )}
-                      {req?.service_area && (
-                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{req.service_area}</span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <DollarSign className="w-3 h-3" /><strong className="text-gray-700">${parseFloat(bid.price).toFixed(2)}</strong> {bid.price_unit}
-                      </span>
-                      <span>{new Date(bid.created_at).toLocaleDateString('fr-CA')}</span>
-                    </div>
-                    {bid.message && (
-                      <p className="text-xs text-gray-400 mt-2 line-clamp-2 italic">"{bid.message}"</p>
-                    )}
-                    {bid.status === 'accepted' && req?.address && (
-                      <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-1.5 text-xs text-green-700 font-medium">
-                        <Lock className="w-3.5 h-3.5" />Adresse client : {req.address}
-                      </div>
-                    )}
-                    {bid.status === 'accepted' && req?.preferred_dates && (
-                      <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-600">
-                        <Calendar className="w-3.5 h-3.5" />Date souhaitée : {req.preferred_dates}
-                      </div>
-                    )}
+                  <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                    {c.email && <span>{c.email}</span>}
+                    {c.phone && <span>{c.phone}</span>}
+                    <span>{c.service_count} service{c.service_count !== 1 ? 's' : ''}</span>
+                    <span className="font-medium text-gray-600">${parseFloat(c.total_revenue || '0').toFixed(0)} de revenus</span>
                   </div>
                 </div>
-              </div>
+                <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+              </button>
             );
           })}
         </div>
+      )}
+
+      {/* Drawer */}
+      {selectedClient && (
+        <CRMClientDrawer
+          client={selectedClient}
+          onClose={() => setSelectedClient(null)}
+          onSaved={updated => {
+            setClients(prev => prev.map(c => c.id === updated.id ? { ...c, ...updated } : c));
+            setSelectedClient(updated);
+          }}
+        />
+      )}
+
+      {/* Add modal */}
+      {showAddModal && (
+        <CRMAddClientModal
+          onClose={() => setShowAddModal(false)}
+          onCreated={c => {
+            setClients(prev => [c, ...prev]);
+            setStats(prev => prev ? { ...prev, total_clients: prev.total_clients + 1 } : prev);
+          }}
+        />
       )}
     </div>
   );

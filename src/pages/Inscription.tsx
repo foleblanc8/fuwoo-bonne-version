@@ -1,6 +1,7 @@
 // src/pages/Inscription.tsx
 
 import { useState } from "react";
+import SEO from "../components/SEO";
 import { Link, useNavigate } from "react-router-dom";
 import { Home, Wrench, Check, Leaf, ArrowRight } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
@@ -59,6 +60,12 @@ const Inscription = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50/60 via-white to-teal-50/40 py-10 px-4">
+      <SEO
+        title="Créer un compte"
+        description="Rejoignez Coupdemain gratuitement. Trouvez des pros vérifiés ou offrez vos services au Québec."
+        url="/inscription"
+        noIndex
+      />
       <div className="max-w-lg mx-auto">
 
         {/* Logo */}

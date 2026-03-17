@@ -163,24 +163,39 @@ REST_FRAMEWORK = {
 }
 
 # ─── Email ────────────────────────────────────────────────────────────────────
-# En développement : EMAIL_BACKEND = console (les emails s'affichent dans le terminal)
-# En production    : passe EMAIL_BACKEND à smtp et remplis SENDGRID_API_KEY
+# Priorité : RESEND_API_KEY > SENDGRID_API_KEY > console (dev)
+#
+# Resend  : https://resend.com  (smtp.resend.com, user=resend, port=587)
+# SendGrid: https://sendgrid.com (smtp.sendgrid.net, user=apikey, port=587)
+#
+# Variables d'env à définir en production (.env ou service d'hébergement) :
+#   RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx
+#   DEFAULT_FROM_EMAIL=Coupdemain <noreply@coupdemain.ca>
+#   FRONTEND_URL=https://coupdemain.ca
 import os
 
+RESEND_API_KEY   = os.environ.get('RESEND_API_KEY', '')
 SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
 
-if SENDGRID_API_KEY:
-    EMAIL_BACKEND    = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST       = 'smtp.sendgrid.net'
-    EMAIL_PORT       = 587
-    EMAIL_USE_TLS    = True
-    EMAIL_HOST_USER  = 'apikey'
+if RESEND_API_KEY:
+    EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST          = 'smtp.resend.com'
+    EMAIL_PORT          = 587
+    EMAIL_USE_TLS       = True
+    EMAIL_HOST_USER     = 'resend'
+    EMAIL_HOST_PASSWORD = RESEND_API_KEY
+elif SENDGRID_API_KEY:
+    EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST          = 'smtp.sendgrid.net'
+    EMAIL_PORT          = 587
+    EMAIL_USE_TLS       = True
+    EMAIL_HOST_USER     = 'apikey'
     EMAIL_HOST_PASSWORD = SENDGRID_API_KEY
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-DEFAULT_FROM_EMAIL = 'Fuwoo <noreply@fuwoo.ca>'
-FRONTEND_URL = 'http://localhost:5173'
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Coupdemain <noreply@coupdemain.ca>')
+FRONTEND_URL       = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
 
 # ─── Stripe ───────────────────────────────────────────────────────────────────
 # Remplace par tes vraies clés depuis https://dashboard.stripe.com/test/apikeys

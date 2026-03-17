@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { ShieldCheck, Star, Clock, MapPin, Users, Home, Wrench, Heart } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import SEO from "../components/SEO";
 
 const stats = [
   { value: "16+", label: "Services disponibles" },
@@ -69,6 +70,11 @@ const APropos = () => {
 
   return (
     <div className="bg-white">
+      <SEO
+        title="À propos"
+        description="Coupdemain connecte les Québécois avec des prestataires de services vérifiés. Notre mission : simplifier la vie des propriétaires et aider les pros locaux à développer leur clientèle."
+        url="/a-propos"
+      />
       {/* ── Hero ── */}
       <div
         className="relative bg-cover bg-center"

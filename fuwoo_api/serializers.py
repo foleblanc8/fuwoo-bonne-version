@@ -6,6 +6,7 @@ from .models import (
     ServiceCategory, Service, ServiceImage, Booking,
     Review, Message, Notification, Availability,
     ServiceRequest, ServiceRequestImage, Bid, PortfolioPhoto,
+    CRMClient, CRMNote, CRMServiceLink,
 )
 
 User = get_user_model()
@@ -111,7 +112,7 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = [
-            'id', 'booking', 'client', 'provider', 'service_title',
+            'id', 'booking', 'bid', 'client', 'provider', 'service_title',
             'rating', 'comment',
             'quality_rating', 'punctuality_rating', 'communication_rating',
             'created_at',
@@ -201,6 +202,48 @@ class BidSerializer(serializers.ModelSerializer):
             'message', 'estimated_duration', 'status', 'created_at',
         ]
         read_only_fields = ['provider', 'status']
+
+
+class CRMNoteSerializer(serializers.ModelSerializer):
+    author = UserSerializer(read_only=True)
+
+    class Meta:
+        model = CRMNote
+        fields = ['id', 'author', 'content', 'created_at']
+        read_only_fields = ['author', 'created_at']
+
+
+class CRMServiceLinkSerializer(serializers.ModelSerializer):
+    service_request_title = serializers.CharField(source='bid.service_request.title', read_only=True)
+    service_area          = serializers.CharField(source='bid.service_request.service_area', read_only=True)
+    price                 = serializers.CharField(source='bid.price', read_only=True)
+    price_unit            = serializers.CharField(source='bid.price_unit', read_only=True)
+    date                  = serializers.DateTimeField(source='bid.created_at', read_only=True)
+    bid_status            = serializers.CharField(source='bid.status', read_only=True)
+
+    class Meta:
+        model = CRMServiceLink
+        fields = ['id', 'service_request_title', 'service_area', 'price', 'price_unit', 'date', 'bid_status']
+
+
+class CRMClientListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CRMClient
+        fields = [
+            'id', 'name', 'email', 'phone', 'address', 'pipeline_stage', 'source',
+            'total_revenue', 'last_service_date', 'service_count',
+            'reminder_date', 'reminder_note', 'created_at', 'updated_at',
+            'user',
+        ]
+        read_only_fields = ['source', 'total_revenue', 'last_service_date', 'service_count', 'created_at', 'updated_at']
+
+
+class CRMClientDetailSerializer(CRMClientListSerializer):
+    notes         = CRMNoteSerializer(many=True, read_only=True)
+    service_links = CRMServiceLinkSerializer(many=True, read_only=True)
+
+    class Meta(CRMClientListSerializer.Meta):
+        fields = CRMClientListSerializer.Meta.fields + ['notes', 'service_links']
 
 
 class PortfolioPhotoSerializer(serializers.ModelSerializer):

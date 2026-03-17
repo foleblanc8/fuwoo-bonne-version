@@ -88,5 +88,55 @@
     "model": "fuwoo_api.servicecategory",
     "pk": 18,
     "fields": { "name": "Extermination", "slug": "extermination", "icon": "bug", "description": "Traitement contre les insectes, rongeurs et parasites.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 19,
+    "fields": { "name": "Menuiserie générale", "slug": "menuiserie", "icon": "hammer", "description": "Pose de portes, fenêtres, boiseries, armoires et réparations de charpente légère.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 20,
+    "fields": { "name": "Toiture — entretien et réparations", "slug": "toiture", "icon": "house", "description": "Inspection, réparations de bardeaux, remplacement de solin et entretien de toiture résidentielle.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 21,
+    "fields": { "name": "Pose de planchers", "slug": "pose-planchers", "icon": "layout-grid", "description": "Installation de planchers de bois franc, stratifié, vinyle et flottant.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 22,
+    "fields": { "name": "Pose de céramique", "slug": "pose-ceramique", "icon": "grid-2x2", "description": "Carrelage et pose de céramique en cuisine, salle de bain et plancher.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 23,
+    "fields": { "name": "Réparations générales", "slug": "reparations-generales", "icon": "wrench", "description": "Homme à tout faire : petites réparations, montage, installation et travaux divers.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 24,
+    "fields": { "name": "Clôtures et terrasses", "slug": "clotures-terrasses", "icon": "fence", "description": "Construction, réparation et entretien de clôtures, terrasses, pergolas et patios.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 25,
+    "fields": { "name": "Calfeutrage et coupe-froid", "slug": "calfeutrage", "icon": "wind", "description": "Scellement de fenêtres, portes, joints et infiltrations d'air pour économiser sur le chauffage.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 26,
+    "fields": { "name": "Nettoyage de tapis", "slug": "nettoyage-tapis", "icon": "sparkles", "description": "Nettoyage à la vapeur et shampooing de tapis, moquettes et carpettes.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 27,
+    "fields": { "name": "Montage de meubles", "slug": "montage-meubles", "icon": "box", "description": "Assemblage de meubles IKEA et autres, installation d'étagères et fixations murales.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+  },
+  {
+    "model": "fuwoo_api.servicecategory",
+    "pk": 28,
+    "fields": { "name": "Imperméabilisation", "slug": "impermeabilisation", "icon": "droplets", "description": "Protection contre l'humidité : drain français, membrane, sous-sol et fondations.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   }
 ]

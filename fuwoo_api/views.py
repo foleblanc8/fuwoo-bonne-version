@@ -35,12 +35,14 @@ from .models import (
     ServiceCategory, Service, Booking, Review,
     Message, Notification, Availability,
     ServiceRequest, ServiceRequestImage, Bid, Payment, PortfolioPhoto,
+    CRMClient, CRMNote, CRMServiceLink,
 )
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, ServiceCategorySerializer,
     ServiceSerializer, BookingSerializer, ReviewSerializer,
     MessageSerializer, NotificationSerializer, AvailabilitySerializer,
     ServiceRequestSerializer, BidSerializer, PortfolioPhotoSerializer,
+    CRMClientListSerializer, CRMClientDetailSerializer, CRMNoteSerializer,
 )
 from .permissions import IsOwnerOrReadOnly, IsProviderOrReadOnly
 from .utils import haversine_distance
@@ -421,41 +423,59 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         provider_id = self.request.query_params.get('provider_id')
+        bid_id = self.request.query_params.get('bid_id')
         if provider_id:
             return Review.objects.filter(provider_id=provider_id).select_related('client')
+        if bid_id:
+            return Review.objects.filter(bid_id=bid_id, client=self.request.user)
         if self.request.user.is_authenticated:
             return Review.objects.filter(client=self.request.user)
         return Review.objects.none()
     
     def perform_create(self, serializer):
-        booking = serializer.validated_data['booking']
+        bid = serializer.validated_data.get('bid')
+        booking = serializer.validated_data.get('booking')
 
-        if booking.client != self.request.user:
-            raise serializers.ValidationError("Vous ne pouvez pas évaluer cette réservation.")
-        if booking.status != 'completed':
-            raise serializers.ValidationError("Le service doit être terminé pour laisser un avis.")
-
-        try:
-            review = serializer.save(
-                client=self.request.user,
-                provider=booking.provider,
-                service=booking.service,
-            )
-        except IntegrityError:
-            raise serializers.ValidationError("Vous avez déjà laissé un avis pour cette réservation.")
+        if bid:
+            # Review basée sur un bid accepté
+            if bid.service_request.client != self.request.user:
+                raise serializers.ValidationError("Vous ne pouvez pas évaluer cette offre.")
+            if bid.status != 'accepted':
+                raise serializers.ValidationError("L'offre doit être acceptée pour laisser un avis.")
+            if bid.service_request.status != 'completed':
+                raise serializers.ValidationError("Marquez le service comme terminé avant de laisser un avis.")
+            provider = bid.provider
+            service = None
+            try:
+                review = serializer.save(
+                    client=self.request.user,
+                    provider=provider,
+                    service=service,
+                )
+            except IntegrityError:
+                raise serializers.ValidationError("Vous avez déjà laissé un avis pour cette offre.")
+        elif booking:
+            if booking.client != self.request.user:
+                raise serializers.ValidationError("Vous ne pouvez pas évaluer cette réservation.")
+            if booking.status != 'completed':
+                raise serializers.ValidationError("Le service doit être terminé pour laisser un avis.")
+            try:
+                review = serializer.save(
+                    client=self.request.user,
+                    provider=booking.provider,
+                    service=booking.service,
+                )
+            except IntegrityError:
+                raise serializers.ValidationError("Vous avez déjà laissé un avis pour cette réservation.")
+            provider = booking.provider
+        else:
+            raise serializers.ValidationError("Un bid ou une réservation est requis.")
 
         # Mettre à jour la note du prestataire
-        provider = booking.provider
         provider_reviews = Review.objects.filter(provider=provider)
         provider.rating = provider_reviews.aggregate(Avg('rating'))['rating__avg'] or 0
         provider.total_reviews = provider_reviews.count()
         provider.save(update_fields=['rating', 'total_reviews'])
-
-        # Mettre à jour la note du service
-        service = booking.service
-        service_reviews = Review.objects.filter(service=service)
-        service.rating = service_reviews.aggregate(Avg('rating'))['rating__avg'] or 0
-        service.save(update_fields=['rating'])
 
         # Notifier le prestataire
         client_name = self.request.user.get_full_name() or self.request.user.username
@@ -464,7 +484,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
             type='new_review',
             title='Nouvel avis reçu',
             message=f'{client_name} vous a laissé un avis {review.rating}/5.',
-            related_booking=booking,
         )
 
 class MessageViewSet(viewsets.ModelViewSet):
@@ -601,6 +620,17 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         sr.save()
         return Response({'status': 'cancelled'})
 
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        sr = self.get_object()
+        if sr.client != request.user:
+            return Response({'error': 'Non autorisé'}, status=403)
+        if sr.status != 'awarded':
+            return Response({'error': "La demande doit être attribuée pour être marquée comme terminée."}, status=400)
+        sr.status = 'completed'
+        sr.save(update_fields=['status'])
+        return Response({'status': 'completed'})
+
 
 class BidViewSet(viewsets.ModelViewSet):
     serializer_class = BidSerializer
@@ -654,6 +684,7 @@ class BidViewSet(viewsets.ModelViewSet):
         sr.bids.exclude(pk=bid.pk).update(status='rejected')
         sr.status = 'awarded'
         sr.save()
+        _sync_crm_on_bid_accept(bid)
         # Email au prestataire : offre acceptée
         client_name = request.user.get_full_name() or request.user.username
         send_bid_accepted(
@@ -661,6 +692,179 @@ class BidViewSet(viewsets.ModelViewSet):
             str(bid.price), bid.price_unit,
         )
         return Response({'status': 'accepted'})
+
+
+# ─── CRM ──────────────────────────────────────────────────────────────────────
+
+def _sync_crm_on_bid_accept(bid):
+    """
+    Quand une offre est acceptée, crée ou met à jour la fiche CRM du prestataire
+    pour ce client. Crée aussi un CRMServiceLink pour historique.
+    """
+    from django.db.models import Sum
+    from django.utils import timezone
+
+    provider = bid.provider
+    sr = bid.service_request
+    client_user = sr.client
+
+    # Cherche une fiche existante (même prestataire + même utilisateur client)
+    crm_client = CRMClient.objects.filter(provider=provider, user=client_user).first()
+
+    client_name = client_user.get_full_name() or client_user.username
+    client_email = client_user.email or ''
+    client_phone = getattr(client_user, 'phone_number', '') or ''
+    client_address = sr.address or ''
+
+    if crm_client is None:
+        crm_client = CRMClient.objects.create(
+            provider=provider,
+            user=client_user,
+            name=client_name,
+            email=client_email,
+            phone=client_phone,
+            address=client_address,
+            pipeline_stage='active',
+            source='bid',
+        )
+    else:
+        # Mettre à jour les infos de contact si vides
+        if not crm_client.email and client_email:
+            crm_client.email = client_email
+        if not crm_client.phone and client_phone:
+            crm_client.phone = client_phone
+        if not crm_client.address and client_address:
+            crm_client.address = client_address
+        crm_client.pipeline_stage = 'active'
+        crm_client.save()
+
+    # Crée le lien service si pas déjà fait
+    CRMServiceLink.objects.get_or_create(crm_client=crm_client, bid=bid)
+
+    # Recalcule les stats
+    links = CRMServiceLink.objects.filter(
+        crm_client=crm_client,
+        bid__status='accepted',
+    ).select_related('bid')
+    crm_client.service_count = links.count()
+    crm_client.total_revenue = sum(lnk.bid.price for lnk in links)
+    crm_client.last_service_date = timezone.now().date()
+    crm_client.save()
+
+
+class CRMViewSet(viewsets.ModelViewSet):
+    """CRUD sur les fiches clients CRM du prestataire connecté."""
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action in ['retrieve', 'create', 'update', 'partial_update']:
+            return CRMClientDetailSerializer
+        return CRMClientListSerializer
+
+    def get_queryset(self):
+        qs = CRMClient.objects.filter(provider=self.request.user).prefetch_related('notes', 'service_links__bid__service_request')
+        stage = self.request.query_params.get('stage')
+        if stage:
+            qs = qs.filter(pipeline_stage=stage)
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(Q(name__icontains=search) | Q(email__icontains=search) | Q(phone__icontains=search))
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(provider=self.request.user, source='manual')
+
+    @action(detail=False, methods=['post'])
+    def import_bids(self, request):
+        """
+        Importe tous les bids acceptés du prestataire qui n'ont pas encore
+        de fiche CRM.
+        """
+        provider = request.user
+        accepted_bids = Bid.objects.filter(
+            provider=provider,
+            status='accepted',
+        ).select_related('service_request__client').exclude(crm_link__isnull=False)
+
+        count = 0
+        for bid in accepted_bids:
+            _sync_crm_on_bid_accept(bid)
+            count += 1
+
+        return Response({'imported': count})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def crm_stats(request):
+    """Stats globales CRM pour le prestataire."""
+    from django.utils import timezone
+    from django.db.models import Sum, Count
+
+    provider = request.user
+    clients = CRMClient.objects.filter(provider=provider)
+
+    today = timezone.now().date()
+    reminders_due = clients.filter(reminder_date__lte=today).exclude(reminder_date__isnull=True).count()
+    recurring_count = clients.filter(pipeline_stage='recurring').count()
+    total_revenue = clients.aggregate(total=Sum('total_revenue'))['total'] or 0
+
+    return Response({
+        'total_clients': clients.count(),
+        'total_revenue': float(total_revenue),
+        'recurring_count': recurring_count,
+        'reminders_due': reminders_due,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def crm_revenue_chart(request):
+    """
+    Revenus mensuels sur les 6 derniers mois à partir des bids acceptés liés au CRM.
+    """
+    from django.utils import timezone
+    from dateutil.relativedelta import relativedelta
+
+    provider = request.user
+    today = timezone.now().date()
+    months = []
+    for i in range(5, -1, -1):
+        month_start = (today.replace(day=1) - relativedelta(months=i))
+        month_end = month_start + relativedelta(months=1)
+        links = CRMServiceLink.objects.filter(
+            crm_client__provider=provider,
+            bid__status='accepted',
+            created_at__date__gte=month_start,
+            created_at__date__lt=month_end,
+        )
+        revenue = sum(lnk.bid.price for lnk in links.select_related('bid'))
+        months.append({
+            'month': month_start.strftime('%b %Y'),
+            'revenue': float(revenue),
+        })
+    return Response(months)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def crm_notes(request, client_pk):
+    crm_client = get_object_or_404(CRMClient, pk=client_pk, provider=request.user)
+    if request.method == 'GET':
+        notes = crm_client.notes.all()
+        return Response(CRMNoteSerializer(notes, many=True).data)
+    serializer = CRMNoteSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save(crm_client=crm_client, author=request.user)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def crm_note_detail(request, client_pk, note_pk):
+    note = get_object_or_404(CRMNote, pk=note_pk, crm_client__pk=client_pk, crm_client__provider=request.user)
+    note.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ─── Mot de passe oublié ──────────────────────────────────────────────────────

@@ -24,6 +24,18 @@ export const categoryImageMap: Record<string, string> = {
   'nettoyage-gouttieres': `${BASE}/photo-1665442348932-6e16d72fe163?auto=format&fit=crop&w=800&q=80`, // feuilles dans gouttière
   'nettoyage-terrasse':   `${BASE}/photo-1600566752355-35792bedcfea?auto=format&fit=crop&w=800&q=80`, // beau patio propre
   'lavage-vitres':        `${BASE}/photo-1635445818409-64a0ff92eb39?auto=format&fit=crop&w=800&q=80`, // homme sur échelle travaillant sur un bâtiment
+
+  // Travaux résidentiels hors CCQ
+  'menuiserie':            `${BASE}/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80`, // charpentier travaillant le bois
+  'toiture':               `${BASE}/photo-1632823471565-1ecdf5c6da2f?auto=format&fit=crop&w=800&q=80`, // toiture bardeaux
+  'pose-planchers':        `${BASE}/photo-1540518614846-7eded433c457?auto=format&fit=crop&w=800&q=80`, // pose de plancher bois
+  'pose-ceramique':        `${BASE}/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80`, // pose de carrelage
+  'reparations-generales': `${BASE}/photo-1621905251189-08b1059cd735?auto=format&fit=crop&w=800&q=80`, // homme à tout faire avec outils
+  'clotures-terrasses':    `${BASE}/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=800&q=80`, // belle terrasse en bois
+  'calfeutrage':           `${BASE}/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80`, // fenêtre avec isolation
+  'nettoyage-tapis':       `${BASE}/photo-1558618047-3c8c76ca7d13?auto=format&fit=crop&w=800&q=80`, // nettoyage tapis vapeur
+  'montage-meubles':       `${BASE}/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=800&q=80`, // montage meuble
+  'impermeabilisation':    `${BASE}/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=800&q=80`, // sous-sol imperméabilisé
 };
 
 // Fallback picsum stable par slug (jamais de 404)

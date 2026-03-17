@@ -1,5 +1,6 @@
 // src/pages/Services.tsx
 import React, { useEffect, useState, useRef } from "react";
+import SEO from "../components/SEO";
 import { useServices } from "../contexts/ServiceContext";
 import { useAuth } from "../contexts/AuthContext";
 import { Search, MapPin, LocateFixed, Loader, X, Check, Upload, ImagePlus, Trash2, Lock } from "lucide-react";
@@ -340,6 +341,11 @@ const Services = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen">
+      <SEO
+        title="Trouver un pro"
+        description="Publiez votre demande gratuitement et recevez des soumissions de prestataires vérifiés près de chez vous. Ménage, plomberie, déneigement, peinture et plus."
+        url="/services"
+      />
 
       {/* Hero */}
       <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-8 sm:py-12">

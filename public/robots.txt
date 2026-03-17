@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /profil
+Disallow: /connexion
+Disallow: /api/
+
+Sitemap: https://coupdemain.ca/sitemap.xml

@@ -1,7 +1,9 @@
 // src/pages/Home.tsx
 import { Link, useNavigate } from "react-router-dom";
-import { Search, ShieldCheck, ArrowRight, MapPin, FileText, Bell, Star } from "lucide-react";
+import { Search, ShieldCheck, ArrowRight, MapPin, FileText, Bell, Star, BarChart2, Users, ChevronDown, ChevronUp, Zap } from "lucide-react";
 import { getCategoryImage } from "../data/serviceImages";
+import { useState } from "react";
+import SEO from "../components/SEO";
 
 const popularCategories = [
   { slug: "menage-residentiel",  label: "Ménage résidentiel" },
@@ -14,11 +16,60 @@ const popularCategories = [
   { slug: "demenagement",        label: "Déménagement" },
 ];
 
+const testimonials = [
+  {
+    name: "Marie-Ève Tremblay",
+    location: "Montréal",
+    text: "J'ai reçu 4 soumissions en moins de 3 heures pour ma rénovation salle de bain. J'aurais jamais cru que ce serait aussi simple !",
+    rating: 5,
+    service: "Rénovation salle de bain",
+  },
+  {
+    name: "Jean-Philippe Côté",
+    location: "Québec",
+    text: "Fini d'appeler des entrepreneurs qui ne rappellent jamais. Là ils viennent à moi avec leurs prix. Ça change tout.",
+    rating: 5,
+    service: "Déneigement",
+  },
+  {
+    name: "Isabelle Lavoie",
+    location: "Laval",
+    text: "Le prestataire était vérifié, ponctuel et le prix était juste. Je recommande à toutes mes amies.",
+    rating: 5,
+    service: "Ménage résidentiel",
+  },
+];
+
+const faqs = [
+  {
+    q: "Est-ce vraiment gratuit pour les clients ?",
+    a: "Oui, à 100%. Poster une demande, recevoir des soumissions et choisir un prestataire ne vous coûte rien. Les prestataires paient une petite commission seulement lorsqu'une offre est acceptée.",
+  },
+  {
+    q: "Comment les prestataires sont-ils vérifiés ?",
+    a: "Chaque prestataire soumet une pièce d'identité que notre équipe valide manuellement. Une fois approuvé, il reçoit un badge « Vérifié » visible sur son profil. Les avis sont aussi vérifiés — seuls les clients ayant complété un service peuvent en laisser.",
+  },
+  {
+    q: "En combien de temps reçoit-on des offres ?",
+    a: "Généralement entre 2 et 24 heures. Les prestataires de votre région reçoivent une notification instantanée dès que vous publiez une demande.",
+  },
+  {
+    q: "Que se passe-t-il si le prestataire ne se présente pas ?",
+    a: "Le paiement est sécurisé via notre plateforme. Si le service n'est pas rendu, nous avons un processus de remboursement. Vous pouvez aussi laisser un avis qui aide toute la communauté.",
+  },
+  {
+    q: "Je suis prestataire — comment ça fonctionne pour moi ?",
+    a: "Vous créez un profil gratuit, activez les catégories de services que vous offrez, et recevez des notifications pour les nouvelles demandes dans votre région. Vous soumissionnez sur celles qui vous intéressent. Vous ne payez une commission que si votre offre est acceptée.",
+  },
+];
+
 const Home = () => {
   const navigate = useNavigate();
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   return (
     <div className="bg-white">
+      <SEO url="/" />
 
       {/* ── Hero ── */}
       <div
@@ -169,6 +220,89 @@ const Home = () => {
         </div>
       </div>
 
+      {/* ── Témoignages ── */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Ce que disent nos clients</h2>
+          <p className="text-gray-500 mt-2 text-sm">Des milliers de Québécois ont déjà fait confiance à Coupdemain.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {testimonials.map(t => (
+            <div key={t.name} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4">
+              <div className="flex gap-0.5">
+                {[...Array(t.rating)].map((_, i) => (
+                  <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                ))}
+              </div>
+              <p className="text-gray-700 text-sm leading-relaxed flex-1">"{t.text}"</p>
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">{t.name}</p>
+                <p className="text-xs text-gray-400">{t.location} · {t.service}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Pour les prestataires ── */}
+      <div className="bg-gray-50 py-14 sm:py-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-coupdemain-primary/10 text-coupdemain-primary rounded-full px-4 py-1.5 text-sm font-medium mb-5">
+                <Zap className="w-3.5 h-3.5" /> Pour les prestataires
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
+                Développez votre clientèle,
+                <br />
+                <span className="text-coupdemain-primary">gérez-la comme un pro.</span>
+              </h2>
+              <p className="text-gray-600 mb-6 text-sm sm:text-base leading-relaxed">
+                Coupdemain n'est pas juste un endroit pour trouver des clients — c'est votre outil de gestion. Suivez vos revenus, gardez un historique de chaque client, configurez des rappels de suivi. Tout ça dans un seul tableau de bord.
+              </p>
+              <div className="space-y-3 mb-8">
+                {[
+                  { icon: <Bell className="w-4 h-4 text-coupdemain-primary" />, text: "Recevez des demandes dans votre rayon de service" },
+                  { icon: <Users className="w-4 h-4 text-coupdemain-primary" />, text: "CRM intégré : fiches clients, pipeline, notes" },
+                  { icon: <BarChart2 className="w-4 h-4 text-coupdemain-primary" />, text: "Tableau de bord revenus et statistiques" },
+                  { icon: <ShieldCheck className="w-4 h-4 text-coupdemain-primary" />, text: "Badge vérifié pour inspirer confiance" },
+                ].map(item => (
+                  <div key={item.text} className="flex items-center gap-3">
+                    <div className="w-7 h-7 bg-coupdemain-primary/10 rounded-lg flex items-center justify-center shrink-0">
+                      {item.icon}
+                    </div>
+                    <p className="text-sm text-gray-700">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+              <Link
+                to="/inscription"
+                className="inline-flex items-center gap-2 bg-coupdemain-primary text-white font-semibold px-6 py-3 rounded-xl text-sm hover:bg-coupdemain-primary/90 transition shadow-sm"
+              >
+                Créer mon profil prestataire gratuitement
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { label: "Revenus suivis", value: "Mois par mois", icon: <BarChart2 className="w-7 h-7 text-emerald-500" />, bg: "bg-emerald-50" },
+                { label: "Clients gérés", value: "Pipeline visuel", icon: <Users className="w-7 h-7 text-blue-500" />, bg: "bg-blue-50" },
+                { label: "Rappels auto", value: "Ne perdez rien", icon: <Bell className="w-7 h-7 text-amber-500" />, bg: "bg-amber-50" },
+                { label: "Zéro abonnement", value: "Payez seulement si ça marche", icon: <Zap className="w-7 h-7 text-purple-500" />, bg: "bg-purple-50" },
+              ].map(card => (
+                <div key={card.label} className={`${card.bg} rounded-2xl p-5 flex flex-col gap-3`}>
+                  {card.icon}
+                  <div>
+                    <p className="font-bold text-gray-900 text-sm">{card.label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{card.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ── Pourquoi Coupdemain ── */}
       <div className="relative bg-gradient-to-br from-green-950 via-green-900 to-teal-900 py-16 sm:py-24 overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-green-400/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -233,6 +367,57 @@ const Home = () => {
             <Link
               to="/inscription"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border border-white/25 text-white font-medium px-7 py-3.5 rounded-xl hover:bg-white/10 transition-all text-sm"
+            >
+              Je suis prestataire
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+      {/* ── FAQ ── */}
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Questions fréquentes</h2>
+        </div>
+        <div className="space-y-3">
+          {faqs.map((faq, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <button
+                onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                className="w-full flex items-center justify-between p-5 text-left"
+              >
+                <span className="font-semibold text-gray-900 text-sm pr-4">{faq.q}</span>
+                {openFaq === i
+                  ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                  : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                }
+              </button>
+              {openFaq === i && (
+                <div className="px-5 pb-5">
+                  <p className="text-sm text-gray-600 leading-relaxed">{faq.a}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── CTA final ── */}
+      <div className="bg-gradient-to-r from-coupdemain-primary to-emerald-600 py-14 sm:py-16">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center text-white">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3">Prêt à recevoir vos premières soumissions ?</h2>
+          <p className="text-white/80 mb-8 text-sm sm:text-base">Publiez votre demande en 2 minutes. C'est gratuit.</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              to="/services"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-coupdemain-primary font-bold px-8 py-3.5 rounded-xl shadow-lg hover:bg-white/95 transition text-sm"
+            >
+              <FileText className="w-4 h-4" />
+              Publier une demande gratuitement
+            </Link>
+            <Link
+              to="/inscription"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 border border-white/40 text-white font-medium px-8 py-3.5 rounded-xl hover:bg-white/10 transition text-sm"
             >
               Je suis prestataire
               <ArrowRight className="w-4 h-4" />

@@ -1,6 +1,7 @@
 // src/pages/Connexion.tsx
 
 import { useState } from "react";
+import SEO from "../components/SEO";
 import { Link, useNavigate } from "react-router-dom";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple, FaFacebookF } from "react-icons/fa";
@@ -48,6 +49,7 @@ const Connexion = () => {
 
   return (
     <div className="min-h-screen flex">
+      <SEO title="Connexion" url="/connexion" noIndex />
 
       {/* ── Panneau gauche : gradient ── */}
       <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-green-950 via-green-900 to-teal-900 relative overflow-hidden flex-col justify-between p-14">

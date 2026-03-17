@@ -14,6 +14,7 @@ from .views import (
     create_checkout_session, stripe_webhook,
     submit_identity, PortfolioPhotoViewSet,
     download_contract,
+    CRMViewSet, crm_stats, crm_revenue_chart, crm_notes, crm_note_detail,
 )
 
 router = DefaultRouter()
@@ -28,10 +29,17 @@ router.register(r'availabilities', AvailabilityViewSet, basename='availability')
 router.register(r'service-requests', ServiceRequestViewSet, basename='service-request')
 router.register(r'bids', BidViewSet, basename='bid')
 router.register(r'portfolio', PortfolioPhotoViewSet, basename='portfolio')
+router.register(r'crm', CRMViewSet, basename='crm')
 
 urlpatterns = [
+    # CRM custom paths AVANT le router (évite que crm/<pk>/ intercepte crm/stats/ etc.)
+    path('crm/stats/', crm_stats, name='crm_stats'),
+    path('crm/revenue-chart/', crm_revenue_chart, name='crm_revenue_chart'),
+    path('crm/<int:client_pk>/notes/', crm_notes, name='crm_notes'),
+    path('crm/<int:client_pk>/notes/<int:note_pk>/', crm_note_detail, name='crm_note_detail'),
+
     path('', include(router.urls)),
-    
+
     # Authentification JWT
     path('auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

@@ -3,7 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Coupdemain</title>
+
+    <!-- Titre et description par défaut (remplacés dynamiquement par react-helmet-async) -->
+    <title>Coupdemain — Soumissions gratuites de pros locaux</title>
+    <meta name="description" content="Décrivez votre projet, recevez des soumissions de pros vérifiés de votre région. Gratuit pour les clients. Service au Québec et au Canada." />
+
+    <!-- Open Graph par défaut -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:site_name"   content="Coupdemain" />
+    <meta property="og:title"       content="Coupdemain — Soumissions gratuites de pros locaux" />
+    <meta property="og:description" content="Décrivez votre projet, recevez des soumissions de pros vérifiés de votre région. Gratuit pour les clients." />
+    <meta property="og:image"       content="https://coupdemain.ca/og-image.jpg" />
+    <meta property="og:url"         content="https://coupdemain.ca" />
+    <meta property="og:locale"      content="fr_CA" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:title"       content="Coupdemain — Soumissions gratuites de pros locaux" />
+    <meta name="twitter:description" content="Décrivez votre projet, recevez des soumissions de pros vérifiés de votre région." />
+    <meta name="twitter:image"       content="https://coupdemain.ca/og-image.jpg" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#16a34a" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Données structurées JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Coupdemain",
+      "url": "https://coupdemain.ca",
+      "description": "Plateforme de mise en relation entre clients et prestataires de services au Québec.",
+      "inLanguage": "fr-CA",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://coupdemain.ca/services?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
