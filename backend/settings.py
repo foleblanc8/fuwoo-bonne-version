@@ -142,10 +142,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'fuwoo_api.CustomUser'
 
 # CORS settings pour permettre les requêtes du frontend
+_cors_extra = [o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://localhost:5173",  # Vite dev server
-]
+    "http://localhost:5173",
+] + _cors_extra
 
 # Media files
 MEDIA_URL = '/media/'

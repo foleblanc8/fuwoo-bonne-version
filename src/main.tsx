@@ -36,7 +36,10 @@ import { ToastProvider } from "./contexts/ToastContext";
 import ToastContainer from "./components/Toast";
 import "./index.css";
 
-axios.defaults.baseURL = "/api/";
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api/`
+  : '/api/';
+axios.defaults.baseURL = API_BASE;
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
