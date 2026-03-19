@@ -63,11 +63,9 @@ const AppTree = (
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <HelmetProvider>
-      {GOOGLE_CLIENT_ID ? (
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-          {AppTree}
-        </GoogleOAuthProvider>
-      ) : AppTree}
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        {AppTree}
+      </GoogleOAuthProvider>
     </HelmetProvider>
   </React.StrictMode>
 );
