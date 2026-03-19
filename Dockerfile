@@ -16,5 +16,5 @@ COPY . .
 EXPOSE 8000
 
 CMD python3 manage.py migrate --noinput && \
-    python3 manage.py collectstatic --noinput && \
+    python3 manage.py collectstatic --noinput --clear; \
     gunicorn backend.wsgi --workers 2 --threads 4 --bind 0.0.0.0:${PORT:-8000}
