@@ -43,25 +43,31 @@ axios.defaults.baseURL = API_BASE;
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
+const AppTree = (
+  <BrowserRouter>
+    <AuthProvider>
+      <ToastProvider>
+        <NotificationProvider>
+          <ServiceProvider>
+            <BookingProvider>
+              <App />
+              <ToastContainer />
+            </BookingProvider>
+          </ServiceProvider>
+        </NotificationProvider>
+      </ToastProvider>
+    </AuthProvider>
+  </BrowserRouter>
+);
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <HelmetProvider>
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <BrowserRouter>
-        <AuthProvider>
-          <ToastProvider>
-            <NotificationProvider>
-              <ServiceProvider>
-                <BookingProvider>
-                  <App />
-                  <ToastContainer />
-                </BookingProvider>
-              </ServiceProvider>
-            </NotificationProvider>
-          </ToastProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </GoogleOAuthProvider>
+      {GOOGLE_CLIENT_ID ? (
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+          {AppTree}
+        </GoogleOAuthProvider>
+      ) : AppTree}
     </HelmetProvider>
   </React.StrictMode>
 );
