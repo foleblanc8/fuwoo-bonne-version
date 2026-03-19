@@ -4,6 +4,9 @@ set -e
 echo "=== Migrate ==="
 python3 manage.py migrate --noinput
 
+echo "=== Fixtures ==="
+python3 manage.py loaddata categories || echo "fixtures already loaded"
+
 echo "=== Collectstatic ==="
 python3 manage.py collectstatic --noinput --clear || echo "collectstatic warning (non-fatal)"
 
