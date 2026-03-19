@@ -1,2 +1,1 @@
-web: gunicorn backend.wsgi --workers 2 --threads 4 --bind 0.0.0.0:$PORT
-release: python manage.py migrate --noinput && python manage.py collectstatic --noinput
+web: python3 manage.py migrate --noinput && python3 manage.py collectstatic --noinput && gunicorn backend.wsgi --workers 2 --threads 4 --bind 0.0.0.0:$PORT
