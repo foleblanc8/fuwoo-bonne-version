@@ -23,12 +23,13 @@ export default async function globalSetup() {
         const elapsed = ((Date.now() - start) / 1000).toFixed(1);
         console.log(`✅ Railway prêt en ${elapsed}s`);
 
-        // Ping aussi l'endpoint auth pour le sortir du froid
+        // Ping aussi l'endpoint auth pour le sortir du froid (401 attendu, on ignore)
+        process.stdout.write(' — ping auth...');
         await ctx.post('/api/auth/login/', {
           data: { username: '_warmup_', password: '_warmup_' },
-          timeout: 15_000,
-        }).catch(() => {}); // 400/401 attendu, on ignore
-        console.log('✅ Auth endpoint pingé\n');
+          timeout: 30_000,
+        }).catch(() => {});
+        console.log(' ✅ Auth prêt\n');
 
         await ctx.dispose();
         return;
