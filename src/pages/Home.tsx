@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Search, ShieldCheck, ArrowRight, MapPin, FileText, Bell, Star, BarChart2, Users, ChevronDown, ChevronUp, Zap } from "lucide-react";
 import { getCategoryImage } from "../data/serviceImages";
+import { getCategoryStyle } from "../data/categoryStyles";
 import { useState } from "react";
 import SEO from "../components/SEO";
 
@@ -198,24 +199,34 @@ const Home = () => {
           </div>
 
           <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-            {popularCategories.map(cat => (
-              <Link
-                key={cat.slug}
-                to="/services"
-                className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 transition-all duration-300"
-              >
-                <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-                  <img
-                    src={getCategoryImage(cat.slug)}
-                    alt={cat.label}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <div className="p-3 sm:p-4">
-                  <p className="font-semibold text-gray-900 text-sm leading-snug">{cat.label}</p>
-                </div>
-              </Link>
-            ))}
+            {popularCategories.map(cat => {
+              const style = getCategoryStyle(cat.slug);
+              const Icon = style.icon;
+              return (
+                <Link
+                  key={cat.slug}
+                  to="/services"
+                  className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg border border-gray-100 hover:-translate-y-1 transition-all duration-300"
+                >
+                  <div className="relative h-32 sm:h-36 overflow-hidden">
+                    <img
+                      src={getCategoryImage(cat.slug)}
+                      alt={cat.label}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className={`absolute inset-0 bg-gradient-to-br ${style.gradient} opacity-70`} />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-14 h-14 bg-white/25 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 backdrop-blur-sm">
+                        <Icon className="w-7 h-7 text-white drop-shadow-sm" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3 sm:p-4">
+                    <p className="font-bold text-gray-900 text-sm leading-snug">{cat.label}</p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </div>
