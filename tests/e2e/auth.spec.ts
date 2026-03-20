@@ -45,8 +45,19 @@ test.describe('Formulaire de connexion', () => {
     await page.getByPlaceholder('marie_tremblay').fill(TEST_USER);
     await page.locator('input[type="password"]').first().fill(TEST_PASS);
     await page.getByRole('button', { name: /se connecter/i }).click();
-    // Railway peut prendre jusqu'à 60s au cold start
-    await expect(page).toHaveURL(/dashboard/, { timeout: 60_000 });
+
+    // Attendre soit la navigation vers /dashboard, soit un message d'erreur
+    await Promise.race([
+      page.waitForURL(/dashboard/, { timeout: 60_000 }),
+      page.waitForSelector('[class*="bg-red"]', { timeout: 60_000 }),
+    ]);
+
+    // Si on est encore sur /connexion → afficher l'erreur lisible
+    if (!page.url().includes('dashboard')) {
+      const errMsg = await page.locator('[class*="bg-red"]').textContent().catch(() => '');
+      throw new Error(`Login échoué: "${errMsg.trim()}" — vérifie tes credentials TEST_USERNAME/TEST_PASSWORD`);
+    }
+
     await expect(page.getByText(/bonjour/i)).toBeVisible();
   });
 

@@ -11,17 +11,25 @@ export default async function globalSetup() {
 
   const ctx = await request.newContext({ baseURL: RAILWAY_URL });
 
-  // Retry jusqu'à 90s le temps que Railway se réveille
-  const MAX_WAIT = 90_000;
+  // Retry jusqu'à 120s le temps que Railway se réveille
+  const MAX_WAIT = 120_000;
   const INTERVAL = 3_000;
   let lastError = '';
 
   while (Date.now() - start < MAX_WAIT) {
     try {
-      const res = await ctx.get('/api/categories/', { timeout: 8_000 });
+      const res = await ctx.get('/api/categories/', { timeout: 10_000 });
       if (res.ok()) {
         const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-        console.log(`✅ Railway prêt en ${elapsed}s\n`);
+        console.log(`✅ Railway prêt en ${elapsed}s`);
+
+        // Ping aussi l'endpoint auth pour le sortir du froid
+        await ctx.post('/api/auth/login/', {
+          data: { username: '_warmup_', password: '_warmup_' },
+          timeout: 15_000,
+        }).catch(() => {}); // 400/401 attendu, on ignore
+        console.log('✅ Auth endpoint pingé\n');
+
         await ctx.dispose();
         return;
       }
