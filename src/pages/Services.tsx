@@ -35,6 +35,8 @@ function RequestModal({
 }) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const categoryStyle = getCategoryStyle(category.slug);
+  const CategoryIcon = categoryStyle.icon;
 
   const [title, setTitle]           = useState(category.name);
   const [description, setDescription] = useState('');
@@ -114,7 +116,9 @@ function RequestModal({
           <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">{CATEGORY_EMOJI[category.slug] ?? '🛠️'}</span>
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${categoryStyle.gradient} flex items-center justify-center`}>
+                  <CategoryIcon className="w-5 h-5 text-white" />
+                </div>
               <div>
                 <h2 className="text-lg font-bold text-gray-900">{category.name}</h2>
                 <p className="text-xs text-gray-400">{category.provider_count} prestataire{category.provider_count !== 1 ? 's' : ''} offre{category.provider_count !== 1 ? 'nt' : '  '} ce service</p>
