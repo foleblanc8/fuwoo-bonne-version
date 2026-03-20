@@ -81,11 +81,25 @@ const PolitiqueConfidentialite = () => {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-3">6. Cookies</h2>
-        <p className="text-gray-600 leading-relaxed">
+        <h2 className="text-xl font-semibold text-gray-800 mb-3">6. Cookies et outils analytiques tiers</h2>
+        <p className="text-gray-600 leading-relaxed mb-3">
           La Plateforme utilise des cookies essentiels au fonctionnement du service (authentification,
-          session) et des cookies analytiques pour améliorer l'expérience utilisateur. Vous pouvez
-          désactiver les cookies non essentiels via les paramètres de votre navigateur.
+          session) et des outils analytiques pour améliorer l'expérience utilisateur.
+        </p>
+        <p className="text-gray-600 leading-relaxed mb-3">
+          Nous utilisons notamment <strong>Microsoft Clarity</strong> (Microsoft Corporation), un outil
+          d'analyse comportementale qui enregistre des données de navigation anonymisées (mouvements de
+          souris, clics, pages visitées, durée des sessions) afin d'améliorer l'ergonomie de la
+          Plateforme. Microsoft Clarity peut stocker des données sur des serveurs situés hors du Canada.
+          Pour en savoir plus :{" "}
+          <a href="https://privacy.microsoft.com/fr-ca/privacystatement" target="_blank" rel="noopener noreferrer"
+            className="text-emerald-600 hover:underline">
+            Politique de confidentialité Microsoft
+          </a>.
+        </p>
+        <p className="text-gray-600 leading-relaxed">
+          Vous pouvez désactiver les cookies non essentiels via les paramètres de votre navigateur.
+          Cela peut affecter certaines fonctionnalités de la Plateforme.
         </p>
       </section>
 

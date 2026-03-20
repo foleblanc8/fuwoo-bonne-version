@@ -77,10 +77,11 @@ const ConditionsUtilisation = () => {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-3">3. Responsabilité des Prestataires</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-3">3. Statut des Prestataires — Travailleurs autonomes</h2>
         <p className="text-gray-600 leading-relaxed mb-3">
-          Les Prestataires inscrits sur la Plateforme exercent leur activité de manière totalement
-          indépendante. À ce titre :
+          Les Prestataires inscrits sur la Plateforme exercent leur activité à titre de{" "}
+          <strong>travailleurs autonomes indépendants</strong>. Aucune relation d'emploi, de mandat
+          ou de société n'existe entre Coupdemain et les Prestataires. À ce titre :
         </p>
         <ul className="list-disc list-inside text-gray-600 space-y-2 leading-relaxed">
           <li>
@@ -88,8 +89,17 @@ const ConditionsUtilisation = () => {
             d'une prestation est de la <strong>responsabilité exclusive du Prestataire</strong>.
           </li>
           <li>
+            Les Prestataires sont seuls responsables de leur couverture auprès de la{" "}
+            <strong>Commission des normes, de l'équité, de la santé et de la sécurité du travail
+            (CNESST)</strong>. Coupdemain ne souscrit aucune couverture CNESST pour les Prestataires
+            et ne peut être tenu responsable d'un accident de travail survenu lors d'une prestation.
+          </li>
+          <li>
             Le Prestataire est seul responsable de disposer des assurances, licences et
-            certifications requises pour exercer son activité.
+            certifications requises pour exercer son activité. <strong>Coupdemain ne vérifie pas
+            l'existence ni la validité de ces assurances</strong> et ne garantit pas que le Prestataire
+            en détient effectivement. Il appartient au Client de valider ces informations avant
+            d'autoriser le début des travaux.
           </li>
           <li>
             Le Prestataire s'engage à respecter toutes les lois et réglementations applicables
@@ -133,7 +143,35 @@ const ConditionsUtilisation = () => {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-3">6. Obligations des Prestataires</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-3">6. Âge minimum requis</h2>
+        <p className="text-gray-600 leading-relaxed mb-3">
+          L'utilisation de la Plateforme est autorisée dès l'âge de <strong>14 ans</strong>, sous réserve
+          des conditions suivantes :
+        </p>
+        <ul className="list-disc list-inside text-gray-600 space-y-2 leading-relaxed">
+          <li>
+            Les utilisateurs de moins de 18 ans doivent avoir obtenu le{" "}
+            <strong>consentement d'un parent ou tuteur légal</strong> avant de s'inscrire et d'utiliser
+            la Plateforme, conformément au <em>Code civil du Québec</em>.
+          </li>
+          <li>
+            Les Prestataires mineurs (14-17 ans) peuvent offrir des services de nature simple et
+            non réglementée (ex. : tonte de pelouse, déneigement, ménage, livraison, gardiennage),
+            sous la supervision et la responsabilité de leurs parents ou tuteurs légaux.
+          </li>
+          <li>
+            Les travaux réglementés (électricité, plomberie, construction, etc.) sont réservés
+            aux Prestataires majeurs (18 ans et plus) détenant les licences requises.
+          </li>
+          <li>
+            Coupdemain se réserve le droit de demander une confirmation du consentement parental
+            pour tout compte d'utilisateur mineur.
+          </li>
+        </ul>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-gray-800 mb-3">7. Obligations des Prestataires</h2>
         <ul className="list-disc list-inside text-gray-600 space-y-2 leading-relaxed">
           <li>Détenir une assurance responsabilité civile professionnelle en vigueur ;</li>
           <li>Honorer les réservations confirmées, sauf cas de force majeure ;</li>
@@ -144,7 +182,7 @@ const ConditionsUtilisation = () => {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-3">7. Propriété intellectuelle</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-3">8. Propriété intellectuelle</h2>
         <p className="text-gray-600 leading-relaxed">
           L'ensemble des éléments constituant la Plateforme (marque, logo, textes, interfaces,
           code source) est la propriété exclusive de Coupdemain et est protégé par les lois
@@ -154,7 +192,7 @@ const ConditionsUtilisation = () => {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-3">8. Résiliation de compte</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-3">9. Résiliation de compte</h2>
         <p className="text-gray-600 leading-relaxed">
           Coupdemain se réserve le droit de suspendre ou résilier tout compte en cas de violation
           des présentes conditions, de comportement frauduleux, d'abus signalés ou de toute
@@ -164,7 +202,7 @@ const ConditionsUtilisation = () => {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-3">9. Droit applicable et juridiction</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-3">10. Droit applicable et juridiction</h2>
         <p className="text-gray-600 leading-relaxed">
           Les présentes conditions sont régies par les lois de la province de Québec et les lois
           fédérales du Canada applicables. Tout litige sera soumis à la compétence exclusive des
@@ -173,7 +211,7 @@ const ConditionsUtilisation = () => {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-3">10. Modifications</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-3">11. Modifications</h2>
         <p className="text-gray-600 leading-relaxed">
           Coupdemain se réserve le droit de modifier les présentes conditions à tout moment.
           Les utilisateurs seront informés par courriel ou par notification sur la Plateforme.
@@ -183,7 +221,7 @@ const ConditionsUtilisation = () => {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-3">11. Contact</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-3">12. Contact</h2>
         <p className="text-gray-600 leading-relaxed">
           Pour toute question relative aux présentes conditions, contactez-nous à :{" "}
           <a href="mailto:legal@coupdemain.ca" className="text-emerald-600 hover:underline">
