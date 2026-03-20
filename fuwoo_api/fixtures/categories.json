@@ -2,141 +2,141 @@
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 1,
-    "fields": { "name": "Ménage résidentiel", "slug": "menage-residentiel", "icon": "sparkles", "description": "Nettoyage régulier de votre domicile.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Ménage résidentiel", "slug": "menage-residentiel", "icon": "sparkles", "description": "Aspiration, nettoyage des surfaces, salles de bain et cuisine — une maison impeccable à votre rythme.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 2,
-    "fields": { "name": "Nettoyage en profondeur", "slug": "nettoyage-profondeur", "icon": "shield-check", "description": "Nettoyage complet et minutieux de votre espace.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Nettoyage en profondeur", "slug": "nettoyage-profondeur", "icon": "shield-check", "description": "Grand ménage complet : réfrigérateur, four, joints, recoins oubliés — tout ce qu'on ne nettoie pas souvent.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 3,
-    "fields": { "name": "Tonte de pelouse", "slug": "tonte-pelouse", "icon": "scissors", "description": "Entretien et tonte de votre gazon.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Tonte de pelouse", "slug": "tonte-pelouse", "icon": "scissors", "description": "Tonte, débroussaillage et bordures soignées — un gazon uniforme et bien entretenu tout l'été.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 4,
-    "fields": { "name": "Entretien de jardin", "slug": "entretien-jardin", "icon": "flower", "description": "Aménagement et entretien de jardins et plates-bandes.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Entretien de jardin", "slug": "entretien-jardin", "icon": "flower", "description": "Plantation, désherbage, taille de vivaces et entretien saisonnier de vos plates-bandes.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 5,
-    "fields": { "name": "Déneigement", "slug": "deneigement", "icon": "snowflake", "description": "Déblaiement de neige, entrée, trottoir et toiture.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Déneigement", "slug": "deneigement", "icon": "snowflake", "description": "Déblaiement de l'entrée, trottoir, escaliers et toiture après chaque tempête — abonnement ou à la demande.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 6,
-    "fields": { "name": "Peinture", "slug": "peinture", "icon": "paintbrush", "description": "Peinture intérieure et extérieure résidentielle.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Peinture", "slug": "peinture", "icon": "paintbrush", "description": "Murs, plafonds, boiseries et façades — une finition propre et professionnelle, intérieur comme extérieur.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 7,
-    "fields": { "name": "Plomberie", "slug": "plomberie", "icon": "wrench", "description": "Réparation, débouchage et installation sanitaire.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Plomberie", "slug": "plomberie", "icon": "wrench", "description": "Robinets qui coulent, drains bouchés, chauffe-eau, toilettes et installations sanitaires — licence RBQ.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 8,
-    "fields": { "name": "Électricité", "slug": "electricite", "icon": "zap", "description": "Installation de luminaires, prises et panneaux électriques.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Électricité", "slug": "electricite", "icon": "zap", "description": "Luminaires, prises, disjoncteurs et câblage résidentiel — travaux réalisés avec licence RBQ obligatoire.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 9,
-    "fields": { "name": "Déménagement", "slug": "demenagement", "icon": "truck", "description": "Transport et aide au déménagement local.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Déménagement", "slug": "demenagement", "icon": "truck", "description": "Transport de meubles et boîtes, chargement et déchargement soigneux — local ou courte distance.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 10,
-    "fields": { "name": "Lavage de vitres", "slug": "lavage-vitres", "icon": "droplets", "description": "Nettoyage de fenêtres intérieur et extérieur.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Lavage de vitres", "slug": "lavage-vitres", "icon": "droplets", "description": "Fenêtres intérieures et extérieures, cadres et moustiquaires — une vue dégagée toute l'année.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 11,
-    "fields": { "name": "Nettoyage de terrain", "slug": "nettoyage-terrain", "icon": "leaf", "description": "Ramassage de feuilles, branches, minéraux et débris extérieurs.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Nettoyage de terrain", "slug": "nettoyage-terrain", "icon": "leaf", "description": "Ramassage de feuilles, branches, pierres et débris — remise en état après l'hiver ou l'automne.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 12,
-    "fields": { "name": "Entretien de piscine", "slug": "entretien-piscine", "icon": "waves", "description": "Nettoyage, traitement de l'eau et hivernisation de piscine ou spa.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Entretien de piscine", "slug": "entretien-piscine", "icon": "waves", "description": "Nettoyage, équilibre chimique, ouverture et hivernisation de piscine creusée, hors-sol ou spa.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 13,
-    "fields": { "name": "Taille de haies", "slug": "taille-haies", "icon": "scissors", "description": "Taille de haies, arbustes et bordures végétales.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Taille de haies", "slug": "taille-haies", "icon": "scissors", "description": "Haies, cèdres, arbustes et bordures taillés avec précision pour un aspect soigné et bien défini.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 14,
-    "fields": { "name": "Élagage d'arbres", "slug": "elagage-arbres", "icon": "tree-pine", "description": "Taille, élagage et abattage d'arbres en toute sécurité.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Élagage d'arbres", "slug": "elagage-arbres", "icon": "tree-pine", "description": "Taille d'éclaircie, élagage sanitaire et abattage sécuritaire d'arbres de toutes tailles.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 15,
-    "fields": { "name": "Nettoyage de gouttières", "slug": "nettoyage-gouttieres", "icon": "funnel", "description": "Débouchage et nettoyage de gouttières et descentes de toiture.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Nettoyage de gouttières", "slug": "nettoyage-gouttieres", "icon": "funnel", "description": "Élimination des feuilles et obstructions pour protéger votre fondation, sous-sol et toiture.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 16,
-    "fields": { "name": "Nettoyage de terrasse", "slug": "nettoyage-terrasse", "icon": "home", "description": "Nettoyage à pression de terrasses, patios, allées et entrées.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Nettoyage de terrasse", "slug": "nettoyage-terrasse", "icon": "home", "description": "Lavage à pression de terrasses, patios, entrées de garage, allées et surfaces extérieures.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 17,
-    "fields": { "name": "Aménagement paysager", "slug": "amenagement-paysager", "icon": "map", "description": "Conception et installation de jardins, cours et espaces verts.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Aménagement paysager", "slug": "amenagement-paysager", "icon": "map", "description": "Conception et installation de jardins, gazon en rouleau, pierres décoratives et espaces verts.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 18,
-    "fields": { "name": "Extermination", "slug": "extermination", "icon": "bug", "description": "Traitement contre les insectes, rongeurs et parasites.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Extermination", "slug": "extermination", "icon": "bug", "description": "Traitement certifié contre fourmis, coquerelles, souris, punaises de lit et autres nuisibles.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 19,
-    "fields": { "name": "Menuiserie générale", "slug": "menuiserie", "icon": "hammer", "description": "Pose de portes, fenêtres, boiseries, armoires et réparations de charpente légère.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Menuiserie générale", "slug": "menuiserie", "icon": "hammer", "description": "Portes, fenêtres, boiseries, armoires et réparations de charpente légère — sans licence CCQ requise.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 20,
-    "fields": { "name": "Toiture — entretien et réparations", "slug": "toiture", "icon": "house", "description": "Inspection, réparations de bardeaux, remplacement de solin et entretien de toiture résidentielle.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Toiture — entretien et réparations", "slug": "toiture", "icon": "house", "description": "Inspection, remplacement de bardeaux, solin, évents et réparations de toiture résidentielle.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 21,
-    "fields": { "name": "Pose de planchers", "slug": "pose-planchers", "icon": "layout-grid", "description": "Installation de planchers de bois franc, stratifié, vinyle et flottant.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Pose de planchers", "slug": "pose-planchers", "icon": "layout-grid", "description": "Bois franc, stratifié, vinyle de luxe et plancher flottant — installation soignée et précise.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 22,
-    "fields": { "name": "Pose de céramique", "slug": "pose-ceramique", "icon": "grid-2x2", "description": "Carrelage et pose de céramique en cuisine, salle de bain et plancher.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Pose de céramique", "slug": "pose-ceramique", "icon": "grid-2x2", "description": "Carrelage de salle de bain, cuisine, entrée et plancher — joints parfaits, coupes nettes.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 23,
-    "fields": { "name": "Réparations générales", "slug": "reparations-generales", "icon": "wrench", "description": "Homme à tout faire : petites réparations, montage, installation et travaux divers.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Réparations générales", "slug": "reparations-generales", "icon": "wrench", "description": "Petites réparations, installations et travaux divers — votre homme à tout faire de confiance.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 24,
-    "fields": { "name": "Clôtures et terrasses", "slug": "clotures-terrasses", "icon": "fence", "description": "Construction, réparation et entretien de clôtures, terrasses, pergolas et patios.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Clôtures et terrasses", "slug": "clotures-terrasses", "icon": "fence", "description": "Construction et réparation de clôtures, terrasses en bois, pergolas et patios sur mesure.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 25,
-    "fields": { "name": "Calfeutrage et coupe-froid", "slug": "calfeutrage", "icon": "wind", "description": "Scellement de fenêtres, portes, joints et infiltrations d'air pour économiser sur le chauffage.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Calfeutrage et coupe-froid", "slug": "calfeutrage", "icon": "wind", "description": "Scellement de fenêtres, portes et joints pour bloquer les infiltrations d'air et réduire votre facture.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 26,
-    "fields": { "name": "Nettoyage de tapis", "slug": "nettoyage-tapis", "icon": "sparkles", "description": "Nettoyage à la vapeur et shampooing de tapis, moquettes et carpettes.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Nettoyage de tapis", "slug": "nettoyage-tapis", "icon": "sparkles", "description": "Nettoyage vapeur professionnel de tapis, moquettes et carpettes — résultats visibles, sans résidus.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 27,
-    "fields": { "name": "Montage de meubles", "slug": "montage-meubles", "icon": "box", "description": "Assemblage de meubles IKEA et autres, installation d'étagères et fixations murales.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Montage de meubles", "slug": "montage-meubles", "icon": "box", "description": "Assemblage IKEA et autres marques, installation d'étagères et fixations murales sécurisées.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   },
   {
     "model": "fuwoo_api.servicecategory",
     "pk": 28,
-    "fields": { "name": "Imperméabilisation", "slug": "impermeabilisation", "icon": "droplets", "description": "Protection contre l'humidité : drain français, membrane, sous-sol et fondations.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
+    "fields": { "name": "Imperméabilisation", "slug": "impermeabilisation", "icon": "droplets", "description": "Drain français, membrane d'étanchéité et protection contre l'humidité au sous-sol et aux fondations.", "is_active": true, "created_at": "2026-01-01T00:00:00Z" }
   }
 ]
