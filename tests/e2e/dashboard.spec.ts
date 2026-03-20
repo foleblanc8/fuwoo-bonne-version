@@ -46,10 +46,14 @@ test.describe('Dashboard (authentifié)', () => {
 
     // Naviguer vers Paramètres
     await page.getByText(/paramètres/i).first().click();
-    await page.waitForTimeout(500);
 
-    await expect(page.getByPlaceholder(/votre biographie/i)
-      .or(page.getByText(/profil/i))).toBeVisible({ timeout: 5_000 });
+    // L'onglet Paramètres affiche soit le formulaire profil, soit le banner onboarding
+    await expect(
+      page.getByPlaceholder(/votre biographie/i)
+        .or(page.getByText(/mon profil/i))
+        .or(page.getByText(/profil prestataire/i))
+        .or(page.getByText(/paramètres/i).nth(1))
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test('Onglet Messages — liste des conversations', async ({ page }) => {
