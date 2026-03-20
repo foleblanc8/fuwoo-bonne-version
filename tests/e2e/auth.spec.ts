@@ -35,16 +35,18 @@ test.describe('Formulaire de connexion', () => {
   });
 
   test('Lien "S\'inscrire" navigue vers /inscription', async ({ page }) => {
-    await page.getByText(/s'inscrire gratuitement/i).click();
-    await expect(page).toHaveURL(/inscription/);
+    // Utiliser le lien par son href plutôt que par son texte (apostrophe typographique)
+    await page.locator('a[href="/inscription"]').first().click();
+    await expect(page).toHaveURL(/inscription/, { timeout: 10_000 });
   });
 
-  test.skip(!TEST_USER, 'Connexion réelle (nécessite TEST_USERNAME et TEST_PASSWORD)');
   test('Connexion avec vrais identifiants → dashboard', async ({ page }) => {
+    test.skip(!TEST_USER, 'Nécessite TEST_USERNAME et TEST_PASSWORD');
     await page.getByPlaceholder('marie_tremblay').fill(TEST_USER);
     await page.locator('input[type="password"]').first().fill(TEST_PASS);
     await page.getByRole('button', { name: /se connecter/i }).click();
-    await expect(page).toHaveURL(/dashboard/, { timeout: 12_000 });
+    // Railway peut prendre jusqu'à 60s au cold start
+    await expect(page).toHaveURL(/dashboard/, { timeout: 60_000 });
     await expect(page.getByText(/bonjour/i)).toBeVisible();
   });
 

@@ -10,24 +10,26 @@ const TEST_PASS  = process.env.TEST_PASSWORD  ?? '';
 async function login(page: Page) {
   await page.goto('/connexion');
   await page.waitForLoadState('networkidle');
-  await page.getByPlaceholder(/marie_tremblay/i).fill(TEST_USER);
-  await page.getByPlaceholder(/••••••••/).fill(TEST_PASS);
+  await page.getByPlaceholder('marie_tremblay').fill(TEST_USER);
+  await page.locator('input[type="password"]').first().fill(TEST_PASS);
   await page.getByRole('button', { name: /se connecter/i }).click();
-  await expect(page).toHaveURL(/dashboard/, { timeout: 10_000 });
+  // Railway cold start peut prendre jusqu'à 60s
+  await expect(page).toHaveURL(/dashboard/, { timeout: 60_000 });
   await page.waitForLoadState('networkidle');
 }
 
-// Sauter tous les tests si pas de credentials
-test.skip(!TEST_USER || !TEST_PASS, 'Nécessite TEST_USERNAME et TEST_PASSWORD');
+// Note: test.skip dans chaque test individuellement pour compatibilité Playwright
 
 test.describe('Dashboard (authentifié)', () => {
 
   test('Charge et affiche le nom de l\'utilisateur', async ({ page }) => {
+    test.skip(!TEST_USER || !TEST_PASS, 'Nécessite TEST_USERNAME et TEST_PASSWORD');
     await login(page);
     await expect(page.getByText(/bonjour/i)).toBeVisible();
   });
 
   test('Les 5 onglets sont accessibles', async ({ page }) => {
+    test.skip(!TEST_USER || !TEST_PASS, 'Nécessite TEST_USERNAME et TEST_PASSWORD');
     await login(page);
 
     const tabs = ['Aperçu', 'Réservations', 'Messages', 'Services', 'Paramètres'];
@@ -39,6 +41,7 @@ test.describe('Dashboard (authentifié)', () => {
   });
 
   test('Onglet Paramètres — formulaire de profil visible', async ({ page }) => {
+    test.skip(!TEST_USER || !TEST_PASS, 'Nécessite TEST_USERNAME et TEST_PASSWORD');
     await login(page);
 
     // Naviguer vers Paramètres
@@ -50,6 +53,7 @@ test.describe('Dashboard (authentifié)', () => {
   });
 
   test('Onglet Messages — liste des conversations', async ({ page }) => {
+    test.skip(!TEST_USER || !TEST_PASS, 'Nécessite TEST_USERNAME et TEST_PASSWORD');
     await login(page);
     await page.getByText(/messages/i).first().click();
     await page.waitForTimeout(500);
@@ -60,6 +64,7 @@ test.describe('Dashboard (authentifié)', () => {
   });
 
   test('Déconnexion redirige vers l\'accueil', async ({ page }) => {
+    test.skip(!TEST_USER || !TEST_PASS, 'Nécessite TEST_USERNAME et TEST_PASSWORD');
     await login(page);
     await page.getByRole('button', { name: /déconnexion|se déconnecter/i }).first().click();
     await expect(page).toHaveURL('/', { timeout: 5_000 });

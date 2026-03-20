@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 30_000,
+  timeout: 60_000,
   retries: 1,
   reporter: [['html', { open: 'never' }], ['list']],
 
@@ -10,7 +10,7 @@ export default defineConfig({
     baseURL: process.env.BASE_URL ?? 'https://fuwoo-bonne-version.vercel.app',
     screenshot: 'only-on-failure',
     video: 'off',
-    actionTimeout: 10_000,
+    actionTimeout: 20_000,
   },
 
   projects: [
