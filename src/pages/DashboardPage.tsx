@@ -15,6 +15,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { useToast } from '../contexts/ToastContext';
 import { StatCardSkeleton, BookingCardSkeleton, ServiceCardSkeleton } from '../components/Skeleton';
 import { getCategoryImage } from '../data/serviceImages';
+import { getCategoryStyle } from '../data/categoryStyles';
 import axios from 'axios';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2938,7 +2939,7 @@ function ProviderOverviewTab() {
 function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
-  const [categories, setCategories] = useState<{ id: number; name: string; slug: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: number; name: string; slug: string; description?: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -3048,9 +3049,11 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
                   Sélectionnez les types de services pour lesquels vous acceptez des demandes de soumission.
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
                 {categories.map(cat => {
                   const isSelected = selectedCats.includes(cat.id);
+                  const style = getCategoryStyle(cat.slug);
+                  const Icon = style.icon;
                   return (
                     <button
                       key={cat.id}
@@ -3058,17 +3061,28 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
                       onClick={() => setSelectedCats(prev =>
                         isSelected ? prev.filter(id => id !== cat.id) : [...prev, cat.id]
                       )}
-                      className={`relative rounded-xl overflow-hidden border-2 transition-all text-left ${isSelected ? 'border-coupdemain-primary' : 'border-gray-100 hover:border-gray-200'}`}
+                      className={`relative rounded-xl overflow-hidden border-2 transition-all text-left ${isSelected ? 'border-coupdemain-primary shadow-md' : 'border-gray-100 hover:border-gray-300'}`}
                     >
+                      {/* Photo + gradient + icône */}
                       <div className="relative aspect-[3/2] overflow-hidden bg-gray-100">
                         <img src={getCategoryImage(cat.slug)} alt={cat.name} className="w-full h-full object-cover" />
+                        <div className={`absolute inset-0 bg-gradient-to-t ${style.gradient} opacity-80`} />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Icon className="w-8 h-8 text-white drop-shadow-lg" />
+                        </div>
                         {isSelected && (
-                          <div className="absolute inset-0 bg-coupdemain-primary/20 flex items-center justify-center">
-                            <CheckCircle className="w-8 h-8 text-white drop-shadow" />
+                          <div className="absolute top-2 right-2">
+                            <CheckCircle className="w-5 h-5 text-white drop-shadow" />
                           </div>
                         )}
                       </div>
-                      <p className="text-xs font-medium text-gray-900 px-2 py-1.5 leading-snug">{cat.name}</p>
+                      {/* Nom + description */}
+                      <div className="px-2.5 py-2">
+                        <p className="text-xs font-semibold text-gray-900 leading-snug">{cat.name}</p>
+                        {cat.description && (
+                          <p className="text-[10px] text-gray-400 mt-0.5 leading-snug line-clamp-2">{cat.description}</p>
+                        )}
+                      </div>
                     </button>
                   );
                 })}
