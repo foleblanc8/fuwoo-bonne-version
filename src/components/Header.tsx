@@ -37,7 +37,7 @@ const Header = () => {
               <Leaf className="w-4 h-4 text-white" />
             </div>
             <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-green-700 to-teal-600 bg-clip-text text-transparent">
-              Fuwoo
+              Coupdemain
             </span>
           </Link>
 
@@ -130,7 +130,7 @@ const Header = () => {
               <Leaf className="w-3.5 h-3.5 text-white" />
             </div>
             <span className="text-lg font-extrabold bg-gradient-to-r from-green-700 to-teal-600 bg-clip-text text-transparent">
-              Fuwoo
+              Coupdemain
             </span>
           </div>
           <button

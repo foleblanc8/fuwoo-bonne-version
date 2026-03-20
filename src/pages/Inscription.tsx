@@ -74,7 +74,7 @@ const Inscription = () => {
             <Leaf className="w-4 h-4 text-white" />
           </div>
           <span className="text-xl font-extrabold bg-gradient-to-r from-green-700 to-teal-600 bg-clip-text text-transparent">
-            Fuwoo
+            Coupdemain
           </span>
         </div>
 
@@ -82,14 +82,14 @@ const Inscription = () => {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Créer un compte</h1>
           <p className="text-gray-500 text-sm mt-1.5">
-            Rejoignez Fuwoo — la marketplace de services à domicile au Québec.
+            Rejoignez Coupdemain — la marketplace de services à domicile au Québec.
           </p>
         </div>
 
         {/* Sélecteur de rôle */}
         <div className="mb-6">
           <p className="text-xs font-semibold text-gray-500 mb-3 text-center uppercase tracking-widest">
-            Comment comptez-vous utiliser Fuwoo ?
+            Comment comptez-vous utiliser Coupdemain ?
           </p>
           <div className="grid grid-cols-2 gap-3">
             {/* Client */}

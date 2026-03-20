@@ -1895,7 +1895,7 @@ function ClientRequestsTab() {
                                   </span>
                                   <div className="flex flex-col gap-1.5 items-end">
                                     <p className="text-xs text-gray-400">
-                                      Commission Fuwoo {commissionRate(bid.price)}% incluse
+                                      Commission Coupdemain {commissionRate(bid.price)}% incluse
                                     </p>
                                     <button
                                       onClick={() => payBid(bid.id)}

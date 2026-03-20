@@ -17,6 +17,7 @@ import ConditionsUtilisation from "./pages/ConditionsUtilisation";
 import PolitiqueConfidentialite from "./pages/PolitiqueConfidentialite";
 import PolitiqueRemboursement from "./pages/PolitiqueRemboursement";
 import MentionsLegales from "./pages/MentionsLegales";
+import NotFound from "./pages/NotFound";
 
 const App = () => {
   return (
@@ -38,6 +39,7 @@ const App = () => {
         <Route path="/politique-confidentialite" element={<PolitiqueConfidentialite />} />
         <Route path="/politique-remboursement" element={<PolitiqueRemboursement />} />
         <Route path="/mentions-legales" element={<MentionsLegales />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
   );

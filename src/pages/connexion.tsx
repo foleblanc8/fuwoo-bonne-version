@@ -63,7 +63,7 @@ const Connexion = () => {
           <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center">
             <Leaf className="w-4.5 h-4.5 text-white" />
           </div>
-          <span className="text-xl font-extrabold text-white tracking-tight">Fuwoo</span>
+          <span className="text-xl font-extrabold text-white tracking-tight">Coupdemain</span>
         </div>
 
         {/* Contenu central */}
@@ -94,7 +94,7 @@ const Connexion = () => {
 
         {/* Bas de page */}
         <p className="relative z-10 text-green-400/50 text-xs">
-          © 2026 Fuwoo — Tous droits réservés
+          © 2026 Coupdemain — Tous droits réservés
         </p>
       </div>
 
@@ -108,13 +108,13 @@ const Connexion = () => {
               <Leaf className="w-4 h-4 text-white" />
             </div>
             <span className="text-xl font-extrabold bg-gradient-to-r from-green-700 to-teal-600 bg-clip-text text-transparent">
-              Fuwoo
+              Coupdemain
             </span>
           </div>
 
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Bon retour !</h1>
           <p className="text-gray-500 text-sm mb-8">
-            Connectez-vous à votre compte Fuwoo.
+            Connectez-vous à votre compte Coupdemain.
           </p>
 
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
