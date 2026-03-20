@@ -74,59 +74,62 @@ const Home = () => {
 
       {/* ── Hero ── */}
       <div
-        className="relative bg-cover bg-center"
+        className="relative bg-cover bg-center min-h-[580px] sm:min-h-[640px] flex items-center"
         style={{ backgroundImage: "url('https://images.unsplash.com/photo-1546552356-3fae876a61ca?auto=format&fit=crop&w=1600&q=80')" }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-green-950/80 via-green-900/60 to-teal-900/50" />
-        <div className="absolute top-16 right-1/4 w-72 h-72 bg-green-400/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/3 w-96 h-48 bg-teal-400/10 rounded-full blur-3xl" />
+        {/* Gradient gauche → transparent : laisse voir la photo à droite */}
+        <div className="absolute inset-0 bg-gradient-to-r from-green-950/95 via-green-900/80 to-green-900/30 sm:to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white/10 to-transparent" />
 
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24 md:py-32 text-center text-white">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium text-green-100 mb-6">
-            <MapPin className="w-3.5 h-3.5" />
-            Services locaux au Québec
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight tracking-tight">
-            Décrivez votre projet,
-            <br />
-            <span className="bg-gradient-to-r from-green-300 to-teal-300 bg-clip-text text-transparent">
-              recevez des soumissions.
-            </span>
-          </h1>
-          <p className="mt-5 text-base sm:text-lg md:text-xl text-white/75 max-w-xl mx-auto">
-            Des pros de votre région compétitionnent pour vous.
-            Fini les appels un par un — comparez et choisissez.
-          </p>
-
-          {/* Search */}
-          <div className="mt-8 sm:mt-10 max-w-xl mx-auto bg-white/10 backdrop-blur-xl border border-white/25 rounded-2xl p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shadow-2xl">
-            <div className="flex-1 flex items-center gap-2 bg-white rounded-xl px-4 py-3">
-              <Search className="w-4 h-4 text-gray-400 shrink-0" />
-              <input
-                type="text"
-                placeholder="Quel service cherchez-vous ?"
-                className="flex-1 text-gray-900 placeholder-gray-400 focus:outline-none text-sm bg-transparent"
-                onKeyDown={e => { if (e.key === 'Enter') navigate('/services'); }}
-              />
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-20 sm:py-28 text-white w-full">
+          <div className="max-w-lg">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 text-sm font-medium text-green-100 mb-6">
+              <MapPin className="w-3.5 h-3.5" />
+              Services résidentiels au Québec
             </div>
-            <Link
-              to="/services"
-              className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-teal-500 text-white px-5 py-3 rounded-xl font-semibold text-sm hover:from-green-600 hover:to-teal-600 transition-all shadow-sm"
-            >
-              Trouver un pro
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
 
-          {/* Stats */}
-          <div className="mt-8 sm:mt-10 flex items-center justify-center gap-4 sm:gap-8 text-sm text-white/60">
-            <span><strong className="text-white font-semibold">500+</strong> prestataires</span>
-            <span className="text-white/30">•</span>
-            <span><strong className="text-white font-semibold">100%</strong> gratuit pour les clients</span>
-            <span className="text-white/30">•</span>
-            <span><strong className="text-white font-semibold">2 min</strong> pour soumettre</span>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold leading-tight tracking-tight">
+              Trouvez le bon pro,
+              <br />
+              <span className="bg-gradient-to-r from-green-300 to-teal-300 bg-clip-text text-transparent">
+                pour n'importe quel travail.
+              </span>
+            </h1>
+
+            <p className="mt-5 text-base sm:text-lg text-white/80 leading-relaxed">
+              Publiez votre demande en 2 minutes. Des prestataires vérifiés
+              de votre région vous envoient leurs soumissions — <strong className="text-white font-semibold">gratuitement</strong>.
+            </p>
+
+            {/* Search */}
+            <div className="mt-8 bg-white/10 backdrop-blur-xl border border-white/25 rounded-2xl p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shadow-2xl">
+              <div className="flex-1 flex items-center gap-2 bg-white rounded-xl px-4 py-3">
+                <Search className="w-4 h-4 text-gray-400 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Quel service cherchez-vous ?"
+                  className="flex-1 text-gray-900 placeholder-gray-400 focus:outline-none text-sm bg-transparent"
+                  onKeyDown={e => { if (e.key === 'Enter') navigate('/services'); }}
+                />
+              </div>
+              <Link
+                to="/services"
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-teal-500 text-white px-5 py-3 rounded-xl font-semibold text-sm hover:from-green-600 hover:to-teal-600 transition-all shadow-sm whitespace-nowrap"
+              >
+                Trouver un pro
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Stats */}
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-white/70">
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded-full bg-green-400/30 flex items-center justify-center text-green-300 text-xs">✓</span> 100% gratuit pour les clients</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded-full bg-green-400/30 flex items-center justify-center text-green-300 text-xs">✓</span> Prestataires vérifiés</span>
+              <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded-full bg-green-400/30 flex items-center justify-center text-green-300 text-xs">✓</span> Réponse en moins de 24h</span>
+            </div>
           </div>
+        </div>
         </div>
       </div>
 
