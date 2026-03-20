@@ -10,6 +10,7 @@ import {
   Fence, Wind, Box, Paintbrush, Eye, Layers, Filter, Star,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { getCategoryImage } from "../data/serviceImages";
 import axios from "axios";
 
 // ─── Gradient + icône par catégorie ──────────────────────────────────────────
@@ -435,17 +436,28 @@ const Services = () => {
               return (
                 <button key={cat.id} onClick={() => setSelectedCategory(cat)}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg border border-gray-100 hover:-translate-y-1 transition-all duration-300 cursor-pointer text-left">
-                  {/* Gradient header */}
-                  <div className={`relative h-32 sm:h-36 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
+                  {/* Photo + overlay gradient + icône */}
+                  <div className="relative h-32 sm:h-36 overflow-hidden">
+                    <img
+                      src={getCategoryImage(cat.slug)}
+                      alt={cat.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    {/* Overlay gradient coloré semi-transparent */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${style.gradient} opacity-70`} />
+                    {/* Badge prestataires */}
                     {cat.provider_count > 0 && (
                       <div className="absolute top-3 right-3">
-                        <span className="bg-black/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur-sm">
+                        <span className="bg-black/25 text-white text-xs font-semibold px-2.5 py-1 rounded-full backdrop-blur-sm">
                           {cat.provider_count} pro{cat.provider_count !== 1 ? 's' : ''}
                         </span>
                       </div>
                     )}
-                    <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                      <Icon className="w-7 h-7 text-white" />
+                    {/* Icône centrée */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-14 h-14 bg-white/25 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 backdrop-blur-sm">
+                        <Icon className="w-7 h-7 text-white drop-shadow-sm" />
+                      </div>
                     </div>
                   </div>
                   {/* Contenu */}
