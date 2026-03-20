@@ -1682,9 +1682,87 @@ function ProviderRequestsTab() {
   );
 }
 
-// ─── Client Requests Tab ──────────────────────────────────────────────────────
+// ─── Edit Request Modal ────────────────────────────────────────────────────────
 
-function ClientRequestsTab() {
+function EditRequestModal({ req, onClose, onSave }: {
+  req: ServiceRequest;
+  onClose: () => void;
+  onSave: (updated: Partial<ServiceRequest>) => void;
+}) {
+  const [description, setDescription] = useState(req.description);
+  const [serviceArea, setServiceArea]  = useState(req.service_area);
+  const [preferredDates, setPreferredDates] = useState(req.preferred_dates);
+  const [submitting, setSubmitting]    = useState(false);
+  const [error, setError]              = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError('');
+    try {
+      const res = await axios.patch(`service-requests/${req.id}/`, {
+        description, service_area: serviceArea, preferred_dates: preferredDates,
+      });
+      onSave(res.data as Partial<ServiceRequest>);
+      onClose();
+    } catch {
+      setError('Impossible de modifier la demande. Veuillez réessayer.');
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Modifier la demande</h3>
+            <p className="text-sm text-gray-400 mt-0.5">{req.title}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 transition">
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Description du projet</label>
+            <textarea
+              rows={4} value={description} onChange={e => setDescription(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40 resize-none"
+              placeholder="Décrivez votre projet en détail..."
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Zone de service</label>
+            <input type="text" value={serviceArea} onChange={e => setServiceArea(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40"
+              placeholder="Ville, quartier..." />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Date souhaitée</label>
+            <input type="text" value={preferredDates} onChange={e => setPreferredDates(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40"
+              placeholder="Ex: 2026-05-15 à 10:00" />
+          </div>
+          {error && <p className="text-red-600 text-sm bg-red-50 px-3 py-2 rounded-xl">{error}</p>}
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-gray-200 text-gray-700 py-2.5 rounded-xl font-medium text-sm hover:bg-gray-50 transition">
+              Annuler
+            </button>
+            <button type="submit" disabled={submitting}
+              className="flex-1 bg-coupdemain-primary text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-coupdemain-primary/90 transition disabled:opacity-50">
+              {submitting ? 'Enregistrement…' : 'Enregistrer les modifications'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Client Projects Tab (Mes projets) ────────────────────────────────────────
+
+function ClientProjectsTab() {
   const [requests, setRequests]       = useState<ServiceRequest[]>([]);
   const [loading, setLoading]         = useState(true);
   const [expandedId, setExpandedId]   = useState<number | null>(null);
@@ -1693,9 +1771,11 @@ function ClientRequestsTab() {
   const [accepting, setAccepting]     = useState<number | null>(null);
   const [completing, setCompleting]   = useState<number | null>(null);
   const [paying, setPaying]           = useState<number | null>(null);
+  const [editingReq, setEditingReq]   = useState<ServiceRequest | null>(null);
   const [reviewBid, setReviewBid]     = useState<{ bid: Bid; providerName: string } | null>(null);
   const [reviewedBidIds, setReviewedBidIds] = useState<Set<number>>(new Set());
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -1733,7 +1813,8 @@ function ClientRequestsTab() {
           b.id === bidId ? { ...b, status: 'accepted' } : { ...b, status: 'rejected' }
         ),
       }));
-    } catch { /* silent */ }
+      showToast('Offre acceptée ! Vous pouvez maintenant procéder au paiement.', 'success');
+    } catch { showToast('Impossible d\'accepter l\'offre.', 'error'); }
     finally { setAccepting(null); }
   };
 
@@ -1743,8 +1824,7 @@ function ClientRequestsTab() {
       const res = await axios.post('payments/create-checkout/', { bid_id: bidId });
       window.location.href = (res.data as any).checkout_url;
     } catch (e: any) {
-      const msg = e?.response?.data?.detail ?? 'Erreur lors du paiement.';
-      showToast(msg, 'error');
+      showToast(e?.response?.data?.detail ?? 'Erreur lors du paiement.', 'error');
       setPaying(null);
     }
   };
@@ -1755,95 +1835,216 @@ function ClientRequestsTab() {
       await axios.post(`service-requests/${reqId}/complete/`);
       setRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'completed' } : r));
       showToast('Service marqué comme terminé !', 'success');
-    } catch {
-      showToast('Impossible de marquer comme terminé.', 'error');
-    } finally {
-      setCompleting(null);
-    }
+    } catch { showToast('Impossible de marquer comme terminé.', 'error'); }
+    finally { setCompleting(null); }
   };
 
   const commissionRate = (price: string) => {
     const p = parseFloat(price);
-    if (p <= 500)  return 15;
+    if (p <= 500) return 15;
     if (p <= 2000) return 12;
     return 10;
   };
 
-  const reqStatusBadge = (s: string) =>
-    ({ open: 'text-green-700 bg-green-100', awarded: 'text-blue-700 bg-blue-100', completed: 'text-emerald-700 bg-emerald-100', cancelled: 'text-red-600 bg-red-100' }[s] ?? 'text-gray-600 bg-gray-100');
-  const reqStatusLabel = (s: string) =>
-    ({ open: 'Ouvert', awarded: 'Attribué', completed: 'Terminé', closed: 'Fermé', cancelled: 'Annulé' }[s] ?? s);
+  // Helpers visuels par statut de la demande
+  const projectSteps = (req: ServiceRequest) => {
+    const reqBids = bids[req.id] ?? [];
+    const hasBids = req.bid_count > 0 || reqBids.length > 0;
+    const steps = [
+      { label: 'Demande envoyée', done: true },
+      { label: req.bid_count > 0 ? `${req.bid_count} offre${req.bid_count > 1 ? 's' : ''} reçue${req.bid_count > 1 ? 's' : ''}` : 'Offres reçues', done: hasBids },
+      { label: 'Pro sélectionné', done: req.status === 'awarded' || req.status === 'completed' },
+      { label: 'Terminé',         done: req.status === 'completed' },
+    ];
+    return steps;
+  };
+
+  const statusConfig = (req: ServiceRequest) => {
+    if (req.status === 'cancelled') return { label: 'Annulée', color: 'text-red-600 bg-red-50 border-red-100' };
+    if (req.status === 'completed') return { label: 'Terminé', color: 'text-emerald-700 bg-emerald-50 border-emerald-100' };
+    if (req.status === 'awarded')   return { label: 'Pro sélectionné', color: 'text-blue-700 bg-blue-50 border-blue-100' };
+    if (req.bid_count > 0)          return { label: `${req.bid_count} offre${req.bid_count > 1 ? 's' : ''} reçue${req.bid_count > 1 ? 's' : ''}`, color: 'text-yellow-700 bg-yellow-50 border-yellow-100' };
+    return { label: 'En attente de pros', color: 'text-gray-600 bg-gray-50 border-gray-200' };
+  };
+
   const bidStatusBadge = (s: string) =>
     ({ pending: 'text-yellow-700 bg-yellow-100', accepted: 'text-green-700 bg-green-100', rejected: 'text-red-600 bg-red-100' }[s] ?? 'text-gray-600 bg-gray-100');
   const bidStatusLabel = (s: string) =>
     ({ pending: 'En attente', accepted: 'Acceptée', rejected: 'Refusée' }[s] ?? s);
 
+  // Stats rapides
+  const total     = requests.length;
+  const active    = requests.filter(r => r.status === 'open').length;
+  const awarded   = requests.filter(r => r.status === 'awarded').length;
+  const completed = requests.filter(r => r.status === 'completed').length;
+
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Mes demandes</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Consultez les offres reçues et acceptez celle qui vous convient.</p>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Mes projets</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Suivez vos demandes et gérez vos pros.</p>
+        </div>
+        <button onClick={() => navigate('/services')}
+          className="flex items-center gap-2 bg-coupdemain-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition shadow-sm">
+          <Plus className="w-4 h-4" />Nouveau projet
+        </button>
       </div>
 
+      {/* Stat cards */}
+      {total > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+          {[
+            { label: 'Total',           value: total,     color: 'text-gray-900',    bg: 'bg-gray-50'     },
+            { label: 'En attente',      value: active,    color: 'text-blue-700',    bg: 'bg-blue-50'     },
+            { label: 'Pro sélectionné', value: awarded,   color: 'text-yellow-700',  bg: 'bg-yellow-50'   },
+            { label: 'Terminés',        value: completed, color: 'text-emerald-700', bg: 'bg-emerald-50'  },
+          ].map(s => (
+            <div key={s.label} className={`${s.bg} rounded-2xl p-4`}>
+              <p className={`text-2xl font-extrabold ${s.color}`}>{s.value}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Liste des projets */}
       {loading ? (
-        <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl shadow-sm p-5 animate-pulse">
+              <div className="h-4 bg-gray-100 rounded w-1/2 mb-3" />
+              <div className="h-3 bg-gray-100 rounded w-1/3" />
+            </div>
+          ))}
+        </div>
       ) : requests.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm p-16 text-center">
-          <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-gray-700 font-semibold text-lg">Aucune demande</p>
-          <p className="text-gray-400 text-sm mt-1">Vos demandes de service apparaîtront ici.</p>
+          <div className="w-16 h-16 bg-coupdemain-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Briefcase className="w-8 h-8 text-coupdemain-primary" />
+          </div>
+          <p className="text-gray-800 font-bold text-lg">Aucun projet pour l'instant</p>
+          <p className="text-gray-400 text-sm mt-1.5 mb-6">Publiez une demande et recevez des offres de pros vérifiés.</p>
+          <button onClick={() => navigate('/services')}
+            className="inline-flex items-center gap-2 bg-coupdemain-primary text-white px-6 py-3 rounded-xl font-semibold text-sm hover:bg-coupdemain-primary/90 transition">
+            <Plus className="w-4 h-4" />Publier ma première demande
+          </button>
         </div>
       ) : (
         <div className="space-y-4">
           {requests.map(req => {
-            const isOpen = expandedId === req.id;
-            const reqBids = bids[req.id] ?? [];
+            const isExpanded  = expandedId === req.id;
+            const reqBids     = bids[req.id] ?? [];
+            const sc          = statusConfig(req);
+            const steps       = projectSteps(req);
+            const canEdit     = req.status === 'open';
+            const currentStep = steps.filter(s => s.done).length - 1;
+
             return (
-              <div key={req.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                <button
-                  onClick={() => toggleRequest(req)}
-                  className="w-full p-5 flex items-center justify-between text-left hover:bg-gray-50 transition"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <p className="font-semibold text-gray-900">{req.title}</p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${reqStatusBadge(req.status)}`}>
-                        {reqStatusLabel(req.status)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                      {req.service_area && (
-                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{req.service_area}</span>
-                      )}
-                      {req.submission_deadline && (
-                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.submission_deadline).toLocaleDateString('fr-CA')}</span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <User className="w-3.5 h-3.5" />{req.bid_count} offre{req.bid_count !== 1 ? 's' : ''} reçue{req.bid_count !== 1 ? 's' : ''}
-                      </span>
-                      {req.address && (
-                        <span className="flex items-center gap-1 text-green-700">
-                          <Lock className="w-3.5 h-3.5" />{req.address}
+              <div key={req.id} className={`bg-white rounded-2xl shadow-sm overflow-hidden border-2 transition-all ${isExpanded ? 'border-coupdemain-primary/20' : 'border-transparent'}`}>
+
+                {/* Card header — cliquable pour expand */}
+                <button onClick={() => toggleRequest(req)} className="w-full p-5 text-left hover:bg-gray-50/60 transition">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${sc.color}`}>
+                          {sc.label}
                         </span>
+                        {req.category && (
+                          <span className="text-xs text-gray-400">{req.category.name}</span>
+                        )}
+                      </div>
+                      <p className="font-bold text-gray-900 text-base leading-snug">{req.title}</p>
+                      {req.description && (
+                        <p className="text-sm text-gray-500 mt-1 line-clamp-2">{req.description}</p>
                       )}
+                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 flex-wrap">
+                        {req.service_area && (
+                          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{req.service_area}</span>
+                        )}
+                        {req.preferred_dates && (
+                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{req.preferred_dates}</span>
+                        )}
+                        {req.submission_deadline && (
+                          <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.submission_deadline).toLocaleDateString('fr-CA')}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {canEdit && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setEditingReq(req); }}
+                          className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition"
+                          title="Modifier"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {isExpanded
+                        ? <ChevronUp className="w-5 h-5 text-gray-400" />
+                        : <ChevronDown className="w-5 h-5 text-gray-400" />}
                     </div>
                   </div>
-                  {isOpen ? <ChevronUp className="w-5 h-5 text-gray-400 shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" />}
+
+                  {/* Progress steps */}
+                  {req.status !== 'cancelled' && (
+                    <div className="flex items-center gap-0 mt-4">
+                      {steps.map((step, i) => (
+                        <React.Fragment key={i}>
+                          <div className="flex flex-col items-center">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-all ${
+                              step.done
+                                ? 'bg-coupdemain-primary border-coupdemain-primary'
+                                : i === currentStep + 1
+                                ? 'border-coupdemain-primary/40 bg-white'
+                                : 'border-gray-200 bg-white'
+                            }`}>
+                              {step.done && <CheckCircle className="w-3 h-3 text-white" />}
+                            </div>
+                            <p className={`text-[10px] mt-1 text-center leading-tight max-w-[60px] ${
+                              step.done ? 'text-coupdemain-primary font-medium' : 'text-gray-400'
+                            }`}>{step.label}</p>
+                          </div>
+                          {i < steps.length - 1 && (
+                            <div className={`flex-1 h-0.5 mb-4 mx-1 transition-all ${step.done ? 'bg-coupdemain-primary' : 'bg-gray-200'}`} />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  )}
                 </button>
 
-                {isOpen && (
-                  <div className="border-t border-gray-100 p-5 space-y-3">
+                {/* Expanded: offres reçues */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 bg-gray-50/50 p-5 space-y-3">
+                    <p className="text-sm font-semibold text-gray-700 mb-3">
+                      {reqBids.length === 0 && bidsLoading !== req.id ? 'Offres reçues' : `${reqBids.length} offre${reqBids.length > 1 ? 's' : ''} reçue${reqBids.length > 1 ? 's' : ''}`}
+                    </p>
+
                     {bidsLoading === req.id ? (
-                      <p className="text-center text-gray-400 text-sm py-4">Chargement des offres…</p>
+                      <div className="space-y-2">
+                        {[...Array(2)].map((_, i) => (
+                          <div key={i} className="bg-white rounded-xl p-4 animate-pulse">
+                            <div className="h-3 bg-gray-100 rounded w-1/3 mb-2" />
+                            <div className="h-3 bg-gray-100 rounded w-full" />
+                          </div>
+                        ))}
+                      </div>
                     ) : reqBids.length === 0 ? (
-                      <p className="text-center text-gray-400 text-sm py-4">Aucune offre reçue pour l'instant.</p>
+                      <div className="bg-white rounded-xl p-6 text-center">
+                        <User className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                        <p className="text-sm text-gray-500">Aucune offre reçue pour l'instant.</p>
+                        <p className="text-xs text-gray-400 mt-1">Les prestataires de votre région ont été notifiés.</p>
+                      </div>
                     ) : (
                       reqBids.map(bid => {
                         const providerName = bid.provider
                           ? [bid.provider.first_name, bid.provider.last_name].filter(Boolean).join(' ') || bid.provider.username
                           : '—';
                         return (
-                          <div key={bid.id} className="border border-gray-100 rounded-xl p-4">
+                          <div key={bid.id} className={`bg-white rounded-xl p-4 border-2 transition-all ${bid.status === 'accepted' ? 'border-coupdemain-primary/30' : 'border-transparent'}`}>
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -1851,12 +2052,6 @@ function ClientRequestsTab() {
                                   {(bid.provider as any)?.is_verified && (
                                     <span className="flex items-center gap-0.5 text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
                                       <Shield className="w-3 h-3" />Vérifié
-                                    </span>
-                                  )}
-                                  {(bid.provider as any)?.date_joined &&
-                                    Date.now() - new Date((bid.provider as any).date_joined).getTime() < 30 * 24 * 60 * 60 * 1000 && (
-                                    <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                                      Nouveau
                                     </span>
                                   )}
                                   {bid.provider?.rating !== undefined && (
@@ -1869,86 +2064,59 @@ function ClientRequestsTab() {
                                     {bidStatusLabel(bid.status)}
                                   </span>
                                 </div>
-                                <p className="text-sm text-gray-600 mb-2">{bid.message}</p>
+                                <p className="text-sm text-gray-600 mb-2 line-clamp-3">{bid.message}</p>
                                 <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                                  <span className="font-semibold text-gray-800">
-                                    ${parseFloat(bid.price).toFixed(2)} <span className="font-normal">{bid.price_unit}</span>
+                                  <span className="font-bold text-gray-800 text-sm">
+                                    ${parseFloat(bid.price).toFixed(2)} <span className="font-normal text-xs">{bid.price_unit}</span>
                                   </span>
                                   {bid.estimated_duration && (
                                     <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{bid.estimated_duration}h estimées</span>
                                   )}
                                 </div>
                               </div>
-                              {req.status === 'open' && bid.status === 'pending' && (
-                                <button
-                                  onClick={() => acceptBid(bid.id, req.id)}
-                                  disabled={accepting === bid.id}
-                                  className="shrink-0 flex items-center gap-1.5 bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50"
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                  {accepting === bid.id ? 'Acceptation…' : 'Accepter'}
-                                </button>
-                              )}
-                              {bid.status === 'accepted' && (
-                                <div className="shrink-0 flex flex-col items-end gap-2">
-                                  <span className="flex items-center gap-1.5 text-green-600 text-sm font-semibold">
-                                    <CheckCircle className="w-4 h-4" />Offre acceptée
-                                  </span>
-                                  <div className="flex flex-col gap-1.5 items-end">
-                                    <p className="text-xs text-gray-400">
-                                      Commission Coupdemain {commissionRate(bid.price)}% incluse
-                                    </p>
-                                    <button
-                                      onClick={() => payBid(bid.id)}
-                                      disabled={paying === bid.id}
-                                      className="flex items-center gap-1.5 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-50"
-                                    >
+
+                              {/* Actions sur l'offre */}
+                              <div className="shrink-0 flex flex-col gap-2 items-end">
+                                {req.status === 'open' && bid.status === 'pending' && (
+                                  <button onClick={() => acceptBid(bid.id, req.id)} disabled={accepting === bid.id}
+                                    className="flex items-center gap-1.5 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-50">
+                                    <CheckCircle className="w-4 h-4" />
+                                    {accepting === bid.id ? 'Acceptation…' : 'Choisir ce pro'}
+                                  </button>
+                                )}
+
+                                {bid.status === 'accepted' && (
+                                  <>
+                                    <p className="text-xs text-gray-400 text-right">Commission Coupdemain {commissionRate(bid.price)}% incluse</p>
+                                    <button onClick={() => payBid(bid.id)} disabled={paying === bid.id}
+                                      className="flex items-center gap-1.5 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-50">
                                       <DollarSign className="w-4 h-4" />
                                       {paying === bid.id ? 'Redirection…' : `Payer $${parseFloat(bid.price).toFixed(2)}`}
                                     </button>
-                                    <a
-                                      href={`/api/contracts/${bid.id}/`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center gap-1.5 border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition"
-                                    >
-                                      <FileText className="w-4 h-4" />
-                                      Contrat PDF
+                                    <a href={`/api/contracts/${bid.id}/`} target="_blank" rel="noopener noreferrer"
+                                      className="flex items-center gap-1.5 border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
+                                      <FileText className="w-4 h-4" />Contrat PDF
                                     </a>
                                     {bid.provider && (
-                                      <button
-                                        onClick={() => {
-                                          window.dispatchEvent(new CustomEvent('open-messages', { detail: { partnerId: bid.provider!.id } }));
-                                          window.dispatchEvent(new CustomEvent('switch-tab', { detail: { tab: 'messages' } }));
-                                        }}
-                                        className="flex items-center gap-1.5 border border-coupdemain-primary/30 text-coupdemain-primary bg-coupdemain-primary/5 px-4 py-2 rounded-xl text-sm font-medium hover:bg-coupdemain-primary/10 transition"
-                                      >
-                                        <MessageSquare className="w-4 h-4" />
-                                        Contacter
+                                      <button onClick={() => {
+                                        window.dispatchEvent(new CustomEvent('open-messages', { detail: { partnerId: bid.provider!.id } }));
+                                        window.dispatchEvent(new CustomEvent('switch-tab', { detail: { tab: 'messages' } }));
+                                      }}
+                                        className="flex items-center gap-1.5 border border-coupdemain-primary/30 text-coupdemain-primary bg-coupdemain-primary/5 px-4 py-2 rounded-xl text-sm font-medium hover:bg-coupdemain-primary/10 transition">
+                                        <MessageSquare className="w-4 h-4" />Contacter
                                       </button>
                                     )}
                                     {req.status === 'awarded' && (
-                                      <button
-                                        onClick={() => completeRequest(req.id)}
-                                        disabled={completing === req.id}
-                                        className="flex items-center gap-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 transition disabled:opacity-50"
-                                      >
+                                      <button onClick={() => completeRequest(req.id)} disabled={completing === req.id}
+                                        className="flex items-center gap-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 transition disabled:opacity-50">
                                         <CheckCircle className="w-4 h-4" />
                                         {completing === req.id ? 'Mise à jour…' : 'Marquer comme terminé'}
                                       </button>
                                     )}
                                     {req.status === 'completed' && !reviewedBidIds.has(bid.id) && (
-                                      <button
-                                        onClick={() => {
-                                          const providerName = bid.provider
-                                            ? [bid.provider.first_name, bid.provider.last_name].filter(Boolean).join(' ') || bid.provider.username
-                                            : '—';
-                                          setReviewBid({ bid, providerName });
-                                        }}
-                                        className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-yellow-100 transition"
-                                      >
-                                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                                        Laisser un avis
+                                      <button onClick={() => setReviewBid({ bid, providerName })}
+                                        className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-yellow-100 transition">
+                                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />Laisser un avis
                                       </button>
                                     )}
                                     {req.status === 'completed' && reviewedBidIds.has(bid.id) && (
@@ -1956,9 +2124,9 @@ function ClientRequestsTab() {
                                         <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />Avis publié
                                       </span>
                                     )}
-                                  </div>
-                                </div>
-                              )}
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
@@ -1972,6 +2140,17 @@ function ClientRequestsTab() {
         </div>
       )}
 
+      {/* Modals */}
+      {editingReq && (
+        <EditRequestModal
+          req={editingReq}
+          onClose={() => setEditingReq(null)}
+          onSave={updated => {
+            setRequests(prev => prev.map(r => r.id === editingReq.id ? { ...r, ...updated } : r));
+            showToast('Demande modifiée avec succès.', 'success');
+          }}
+        />
+      )}
       {reviewBid && (
         <BidReviewModal
           bid={reviewBid.bid}
@@ -2164,143 +2343,7 @@ function BidReviewModal({ bid, providerName, onClose, onDone }: {
   );
 }
 
-// ─── Client Bookings Tab ──────────────────────────────────────────────────────
-
-function ClientBookingsTab() {
-  const { bookings, loading, fetchBookings, cancelBooking } = useBookings();
-  const navigate = useNavigate();
-  const [cancelling, setCancelling]   = useState<number | null>(null);
-  const [reviewBooking, setReviewBooking] = useState<ApiBooking | null>(null);
-  const [reviewed, setReviewed]       = useState<Set<number>>(new Set());
-
-  useEffect(() => { fetchBookings(); }, []);
-
-  useEffect(() => {
-    const alreadyReviewed = new Set(
-      (bookings as unknown as ApiBooking[])
-        .filter(b => b.has_review)
-        .map(b => b.id)
-    );
-    setReviewed(alreadyReviewed);
-  }, [bookings]);
-
-  const typed = bookings as unknown as ApiBooking[];
-
-  const active    = typed.filter(b => ['pending', 'confirmed', 'in_progress'].includes(b.status)).length;
-  const completed = typed.filter(b => b.status === 'completed').length;
-  const spent     = typed.filter(b => b.status === 'completed').reduce((s, b) => s + parseFloat(b.total_price || '0'), 0);
-
-  const handleCancel = async (id: number) => {
-    if (!window.confirm('Annuler cette réservation ?')) return;
-    setCancelling(id);
-    try { await cancelBooking(id); } catch { /* silent */ }
-    finally { setCancelling(null); }
-  };
-
-  return (
-    <>
-      {reviewBooking && (
-        <ReviewModal
-          booking={reviewBooking}
-          onClose={() => setReviewBooking(null)}
-          onDone={() => setReviewed(prev => new Set([...prev, reviewBooking!.id]))}
-        />
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-5 mb-8">
-        {[
-          { label: 'Réservations actives', value: active,              icon: <Calendar className="w-7 h-7 text-blue-400" /> },
-          { label: 'Services complétés',   value: completed,           icon: <CheckCircle className="w-7 h-7 text-green-400" /> },
-          { label: 'Total dépensé',        value: `$${spent.toFixed(2)}`, icon: <DollarSign className="w-7 h-7 text-yellow-400" /> },
-        ].map(card => (
-          <div key={card.label} className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500">{card.label}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{card.value}</p>
-            </div>
-            {card.icon}
-          </div>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm">
-        <div className="p-6 border-b flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Mes réservations</h2>
-          <button onClick={() => navigate('/services')}
-            className="bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm flex items-center gap-2 hover:bg-coupdemain-primary/90 transition">
-            <Plus className="w-4 h-4" />Nouvelle réservation
-          </button>
-        </div>
-
-        {loading ? (
-          <p className="text-center text-gray-400 text-sm py-12">Chargement…</p>
-        ) : typed.length === 0 ? (
-          <div className="p-12 text-center">
-            <Calendar className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-            <p className="text-gray-600 font-medium">Aucune réservation pour l'instant</p>
-            <p className="text-gray-400 text-sm mt-1 mb-5">Explorez les services disponibles près de chez vous.</p>
-            <button onClick={() => navigate('/services')}
-              className="inline-flex items-center gap-2 bg-coupdemain-primary text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition">
-              <Plus className="w-4 h-4" />Trouver un service
-            </button>
-          </div>
-        ) : (
-          <div className="divide-y">
-            {typed.map(b => (
-              <div key={b.id} className="p-6 hover:bg-gray-50 transition">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">{b.service?.title ?? '—'}</p>
-                    <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500 flex-wrap">
-                      {b.provider && (
-                        <span className="flex items-center gap-1">
-                          <User className="w-3.5 h-3.5" />{b.provider.first_name} {b.provider.last_name}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{new Date(b.date).toLocaleDateString('fr-CA')}</span>
-                      <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{b.start_time?.slice(0, 5)}</span>
-                      {b.service_address && (
-                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{b.service_address}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0 ml-4">
-                    <p className="font-semibold text-gray-900">${parseFloat(b.total_price || '0').toFixed(2)}</p>
-                    <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs mt-1.5 ${getStatusColor(b.status as BookingStatus)}`}>
-                      {getStatusIcon(b.status as BookingStatus)}{getStatusText(b.status as BookingStatus)}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-3 mt-3 items-center">
-                  {b.status === 'completed' && !reviewed.has(b.id) && (
-                    <button onClick={() => setReviewBooking(b)}
-                      className="text-xs text-coupdemain-primary font-medium hover:underline">
-                      Laisser un avis
-                    </button>
-                  )}
-                  {b.status === 'completed' && reviewed.has(b.id) && (
-                    <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" />Avis envoyé
-                    </span>
-                  )}
-                  {!['completed', 'cancelled'].includes(b.status) && (
-                    <>
-                      <span className="text-gray-200 text-xs">•</span>
-                      <button onClick={() => handleCancel(b.id)} disabled={cancelling === b.id}
-                        className="text-xs text-red-500 font-medium hover:underline disabled:opacity-50">
-                        {cancelling === b.id ? 'Annulation…' : 'Annuler'}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
+// ─── Client Bookings Tab (remplacé par ClientProjectsTab) ─────────────────────
 
 // ─── Provider CRM Tab ─────────────────────────────────────────────────────────
 
@@ -3176,13 +3219,13 @@ export default function DashboardPage() {
 
   const [activeTab, setActiveTab] = useState(() => {
     if (locationTab) return locationTab;
-    return activeMode === 'provider' ? 'overview' : 'bookings';
+    return activeMode === 'provider' ? 'overview' : 'projects';
   });
 
   const switchMode = (mode: Mode) => {
     setActiveMode(mode);
     localStorage.setItem('dashboard_mode', mode);
-    setActiveTab(mode === 'provider' ? 'overview' : 'bookings');
+    setActiveTab(mode === 'provider' ? 'overview' : 'projects');
   };
 
   // Gestion du retour Stripe
@@ -3225,8 +3268,7 @@ export default function DashboardPage() {
   );
 
   const clientNavItems = [
-    { key: 'bookings',      label: 'Mes réservations', icon: <Calendar className="w-5 h-5" /> },
-    { key: 'requests',      label: 'Mes demandes',     icon: <FileText className="w-5 h-5" /> },
+    { key: 'projects',      label: 'Mes projets',      icon: <Briefcase className="w-5 h-5" /> },
     { key: 'messages',      label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
     { key: 'notifications', label: 'Notifications',    icon: notifIcon },
     { key: 'profile',       label: 'Mon profil',        icon: <User className="w-5 h-5" /> },
@@ -3395,7 +3437,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── ONBOARDING CLIENT — première visite ── */}
-        {!isProviderMode && !(user as any)?.has_made_request && activeTab !== 'requests' && (
+        {!isProviderMode && !(user as any)?.has_made_request && activeTab !== 'projects' && (
           <div className="mb-5 flex items-start gap-3 bg-coupdemain-primary/5 border border-coupdemain-primary/20 rounded-2xl p-4">
             <div className="w-8 h-8 bg-coupdemain-primary/15 rounded-full flex items-center justify-center shrink-0">
               <Send className="w-4 h-4 text-coupdemain-primary" />
@@ -3407,7 +3449,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <button
-              onClick={() => setActiveTab('requests')}
+              onClick={() => setActiveTab('projects')}
               className="text-xs font-semibold text-coupdemain-primary bg-coupdemain-primary/10 hover:bg-coupdemain-primary/20 px-3 py-1.5 rounded-lg transition shrink-0"
             >
               Publier →
@@ -3416,8 +3458,7 @@ export default function DashboardPage() {
         )}
 
         {/* ── MODE CLIENT ── */}
-        {!isProviderMode && activeTab === 'bookings'      && <ClientBookingsTab />}
-        {!isProviderMode && activeTab === 'requests'      && <ClientRequestsTab />}
+        {!isProviderMode && activeTab === 'projects'      && <ClientProjectsTab />}
         {!isProviderMode && activeTab === 'messages'      && <MessagesTab />}
         {!isProviderMode && activeTab === 'notifications' && <NotificationsTab />}
         {!isProviderMode && activeTab === 'profile'       && <ProfileTab />}
