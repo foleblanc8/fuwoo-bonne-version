@@ -93,7 +93,7 @@ const Home = () => {
               Trouvez le bon pro,
               <br />
               <span className="bg-gradient-to-r from-green-300 to-teal-300 bg-clip-text text-transparent">
-                pour n'importe quel travail.
+                pour n'importe quels travaux.
               </span>
             </h1>
 
