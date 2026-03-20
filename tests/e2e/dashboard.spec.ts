@@ -47,13 +47,9 @@ test.describe('Dashboard (authentifié)', () => {
     // Naviguer vers Paramètres
     await page.getByText(/paramètres/i).first().click();
 
-    // L'onglet Paramètres affiche soit le formulaire profil, soit le banner onboarding
-    await expect(
-      page.getByPlaceholder(/votre biographie/i)
-        .or(page.getByText(/mon profil/i))
-        .or(page.getByText(/profil prestataire/i))
-        .or(page.getByText(/paramètres/i).nth(1))
-    ).toBeVisible({ timeout: 10_000 });
+    // "Changer le mot de passe" est unique à la section Sécurité dans Paramètres
+    await expect(page.getByRole('button', { name: /changer le mot de passe/i }))
+      .toBeVisible({ timeout: 10_000 });
   });
 
   test('Onglet Messages — liste des conversations', async ({ page }) => {
