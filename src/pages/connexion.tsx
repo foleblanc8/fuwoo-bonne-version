@@ -9,6 +9,30 @@ import { Leaf, ArrowRight } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { useAuth } from "../contexts/AuthContext";
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
+
+// Composant séparé pour que useGoogleLogin ne soit appelé que quand clientId est valide
+function GoogleButton({ onSuccess, onError, disabled }: {
+  onSuccess: (token: string) => void;
+  onError: () => void;
+  disabled: boolean;
+}) {
+  const handleGoogleLogin = useGoogleLogin({
+    onSuccess: (r) => onSuccess(r.access_token),
+    onError,
+  });
+  return (
+    <button
+      onClick={() => handleGoogleLogin()}
+      disabled={disabled}
+      className="flex items-center justify-center gap-3 bg-white text-gray-700 border border-gray-200 py-3 rounded-xl text-sm font-medium shadow-sm hover:shadow-md hover:border-gray-300 transition disabled:opacity-60"
+    >
+      <FcGoogle size={20} />
+      Google
+    </button>
+  );
+}
+
 const Connexion = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -31,21 +55,18 @@ const Connexion = () => {
     }
   };
 
-  const handleGoogleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setError("");
-      setLoading(true);
-      try {
-        await loginWithGoogle(tokenResponse.access_token);
-        navigate("/dashboard");
-      } catch {
-        setError("Connexion Google échouée. Veuillez réessayer.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    onError: () => setError("Connexion Google annulée ou refusée."),
-  });
+  const handleGoogleSuccess = async (accessToken: string) => {
+    setError("");
+    setLoading(true);
+    try {
+      await loginWithGoogle(accessToken);
+      navigate("/dashboard");
+    } catch {
+      setError("Connexion Google échouée. Veuillez réessayer.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -177,14 +198,21 @@ const Connexion = () => {
           </div>
 
           <div className="flex flex-col gap-3">
-            <button
-              onClick={() => handleGoogleLogin()}
-              disabled={loading}
-              className="flex items-center justify-center gap-3 bg-white text-gray-700 border border-gray-200 py-3 rounded-xl text-sm font-medium shadow-sm hover:shadow-md hover:border-gray-300 transition disabled:opacity-60"
-            >
-              <FcGoogle size={20} />
-              Google
-            </button>
+            {GOOGLE_CLIENT_ID ? (
+              <GoogleButton
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError("Connexion Google annulée ou refusée.")}
+                disabled={loading}
+              />
+            ) : (
+              <button
+                disabled
+                className="flex items-center justify-center gap-3 bg-white text-gray-300 border border-gray-100 py-3 rounded-xl text-sm font-medium cursor-not-allowed"
+              >
+                <FcGoogle size={20} />
+                Google (bientôt disponible)
+              </button>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <button
                 disabled

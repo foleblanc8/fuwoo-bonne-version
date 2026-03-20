@@ -60,12 +60,16 @@ const AppTree = (
   </BrowserRouter>
 );
 
+const WrappedApp = GOOGLE_CLIENT_ID ? (
+  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+    {AppTree}
+  </GoogleOAuthProvider>
+) : AppTree;
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <HelmetProvider>
-      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        {AppTree}
-      </GoogleOAuthProvider>
+      {WrappedApp}
     </HelmetProvider>
   </React.StrictMode>
 );
