@@ -32,7 +32,7 @@ test.describe('Dashboard (authentifié)', () => {
     test.skip(!TEST_USER || !TEST_PASS, 'Nécessite TEST_USERNAME et TEST_PASSWORD');
     await login(page);
 
-    const tabs = ['Aperçu', 'Réservations', 'Messages', 'Services', 'Paramètres'];
+    const tabs = ['Mes projets', 'Messages', 'Paramètres'];
     for (const tab of tabs) {
       const tabBtn = page.getByRole('button', { name: new RegExp(tab, 'i') })
         .or(page.getByText(new RegExp(tab, 'i'), { exact: false }));
