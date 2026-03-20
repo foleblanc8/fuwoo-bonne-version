@@ -7,14 +7,14 @@ import { useState } from "react";
 import SEO from "../components/SEO";
 
 const popularCategories = [
-  { slug: "menage-residentiel",  label: "Ménage résidentiel" },
-  { slug: "plomberie",           label: "Plomberie" },
-  { slug: "deneigement",         label: "Déneigement" },
-  { slug: "tonte-pelouse",       label: "Tonte de pelouse" },
-  { slug: "peinture",            label: "Peinture" },
-  { slug: "electricite",         label: "Électricité" },
-  { slug: "entretien-piscine",   label: "Entretien piscine" },
-  { slug: "demenagement",        label: "Déménagement" },
+  { slug: "menage-residentiel",  label: "Ménage résidentiel",  desc: "Aspiration, surfaces, salles de bain et cuisine — à votre rythme." },
+  { slug: "plomberie",           label: "Plomberie",           desc: "Robinets, drains, chauffe-eau et installations sanitaires." },
+  { slug: "deneigement",         label: "Déneigement",         desc: "Entrée, trottoir et escaliers déblayés après chaque tempête." },
+  { slug: "tonte-pelouse",       label: "Tonte de pelouse",    desc: "Tonte, débroussaillage et bordures soignées tout l'été." },
+  { slug: "peinture",            label: "Peinture",            desc: "Murs, plafonds et façades — finition propre et professionnelle." },
+  { slug: "electricite",         label: "Électricité",         desc: "Luminaires, prises et câblage résidentiel avec licence RBQ." },
+  { slug: "entretien-piscine",   label: "Entretien piscine",   desc: "Nettoyage, chimie de l'eau, ouverture et hivernisation." },
+  { slug: "demenagement",        label: "Déménagement",        desc: "Transport soigneux de meubles et boîtes, local ou courte distance." },
 ];
 
 const testimonials = [
@@ -223,6 +223,7 @@ const Home = () => {
                   </div>
                   <div className="p-3 sm:p-4">
                     <p className="font-bold text-gray-900 text-sm leading-snug">{cat.label}</p>
+                    <p className="text-xs text-gray-500 mt-1.5 leading-relaxed line-clamp-2">{cat.desc}</p>
                   </div>
                 </Link>
               );
