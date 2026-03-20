@@ -75,7 +75,7 @@ const Home = () => {
       {/* ── Hero ── */}
       <div
         className="relative bg-cover bg-center"
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=1600&q=80')" }}
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1546552356-3fae876a61ca?auto=format&fit=crop&w=1600&q=80')" }}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-green-950/80 via-green-900/60 to-teal-900/50" />
         <div className="absolute top-16 right-1/4 w-72 h-72 bg-green-400/10 rounded-full blur-3xl" />
