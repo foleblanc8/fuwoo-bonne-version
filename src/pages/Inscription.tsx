@@ -17,6 +17,7 @@ const Inscription = () => {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -26,6 +27,11 @@ const Inscription = () => {
 
     if (password !== passwordConfirm) {
       setError("Les mots de passe ne correspondent pas.");
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError("Vous devez accepter les conditions d'utilisation pour continuer.");
       return;
     }
 
@@ -250,6 +256,27 @@ const Inscription = () => {
             </div>
           </div>
 
+          {/* Checkbox T&C */}
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={e => setAcceptedTerms(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-green-600 cursor-pointer shrink-0"
+            />
+            <span className="text-sm text-gray-600 leading-relaxed">
+              J'ai lu et j'accepte les{" "}
+              <Link to="/conditions-utilisation" target="_blank" className="text-emerald-600 hover:underline font-medium">
+                Conditions d'utilisation
+              </Link>{" "}
+              et la{" "}
+              <Link to="/politique-confidentialite" target="_blank" className="text-emerald-600 hover:underline font-medium">
+                Politique de confidentialité
+              </Link>
+              .
+            </span>
+          </label>
+
           {error && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-100 text-red-600 text-sm px-4 py-3 rounded-xl">
               <span className="shrink-0 mt-0.5">⚠</span>
@@ -259,7 +286,7 @@ const Inscription = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !acceptedTerms}
             className="mt-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-teal-600 text-white py-3 rounded-xl font-semibold text-sm shadow-sm hover:from-green-700 hover:to-teal-700 hover:shadow-md transition-all disabled:opacity-60"
           >
             {loading ? "Création en cours…" : (

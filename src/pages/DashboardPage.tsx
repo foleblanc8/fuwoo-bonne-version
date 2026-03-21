@@ -18,6 +18,198 @@ import { getCategoryImage } from '../data/serviceImages';
 import { getCategoryStyle } from '../data/categoryStyles';
 import axios from 'axios';
 
+// ─── Safety Data ──────────────────────────────────────────────────────────────
+
+const SAFETY_BY_SLUG: Record<string, { title: string; tip: string }[]> = {
+  toiture: [
+    { title: 'Harnais obligatoire', tip: 'Portez un harnais de sécurité certifié et utilisez des points d\'ancrage solides. Ne travaillez jamais seul en toiture.' },
+    { title: 'Conditions météo', tip: 'Évitez toute intervention sur un toit mouillé, glacé ou par vents forts. Vérifiez la météo avant de monter.' },
+  ],
+  'nettoyage-gouttieres': [
+    { title: 'Échelle sécurisée', tip: 'Utilisez une échelle stable posée sur une surface plane. Faites-la tenir par quelqu\'un. Ne vous penchez jamais hors des montants.' },
+  ],
+  'lavage-vitres': [
+    { title: 'Travail en hauteur', tip: 'Pour les fenêtres en hauteur, utilisez un équipement adapté et une corde de sécurité si nécessaire. Jamais seul.' },
+  ],
+  'elagage-arbres': [
+    { title: 'Tronçonneuse et hauteur', tip: 'Portez casque, lunettes, jambières anti-coupures et chaussures à embout d\'acier. L\'élagage en hauteur requiert un harnais.' },
+  ],
+  'clotures-terrasses': [
+    { title: 'Stabilité des structures', tip: 'Vérifiez la solidité du sol et des ancrages avant de monter. Portez des gants et lunettes lors de la coupe et l\'assemblage.' },
+  ],
+  peinture: [
+    { title: 'Ventilation et EPI', tip: 'Masque N95, gants nitrile et lunettes sont requis avec les peintures à solvant. Aérez pendant et après l\'application.' },
+    { title: 'Travail en hauteur', tip: 'Vérifiez la stabilité des échelles et échafaudages. Descendez toujours pour les déplacer. Ne vous penchez pas à l\'extérieur.' },
+  ],
+  electricite: [
+    { title: 'Licence RBQ obligatoire', tip: 'Les travaux d\'électricité sont réglementés au Québec. Assurez-vous de détenir une licence RBQ valide avant toute intervention.' },
+    { title: 'Coupure de courant', tip: 'Coupez le courant au panneau et vérifiez avec un testeur de tension avant de toucher un fil. Ne supposez jamais qu\'un circuit est hors tension.' },
+  ],
+  plomberie: [
+    { title: 'Coupure d\'eau', tip: 'Localisez et fermez le robinet d\'arrêt principal avant tout travail. Ayez des serviettes et un seau à portée.' },
+    { title: 'Licence RBQ', tip: 'Les raccordements sanitaires requièrent une licence RBQ. Vérifiez votre accréditation avant l\'intervention.' },
+  ],
+  demenagement: [
+    { title: 'Manutention sécuritaire', tip: 'Pliez les genoux, gardez le dos droit et la charge proche du corps. Pour les objets très lourds, utilisez un diable ou demandez de l\'aide.' },
+    { title: 'Chaussures de sécurité', tip: 'Portez des chaussures à embout d\'acier. Les risques de chute d\'objets lourds sont élevés lors des déménagements.' },
+  ],
+  'tonte-pelouse': [
+    { title: 'Zone dégagée', tip: 'Retirez cailloux, branches et jouets avant de tondre. Portez des lunettes et des chaussures fermées. Ne tondez jamais en présence d\'enfants.' },
+  ],
+  'taille-haies': [
+    { title: 'Outil tranchant', tip: 'Portez gants anti-coupures, lunettes et pantalons résistants. Vérifiez que la lame est arrêtée avant d\'ajuster votre position.' },
+  ],
+  deneigement: [
+    { title: 'Habillement par couches', tip: 'Portez plusieurs couches, protégez vos extrémités et votre visage. Faites des pauses régulières pour éviter l\'hypothermie.' },
+    { title: 'Souffleuse', tip: 'N\'insérez jamais les mains dans la souffleuse. Éteignez-la avant tout dégagement d\'obstruction. Gardez les pieds à distance.' },
+  ],
+  extermination: [
+    { title: 'Produits chimiques', tip: 'Portez une combinaison de protection, des gants nitrile et un masque respiratoire homologué. Lisez les fiches de sécurité avant utilisation.' },
+  ],
+  menuiserie: [
+    { title: 'Outils tranchants', tip: 'Portez lunettes et gants résistants aux coupures. Ne désactivez jamais les gardes de sécurité des scies ou toupies.' },
+    { title: 'Poussière de bois', tip: 'Portez un masque P100 lors du ponçage ou de la découpe. La poussière de certains bois est cancérigène.' },
+  ],
+  'pose-planchers': [
+    { title: 'Genoux et posture', tip: 'Utilisez des genouillères pour le travail au sol. Alternez les positions pour éviter les blessures au dos.' },
+    { title: 'Découpe', tip: 'Portez lunettes et masque lors de la découpe. Les éclats de plancher peuvent causer des blessures oculaires graves.' },
+  ],
+  'pose-ceramique': [
+    { title: 'Coupe de carreaux', tip: 'Portez des lunettes lors de la coupe. Les éclats de céramique sont tranchants et peuvent causer des coupures profondes.' },
+    { title: 'Adhésifs et coulis', tip: 'Ces produits sont irritants pour la peau. Portez des gants et lavez-vous les mains fréquemment.' },
+  ],
+  impermeabilisation: [
+    { title: 'Produits irritants', tip: 'Les membranes et produits d\'étanchéité contiennent souvent des solvants. Portez un masque à cartouche, des gants et travaillez en zone ventilée.' },
+  ],
+  'menage-residentiel': [
+    { title: 'Produits ménagers', tip: 'Ne mélangez jamais l\'eau de Javel avec l\'ammoniaque ou le vinaigre. Lisez les étiquettes, portez des gants et aérez la pièce.' },
+  ],
+  'nettoyage-profondeur': [
+    { title: 'Produits chimiques concentrés', tip: 'Portez gants nitrile et lunettes. Diluez correctement les produits et assurez une bonne ventilation dans les espaces clos.' },
+  ],
+};
+
+const GENERAL_SAFETY_TIPS = [
+  { title: 'Informez un proche', tip: 'Avant toute intervention, informez un proche de votre lieu de travail et de l\'heure de retour prévue.' },
+  { title: 'Trousse de premiers soins', tip: 'Apportez toujours une trousse de premiers soins et gardez votre téléphone chargé à portée de main.' },
+  { title: 'Inspectez les lieux avant de commencer', tip: 'Identifiez les risques présents (sol glissant, matières dangereuses, instabilité). Signalez au client tout problème avant de débuter.' },
+  { title: 'Assurance responsabilité en vigueur', tip: 'Assurez-vous d\'avoir une assurance responsabilité civile professionnelle valide. En tant que travailleur autonome, vous êtes seul responsable en cas d\'accident.' },
+];
+
+// ─── Safety Tips Content ───────────────────────────────────────────────────────
+
+function SafetyTipsContent({ selectedSlugs }: { selectedSlugs?: string[] }) {
+  const specificTips = useMemo(() => {
+    if (!selectedSlugs || selectedSlugs.length === 0) return [];
+    const tips: { title: string; tip: string }[] = [];
+    for (const slug of selectedSlugs) {
+      const slugTips = SAFETY_BY_SLUG[slug];
+      if (slugTips) tips.push(...slugTips);
+    }
+    return tips;
+  }, [selectedSlugs]);
+
+  return (
+    <div className="space-y-3">
+      {specificTips.length > 0 && (
+        <>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Conseils spécifiques à vos services</p>
+          {specificTips.map((tip, i) => (
+            <div key={i} className="flex items-start gap-3 bg-orange-50 border border-orange-100 rounded-xl p-3">
+              <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{tip.title}</p>
+                <p className="text-xs text-gray-600 mt-0.5">{tip.tip}</p>
+              </div>
+            </div>
+          ))}
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest pt-2">Conseils généraux</p>
+        </>
+      )}
+      {GENERAL_SAFETY_TIPS.map((tip, i) => (
+        <div key={i} className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-3">
+          <Shield className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-gray-900">{tip.title}</p>
+            <p className="text-xs text-gray-600 mt-0.5">{tip.tip}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Safety Tab ────────────────────────────────────────────────────────────────
+
+function SafetyTab() {
+  const { user } = useAuth();
+  const [activeSlugs, setActiveSlugs] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    Promise.all([
+      axios.get('categories/'),
+      axios.get(`services/?provider=${user.id}&page_size=100`),
+    ]).then(([catRes, svcRes]) => {
+      const catsArr: any[] = (() => { const d = catRes.data as any; return Array.isArray(d) ? d : (d.results ?? []); })();
+      const svcsArr: any[] = (() => { const d = svcRes.data as any; return Array.isArray(d) ? d : (d.results ?? []); })();
+      const activeIds = svcsArr.filter((s: any) => s.is_active).map((s: any) => s.category?.id);
+      setActiveSlugs(catsArr.filter((c: any) => activeIds.includes(c.id)).map((c: any) => c.slug));
+    }).catch(() => {});
+  }, [user?.id]);
+
+  return (
+    <div className="max-w-2xl">
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-gray-900">Sécurité au travail</h2>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Conseils adaptés à vos services actifs. En tant que travailleur autonome, votre sécurité est votre responsabilité.
+        </p>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex items-start gap-3">
+        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <p className="text-sm text-amber-800">
+          <strong>Rappel :</strong> En tant que travailleur autonome, vous êtes seul responsable de votre couverture CNESST
+          et de vos assurances. En cas d'accident lors d'une prestation, Coupdemain ne peut être tenu responsable.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+        {activeSlugs.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">
+            Activez des services dans l'onglet « Mes services » pour voir les conseils spécifiques.
+          </p>
+        ) : (
+          <SafetyTipsContent selectedSlugs={activeSlugs} />
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <h3 className="font-semibold text-gray-900 mb-4">Ressources officielles</h3>
+        <div className="space-y-3">
+          <a href="https://www.cnesst.gouv.qc.ca" target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition">
+            <div>
+              <p className="text-sm font-medium text-gray-900">CNESST</p>
+              <p className="text-xs text-gray-500 mt-0.5">Droits, obligations et couverture des travailleurs autonomes au Québec</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-400 shrink-0 ml-3" />
+          </a>
+          <a href="https://www.rbq.gouv.qc.ca/verifier-une-licence" target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-between p-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition">
+            <div>
+              <p className="text-sm font-medium text-gray-900">RBQ — Vérifier une licence</p>
+              <p className="text-xs text-gray-500 mt-0.5">Licences requises pour les travaux réglementés (électricité, plomberie, construction)</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-400 shrink-0 ml-3" />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
@@ -2985,6 +3177,7 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
   const [categories, setCategories] = useState<{ id: number; name: string; slug: string; description?: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [acceptedCnesst, setAcceptedCnesst] = useState(false);
 
   // Step 1 — profil
   const [bio, setBio]       = useState(user?.bio || '');
@@ -3038,7 +3231,7 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
           <div>
             <h3 className="text-lg font-bold text-gray-900">Activer le mode Pro</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Étape {step} sur 3</p>
+            <p className="text-xs text-gray-400 mt-0.5">Étape {step} sur 4</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
             <X className="w-5 h-5" />
@@ -3047,7 +3240,7 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
 
         {/* Progress bar */}
         <div className="h-1 bg-gray-100">
-          <div className="h-1 bg-coupdemain-primary transition-all duration-300" style={{ width: `${(step / 3) * 100}%` }} />
+          <div className="h-1 bg-coupdemain-primary transition-all duration-300" style={{ width: `${(step / 4) * 100}%` }} />
         </div>
 
         <div className="p-6">
@@ -3147,8 +3340,49 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {/* ── Step 3 : Confirmation ── */}
+          {/* ── Step 3 : Sécurité ── */}
           {step === 3 && (
+            <div className="space-y-5">
+              <div>
+                <p className="font-semibold text-gray-900 text-base">Travailler sécuritairement</p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  En tant que travailleur autonome, votre sécurité est votre responsabilité. Voici les points essentiels à connaître.
+                </p>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto pr-1 space-y-1">
+                <SafetyTipsContent selectedSlugs={selectedCats.map(id => categories.find(c => c.id === id)?.slug ?? '').filter(Boolean)} />
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={acceptedCnesst}
+                    onChange={e => setAcceptedCnesst(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-amber-600 cursor-pointer shrink-0"
+                  />
+                  <span className="text-sm text-gray-700 leading-relaxed">
+                    Je comprends que j'exerce à titre de <strong>travailleur autonome indépendant</strong>.
+                    Je suis seul(e) responsable de ma couverture auprès de la <strong>CNESST</strong>,
+                    de mes assurances et du respect des règles de sécurité dans le cadre de mes prestations.
+                    Coupdemain ne peut être tenu responsable en cas d'accident.
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button onClick={() => setStep(2)} className="text-gray-500 text-sm hover:text-gray-700 transition">← Retour</button>
+                <button onClick={() => setStep(4)} disabled={!acceptedCnesst}
+                  className="bg-coupdemain-primary text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-40">
+                  Suivant →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 4 : Confirmation ── */}
+          {step === 4 && (
             <div className="space-y-5">
               <div className="text-center py-4">
                 <div className="w-16 h-16 bg-coupdemain-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -3180,7 +3414,7 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
               )}
 
               <div className="flex items-center justify-between pt-2">
-                <button onClick={() => setStep(2)} className="text-gray-500 text-sm hover:text-gray-700 transition">← Retour</button>
+                <button onClick={() => setStep(3)} className="text-gray-500 text-sm hover:text-gray-700 transition">← Retour</button>
                 <button onClick={handleSubmit} disabled={submitting}
                   className="bg-coupdemain-primary text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60">
                   {submitting ? 'Activation…' : 'Activer mon profil Pro'}
@@ -3282,6 +3516,7 @@ export default function DashboardPage() {
     { key: 'services',      label: 'Mes services',     icon: <Briefcase className="w-5 h-5" /> },
     { key: 'portfolio',     label: 'Portfolio',        icon: <Camera className="w-5 h-5" /> },
     { key: 'bookings',      label: 'Réservations',     icon: <Calendar className="w-5 h-5" /> },
+    { key: 'safety',        label: 'Sécurité',         icon: <Shield className="w-5 h-5" /> },
     { key: 'messages',      label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
     { key: 'notifications', label: 'Notifications',    icon: notifIcon },
     { key: 'profile',       label: 'Mon profil',        icon: <User className="w-5 h-5" /> },
@@ -3511,6 +3746,7 @@ export default function DashboardPage() {
         {isProviderMode && activeTab === 'services'      && <ProviderServicesTab />}
         {isProviderMode && activeTab === 'portfolio'     && <PortfolioTab />}
         {isProviderMode && activeTab === 'bookings'      && <ProviderBookingsTab />}
+        {isProviderMode && activeTab === 'safety'        && <SafetyTab />}
         {isProviderMode && activeTab === 'messages'      && <MessagesTab />}
         {isProviderMode && activeTab === 'notifications' && <NotificationsTab />}
         {isProviderMode && activeTab === 'profile'       && <ProfileTab />}
