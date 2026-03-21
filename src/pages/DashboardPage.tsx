@@ -2084,6 +2084,22 @@ function ClientProjectsTab() {
         </button>
       </div>
 
+      {/* Carte sécurité client — visible si au moins un projet actif */}
+      {requests.some(r => r.status === 'awarded') && (
+        <div className="mb-5 flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl p-4">
+          <Shield className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-gray-900">Préparez un espace de travail sécuritaire</p>
+            <ul className="text-xs text-gray-600 mt-1.5 space-y-1 list-disc list-inside">
+              <li>Dégagez la zone d'intervention et sécurisez enfants et animaux</li>
+              <li>Signalez au prestataire tout risque connu (amiante, plomb, instabilité)</li>
+              <li>Assurez l'accès à l'eau, l'électricité et les sorties d'urgence</li>
+              <li>Vérifiez la licence RBQ du prestataire pour les travaux réglementés</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Stat cards */}
       {total > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
@@ -3198,7 +3214,7 @@ function ProviderOnboardingModal({ onClose }: { onClose: () => void }) {
     setSubmitting(true);
     setError('');
     try {
-      const res = await axios.post('become-provider/');
+      const res = await axios.post('become-provider/', { cnesst_accepted: true });
       localStorage.setItem('user', JSON.stringify(res.data));
 
       if (bio || phone || address) {
@@ -3511,12 +3527,12 @@ export default function DashboardPage() {
 
   const providerNavItems = [
     { key: 'overview',      label: "Vue d'ensemble",   icon: <TrendingUp className="w-5 h-5" /> },
+    { key: 'safety',        label: 'Sécurité',         icon: <Shield className="w-5 h-5" /> },
     { key: 'requests',      label: 'Demandes',         icon: <FileText className="w-5 h-5" /> },
     { key: 'crm',           label: 'CRM',              icon: <BarChart2 className="w-5 h-5" /> },
     { key: 'services',      label: 'Mes services',     icon: <Briefcase className="w-5 h-5" /> },
     { key: 'portfolio',     label: 'Portfolio',        icon: <Camera className="w-5 h-5" /> },
     { key: 'bookings',      label: 'Réservations',     icon: <Calendar className="w-5 h-5" /> },
-    { key: 'safety',        label: 'Sécurité',         icon: <Shield className="w-5 h-5" /> },
     { key: 'messages',      label: 'Messages',          icon: <MessageSquare className="w-5 h-5" /> },
     { key: 'notifications', label: 'Notifications',    icon: notifIcon },
     { key: 'profile',       label: 'Mon profil',        icon: <User className="w-5 h-5" /> },

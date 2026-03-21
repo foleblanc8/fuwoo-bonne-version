@@ -18,6 +18,7 @@ const Inscription = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedCnesst, setAcceptedCnesst] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -35,6 +36,11 @@ const Inscription = () => {
       return;
     }
 
+    if (role === 'prestataire' && !acceptedCnesst) {
+      setError("Vous devez confirmer votre statut de travailleur autonome pour continuer.");
+      return;
+    }
+
     setLoading(true);
     try {
       await register({
@@ -46,6 +52,7 @@ const Inscription = () => {
         last_name: lastName,
         phone_number: phone || undefined,
         role,
+        terms_accepted: true,
       });
       navigate("/dashboard");
     } catch (err: any) {
@@ -256,6 +263,23 @@ const Inscription = () => {
             </div>
           </div>
 
+          {/* Checkbox CNESST — prestataires seulement */}
+          {role === 'prestataire' && (
+            <label className="flex items-start gap-3 cursor-pointer bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <input
+                type="checkbox"
+                checked={acceptedCnesst}
+                onChange={e => setAcceptedCnesst(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-amber-600 cursor-pointer shrink-0"
+              />
+              <span className="text-sm text-gray-700 leading-relaxed">
+                Je comprends que j'exerce à titre de <strong>travailleur autonome indépendant</strong>.
+                Je suis seul(e) responsable de ma couverture auprès de la <strong>CNESST</strong>,
+                de mes assurances et du respect des règles de sécurité. Coupdemain n'est pas mon employeur.
+              </span>
+            </label>
+          )}
+
           {/* Checkbox T&C */}
           <label className="flex items-start gap-3 cursor-pointer">
             <input
@@ -286,7 +310,7 @@ const Inscription = () => {
 
           <button
             type="submit"
-            disabled={loading || !acceptedTerms}
+            disabled={loading || !acceptedTerms || (role === 'prestataire' && !acceptedCnesst)}
             className="mt-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-teal-600 text-white py-3 rounded-xl font-semibold text-sm shadow-sm hover:from-green-700 hover:to-teal-700 hover:shadow-md transition-all disabled:opacity-60"
           >
             {loading ? "Création en cours…" : (

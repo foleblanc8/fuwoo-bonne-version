@@ -18,30 +18,38 @@ class UserSerializer(serializers.ModelSerializer):
                  'role', 'has_provider_profile', 'phone_number', 'address',
                  'profile_picture', 'bio', 'is_verified', 'email_verified',
                  'rating', 'total_reviews', 'latitude', 'longitude',
-                 'identity_status', 'identity_rejection_reason', 'date_joined']
+                 'identity_status', 'identity_rejection_reason', 'date_joined',
+                 'terms_accepted_at', 'cnesst_accepted_at']
         read_only_fields = ['rating', 'total_reviews', 'is_verified', 'email_verified',
-                            'identity_status', 'identity_rejection_reason', 'date_joined']
+                            'identity_status', 'identity_rejection_reason', 'date_joined',
+                            'terms_accepted_at', 'cnesst_accepted_at']
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True)
-    
+    terms_accepted = serializers.BooleanField(write_only=True)
+
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'password_confirm', 
-                 'first_name', 'last_name', 'role', 'phone_number']
-    
+        fields = ['username', 'email', 'password', 'password_confirm',
+                 'first_name', 'last_name', 'role', 'phone_number', 'terms_accepted']
+
     def validate(self, data):
         if data['password'] != data['password_confirm']:
             raise serializers.ValidationError("Les mots de passe ne correspondent pas.")
+        if not data.get('terms_accepted'):
+            raise serializers.ValidationError("Vous devez accepter les conditions d'utilisation.")
         return data
-    
+
     def create(self, validated_data):
+        from django.utils import timezone
         validated_data.pop('password_confirm')
+        validated_data.pop('terms_accepted')
         password = validated_data.pop('password')
         role = validated_data.get('role', 'client')
         user = User.objects.create_user(**validated_data)
         user.set_password(password)
+        user.terms_accepted_at = timezone.now()
         if role == 'prestataire':
             user.has_provider_profile = True
         user.save()

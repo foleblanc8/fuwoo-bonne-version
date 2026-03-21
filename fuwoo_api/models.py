@@ -38,6 +38,10 @@ class CustomUser(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Acceptation des conditions
+    terms_accepted_at  = models.DateTimeField(null=True, blank=True)  # CGU à l'inscription
+    cnesst_accepted_at = models.DateTimeField(null=True, blank=True)  # Clause CNESST/travailleur autonome
+
     # Vérification d'identité
     IDENTITY_STATUS_CHOICES = [
         ('not_submitted', 'Non soumis'),

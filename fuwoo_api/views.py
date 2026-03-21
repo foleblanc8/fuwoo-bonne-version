@@ -199,13 +199,20 @@ def profile(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def become_provider(request):
+    from django.utils import timezone
     user = request.user
     if user.has_provider_profile:
         return Response({'detail': 'Vous avez déjà un profil prestataire.'},
                       status=status.HTTP_400_BAD_REQUEST)
 
+    cnesst_accepted = request.data.get('cnesst_accepted', False)
+    if not cnesst_accepted:
+        return Response({'detail': 'Vous devez accepter la clause travailleur autonome / CNESST.'},
+                      status=status.HTTP_400_BAD_REQUEST)
+
     user.has_provider_profile = True
-    user.role = 'prestataire'   # maintenu pour compatibilité FK
+    user.role = 'prestataire'
+    user.cnesst_accepted_at = timezone.now()
     user.save()
     return Response(UserSerializer(user).data)
 
