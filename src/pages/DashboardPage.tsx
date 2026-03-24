@@ -239,6 +239,9 @@ type Bid = {
   estimated_duration: number | null;
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
+  payment_status?: 'pending' | 'held' | 'released' | 'completed' | 'refunded' | null;
+  payment_client_approved?: boolean;
+  payment_provider_approved?: boolean;
 };
 
 type ApiBooking = {
@@ -1634,12 +1637,15 @@ function PortfolioTab() {
 // ─── Provider Requests Tab ────────────────────────────────────────────────────
 
 function ProviderRequestsTab() {
-  const [requests, setRequests]       = useState<ServiceRequest[]>([]);
-  const [myBids, setMyBids]           = useState<Bid[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [bidModal, setBidModal]       = useState<ServiceRequest | null>(null);
-  const [bidForm, setBidForm]         = useState({ price: '', price_unit: 'par projet', message: '', estimated_duration: '' });
-  const [submitting, setSubmitting]   = useState(false);
+  const [requests, setRequests]         = useState<ServiceRequest[]>([]);
+  const [myBids, setMyBids]             = useState<Bid[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [bidModal, setBidModal]         = useState<ServiceRequest | null>(null);
+  const [bidForm, setBidForm]           = useState({ price: '', price_unit: 'par projet', message: '', estimated_duration: '' });
+  const [submitting, setSubmitting]     = useState(false);
+  const [approvingBid, setApprovingBid] = useState<number | null>(null);
+  const [cancellingBid, setCancellingBid] = useState<number | null>(null);
+  const { showToast: showToastProvider } = useToast();
 
   const submittedIds = new Set(myBids.map(b => b.service_request));
 
@@ -1676,6 +1682,38 @@ function ProviderRequestsTab() {
       setBidModal(null);
     } catch { /* silent */ }
     finally { setSubmitting(false); }
+  };
+
+  const providerApprovePayment = async (bidId: number) => {
+    setApprovingBid(bidId);
+    try {
+      const res = await axios.post('payments/approve/', { bid_id: bidId });
+      const { status: newStatus, client_approved, provider_approved } = res.data as any;
+      setMyBids(prev => prev.map(b =>
+        b.id === bidId
+          ? { ...b, payment_status: newStatus, payment_client_approved: client_approved, payment_provider_approved: provider_approved }
+          : b
+      ));
+      if (newStatus === 'released') {
+        showToastProvider('Travaux confirmés ! Le paiement vous sera versé sous peu.', 'success');
+      } else {
+        showToastProvider('Votre confirmation a été enregistrée. En attente du client.', 'success');
+      }
+    } catch { showToastProvider('Impossible de confirmer.', 'error'); }
+    finally { setApprovingBid(null); }
+  };
+
+  const providerCancelBid = async (bidId: number) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir annuler ? Le client sera remboursé intégralement.')) return;
+    setCancellingBid(bidId);
+    try {
+      await axios.post('payments/cancel-refund/', { bid_id: bidId });
+      setMyBids(prev => prev.map(b => b.id === bidId ? { ...b, payment_status: 'refunded' as any } : b));
+      showToastProvider('Annulation effectuée. Le client sera remboursé.', 'success');
+    } catch (e: any) {
+      showToastProvider(e?.response?.data?.detail ?? 'Impossible d\'annuler.', 'error');
+    }
+    finally { setCancellingBid(null); }
   };
 
   const reqStatusBadge = (s: string) =>
@@ -1765,28 +1803,62 @@ function ProviderRequestsTab() {
                       );
                       if (bid.status === 'accepted') return (
                         <div className="flex flex-col items-end gap-2">
-                          <span className="flex items-center gap-1.5 text-green-600 text-sm font-semibold">
-                            <CheckCircle className="w-4 h-4" />Offre acceptée !
-                          </span>
-                          <a
-                            href={`/api/contracts/${bid.id}/`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 border border-indigo-200 text-indigo-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-50 transition"
-                          >
+                          {/* Statut paiement */}
+                          {bid.payment_status === 'held' && (
+                            <span className="flex items-center gap-1.5 text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                              <Lock className="w-3.5 h-3.5" />Paiement retenu
+                            </span>
+                          )}
+                          {(bid.payment_status === 'released' || bid.payment_status === 'completed') && (
+                            <span className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                              <CheckCircle className="w-3.5 h-3.5" />Paiement libéré
+                            </span>
+                          )}
+                          {bid.payment_status === 'refunded' && (
+                            <span className="flex items-center gap-1.5 text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                              Remboursé
+                            </span>
+                          )}
+                          {!bid.payment_status && (
+                            <span className="flex items-center gap-1.5 text-green-600 text-sm font-semibold">
+                              <CheckCircle className="w-4 h-4" />Offre acceptée !
+                            </span>
+                          )}
+
+                          <a href={`/api/contracts/${bid.id}/`} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 border border-indigo-200 text-indigo-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-50 transition">
                             <FileText className="w-4 h-4" />Contrat PDF
                           </a>
+
                           {(bid as any).service_request_detail?.client && (
-                            <button
-                              onClick={() => {
-                                const clientId = (bid as any).service_request_detail.client.id;
-                                window.dispatchEvent(new CustomEvent('open-messages', { detail: { partnerId: clientId } }));
-                                window.dispatchEvent(new CustomEvent('switch-tab', { detail: { tab: 'messages' } }));
-                              }}
-                              className="flex items-center gap-1.5 border border-coupdemain-primary/30 text-coupdemain-primary bg-coupdemain-primary/5 px-4 py-2 rounded-xl text-sm font-medium hover:bg-coupdemain-primary/10 transition"
-                            >
-                              <MessageSquare className="w-4 h-4" />
-                              Contacter le client
+                            <button onClick={() => {
+                              const clientId = (bid as any).service_request_detail.client.id;
+                              window.dispatchEvent(new CustomEvent('open-messages', { detail: { partnerId: clientId } }));
+                              window.dispatchEvent(new CustomEvent('switch-tab', { detail: { tab: 'messages' } }));
+                            }}
+                              className="flex items-center gap-1.5 border border-coupdemain-primary/30 text-coupdemain-primary bg-coupdemain-primary/5 px-4 py-2 rounded-xl text-sm font-medium hover:bg-coupdemain-primary/10 transition">
+                              <MessageSquare className="w-4 h-4" />Contacter le client
+                            </button>
+                          )}
+
+                          {/* Confirmer la fin — séquestre seulement */}
+                          {bid.payment_status === 'held' && !bid.payment_provider_approved && (
+                            <button onClick={() => providerApprovePayment(bid.id)} disabled={approvingBid === bid.id}
+                              className="flex items-center gap-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 transition disabled:opacity-50">
+                              <CheckCircle className="w-4 h-4" />
+                              {approvingBid === bid.id ? 'Confirmation…' : 'Confirmer travaux terminés'}
+                            </button>
+                          )}
+                          {bid.payment_status === 'held' && bid.payment_provider_approved && (
+                            <span className="text-xs text-gray-400 italic">En attente du client…</span>
+                          )}
+
+                          {/* Annuler + rembourser */}
+                          {bid.payment_status === 'held' && (
+                            <button onClick={() => providerCancelBid(bid.id)} disabled={cancellingBid === bid.id}
+                              className="flex items-center gap-1.5 border border-red-200 text-red-600 bg-red-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-100 transition disabled:opacity-50">
+                              <X className="w-4 h-4" />
+                              {cancellingBid === bid.id ? 'Annulation…' : 'Annuler (rembourser client)'}
                             </button>
                           )}
                         </div>
@@ -1962,9 +2034,10 @@ function ClientProjectsTab() {
   const [bidsLoading, setBidsLoading] = useState<number | null>(null);
   const [accepting, setAccepting]     = useState<number | null>(null);
   const [completing, setCompleting]   = useState<number | null>(null);
-  const [paying, setPaying]           = useState<number | null>(null);
-  const [editingReq, setEditingReq]   = useState<ServiceRequest | null>(null);
-  const [reviewBid, setReviewBid]     = useState<{ bid: Bid; providerName: string } | null>(null);
+  const [paying, setPaying]               = useState<number | null>(null);
+  const [approvingPayment, setApproving]  = useState<number | null>(null);
+  const [editingReq, setEditingReq]       = useState<ServiceRequest | null>(null);
+  const [reviewBid, setReviewBid]         = useState<{ bid: Bid; providerName: string } | null>(null);
   const [reviewedBidIds, setReviewedBidIds] = useState<Set<number>>(new Set());
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -2029,6 +2102,29 @@ function ClientProjectsTab() {
       showToast('Service marqué comme terminé !', 'success');
     } catch { showToast('Impossible de marquer comme terminé.', 'error'); }
     finally { setCompleting(null); }
+  };
+
+  const approvePayment = async (bidId: number, reqId: number) => {
+    setApproving(bidId);
+    try {
+      const res = await axios.post('payments/approve/', { bid_id: bidId });
+      const { status: newStatus, client_approved, provider_approved } = res.data as any;
+      setBids(prev => ({
+        ...prev,
+        [reqId]: (prev[reqId] ?? []).map(b =>
+          b.id === bidId
+            ? { ...b, payment_status: newStatus, payment_client_approved: client_approved, payment_provider_approved: provider_approved }
+            : b
+        ),
+      }));
+      if (newStatus === 'released') {
+        setRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'completed' } : r));
+        showToast('Travaux confirmés ! Le paiement sera versé au prestataire.', 'success');
+      } else {
+        showToast('Votre confirmation a été enregistrée. En attente du prestataire.', 'success');
+      }
+    } catch { showToast('Impossible de confirmer.', 'error'); }
+    finally { setApproving(null); }
   };
 
   const commissionRate = (price: string) => {
@@ -2293,47 +2389,84 @@ function ClientProjectsTab() {
                                   </button>
                                 )}
 
-                                {bid.status === 'accepted' && (
-                                  <>
-                                    <p className="text-xs text-gray-400 text-right">Commission Coupdemain {commissionRate(bid.price)}% incluse</p>
-                                    <button onClick={() => payBid(bid.id)} disabled={paying === bid.id}
-                                      className="flex items-center gap-1.5 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-50">
-                                      <DollarSign className="w-4 h-4" />
-                                      {paying === bid.id ? 'Redirection…' : `Payer $${parseFloat(bid.price).toFixed(2)}`}
-                                    </button>
-                                    <a href={`/api/contracts/${bid.id}/`} target="_blank" rel="noopener noreferrer"
-                                      className="flex items-center gap-1.5 border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
-                                      <FileText className="w-4 h-4" />Contrat PDF
-                                    </a>
-                                    {bid.provider && (
-                                      <button onClick={() => {
-                                        window.dispatchEvent(new CustomEvent('open-messages', { detail: { partnerId: bid.provider!.id } }));
-                                        window.dispatchEvent(new CustomEvent('switch-tab', { detail: { tab: 'messages' } }));
-                                      }}
-                                        className="flex items-center gap-1.5 border border-coupdemain-primary/30 text-coupdemain-primary bg-coupdemain-primary/5 px-4 py-2 rounded-xl text-sm font-medium hover:bg-coupdemain-primary/10 transition">
-                                        <MessageSquare className="w-4 h-4" />Contacter
-                                      </button>
-                                    )}
-                                    {req.status === 'awarded' && (
-                                      <button onClick={() => completeRequest(req.id)} disabled={completing === req.id}
-                                        className="flex items-center gap-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 transition disabled:opacity-50">
-                                        <CheckCircle className="w-4 h-4" />
-                                        {completing === req.id ? 'Mise à jour…' : 'Marquer comme terminé'}
-                                      </button>
-                                    )}
-                                    {req.status === 'completed' && !reviewedBidIds.has(bid.id) && (
-                                      <button onClick={() => setReviewBid({ bid, providerName })}
-                                        className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-yellow-100 transition">
-                                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />Laisser un avis
-                                      </button>
-                                    )}
-                                    {req.status === 'completed' && reviewedBidIds.has(bid.id) && (
-                                      <span className="flex items-center gap-1.5 text-xs text-gray-400 px-3 py-1.5">
-                                        <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />Avis publié
-                                      </span>
-                                    )}
-                                  </>
-                                )}
+                                {bid.status === 'accepted' && (() => {
+                                  const ps = bid.payment_status;
+                                  const isPaid = ps === 'held' || ps === 'released' || ps === 'completed';
+                                  const isReleased = ps === 'released' || ps === 'completed';
+                                  const isRefunded = ps === 'refunded';
+                                  return (
+                                    <>
+                                      {/* Badge statut paiement */}
+                                      {isReleased && (
+                                        <span className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                                          <CheckCircle className="w-3.5 h-3.5" />Payé — Libéré
+                                        </span>
+                                      )}
+                                      {ps === 'held' && (
+                                        <span className="flex items-center gap-1.5 text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                                          <Lock className="w-3.5 h-3.5" />Payé — En séquestre
+                                        </span>
+                                      )}
+                                      {isRefunded && (
+                                        <span className="flex items-center gap-1.5 text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                                          Remboursé
+                                        </span>
+                                      )}
+
+                                      {/* Bouton payer — seulement si pas encore payé */}
+                                      {!isPaid && !isRefunded && (
+                                        <>
+                                          <p className="text-xs text-gray-400 text-right">Commission Coupdemain {commissionRate(bid.price)}% incluse</p>
+                                          <button onClick={() => payBid(bid.id)} disabled={paying === bid.id}
+                                            className="flex items-center gap-1.5 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-50">
+                                            <DollarSign className="w-4 h-4" />
+                                            {paying === bid.id ? 'Redirection…' : `Payer $${parseFloat(bid.price).toFixed(2)}`}
+                                          </button>
+                                        </>
+                                      )}
+
+                                      {/* Confirmer fin des travaux — séquestre seulement */}
+                                      {ps === 'held' && !bid.payment_client_approved && (
+                                        <button onClick={() => approvePayment(bid.id, req.id)} disabled={approvingPayment === bid.id}
+                                          className="flex items-center gap-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 transition disabled:opacity-50">
+                                          <CheckCircle className="w-4 h-4" />
+                                          {approvingPayment === bid.id ? 'Confirmation…' : 'Confirmer la fin des travaux'}
+                                        </button>
+                                      )}
+                                      {ps === 'held' && bid.payment_client_approved && !isReleased && (
+                                        <span className="text-xs text-gray-400 italic">En attente de la confirmation du prestataire…</span>
+                                      )}
+
+                                      {/* Contrat + Contact toujours disponibles */}
+                                      <a href={`/api/contracts/${bid.id}/`} target="_blank" rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
+                                        <FileText className="w-4 h-4" />Contrat PDF
+                                      </a>
+                                      {bid.provider && (
+                                        <button onClick={() => {
+                                          window.dispatchEvent(new CustomEvent('open-messages', { detail: { partnerId: bid.provider!.id } }));
+                                          window.dispatchEvent(new CustomEvent('switch-tab', { detail: { tab: 'messages' } }));
+                                        }}
+                                          className="flex items-center gap-1.5 border border-coupdemain-primary/30 text-coupdemain-primary bg-coupdemain-primary/5 px-4 py-2 rounded-xl text-sm font-medium hover:bg-coupdemain-primary/10 transition">
+                                          <MessageSquare className="w-4 h-4" />Contacter
+                                        </button>
+                                      )}
+
+                                      {/* Avis — disponible après libération */}
+                                      {isReleased && !reviewedBidIds.has(bid.id) && (
+                                        <button onClick={() => setReviewBid({ bid, providerName })}
+                                          className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-yellow-100 transition">
+                                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />Laisser un avis
+                                        </button>
+                                      )}
+                                      {isReleased && reviewedBidIds.has(bid.id) && (
+                                        <span className="flex items-center gap-1.5 text-xs text-gray-400 px-3 py-1.5">
+                                          <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />Avis publié
+                                        </span>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>

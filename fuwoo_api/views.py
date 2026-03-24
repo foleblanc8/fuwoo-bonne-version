@@ -1067,7 +1067,7 @@ def create_checkout_session(request):
         return Response({'detail': "L'offre doit être acceptée avant le paiement."}, status=status.HTTP_400_BAD_REQUEST)
 
     # Vérifier si un paiement existe déjà
-    if hasattr(bid, 'payment') and bid.payment.status == 'completed':
+    if hasattr(bid, 'payment') and bid.payment.status in ('held', 'released', 'completed'):
         return Response({'detail': 'Cette offre est déjà payée.'}, status=status.HTTP_400_BAD_REQUEST)
 
     amount = Decimal(str(bid.price))
@@ -1150,7 +1150,7 @@ def stripe_webhook(request):
         try:
             payment = Payment.objects.get(stripe_session_id=session['id'])
             payment.stripe_payment_intent_id = session.get('payment_intent', '')
-            payment.status       = 'completed'
+            payment.status       = 'held'  # séquestre : fonds retenus jusqu'à confirmation des deux parties
             payment.completed_at = now()
             payment.save()
 
@@ -1158,23 +1158,135 @@ def stripe_webhook(request):
             Notification.objects.create(
                 user=payment.provider,
                 type='booking_confirmed',
-                title='Paiement reçu !',
+                title='Paiement reçu — travaux à compléter',
                 message=(
                     f'Le client a payé {payment.amount} $ pour "{payment.bid.service_request.title}". '
-                    f'Vous recevrez {payment.provider_amount} $ après déduction de la commission.'
+                    f'Le montant de {payment.provider_amount} $ vous sera versé une fois les travaux confirmés par les deux parties.'
                 ),
             )
             # Notifier le client
             Notification.objects.create(
                 user=payment.client,
                 type='booking_confirmed',
-                title='Paiement confirmé',
-                message=f'Votre paiement de {payment.amount} $ a été confirmé. Le prestataire a été notifié.',
+                title='Paiement retenu en séquestre',
+                message=(
+                    f'Votre paiement de {payment.amount} $ est sécurisé. '
+                    f'Le montant sera versé au prestataire une fois les travaux confirmés par les deux parties.'
+                ),
             )
         except Payment.DoesNotExist:
             pass  # Peut arriver si le webhook arrive avant la réponse du create_checkout
 
     return Response({'status': 'ok'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def approve_payment(request):
+    """
+    Client ou prestataire confirme que les travaux sont terminés.
+    Quand les deux ont approuvé → paiement libéré (status='released').
+    Body: { "bid_id": <int> }
+    """
+    bid_id = request.data.get('bid_id')
+    try:
+        payment = Payment.objects.select_related('bid__service_request', 'client', 'provider').get(bid_id=bid_id)
+    except Payment.DoesNotExist:
+        return Response({'detail': 'Paiement introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+    user = request.user
+    if user != payment.client and user != payment.provider:
+        return Response({'detail': 'Non autorisé.'}, status=status.HTTP_403_FORBIDDEN)
+
+    if payment.status not in ('held', 'completed'):
+        return Response({'detail': 'Ce paiement ne peut pas être approuvé.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if user == payment.client:
+        payment.client_approved = True
+    else:
+        payment.provider_approved = True
+
+    if payment.client_approved and payment.provider_approved:
+        payment.status = 'released'
+        payment.released_at = now()
+        payment.bid.service_request.status = 'completed'
+        payment.bid.service_request.save()
+        # Notifications
+        Notification.objects.create(
+            user=payment.provider,
+            type='booking_completed',
+            title='Paiement libéré !',
+            message=(
+                f'Les deux parties ont confirmé la fin des travaux pour "{payment.bid.service_request.title}". '
+                f'Le montant de {payment.provider_amount} $ vous sera versé sous peu.'
+            ),
+        )
+        Notification.objects.create(
+            user=payment.client,
+            type='booking_completed',
+            title='Travaux confirmés',
+            message=f'Les travaux pour "{payment.bid.service_request.title}" sont confirmés comme terminés.',
+        )
+
+    payment.save()
+    return Response({
+        'status': payment.status,
+        'client_approved': payment.client_approved,
+        'provider_approved': payment.provider_approved,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def cancel_and_refund(request):
+    """
+    Prestataire annule — rembourse le client via Stripe.
+    Body: { "bid_id": <int> }
+    """
+    stripe.api_key = django_settings.STRIPE_SECRET_KEY
+
+    bid_id = request.data.get('bid_id')
+    try:
+        payment = Payment.objects.select_related('bid__service_request', 'client', 'provider').get(bid_id=bid_id)
+    except Payment.DoesNotExist:
+        return Response({'detail': 'Paiement introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.user != payment.provider:
+        return Response({'detail': 'Seul le prestataire peut annuler.'}, status=status.HTTP_403_FORBIDDEN)
+
+    if payment.status != 'held':
+        return Response({'detail': 'Ce paiement ne peut pas être remboursé.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Remboursement Stripe
+    if payment.stripe_payment_intent_id:
+        try:
+            stripe.Refund.create(payment_intent=payment.stripe_payment_intent_id)
+        except stripe.StripeError as e:
+            return Response({'detail': f'Erreur Stripe : {e}'}, status=status.HTTP_502_BAD_GATEWAY)
+
+    payment.status = 'refunded'
+    payment.save()
+
+    bid = payment.bid
+    bid.status = 'rejected'
+    bid.save()
+
+    service_request = bid.service_request
+    service_request.status = 'open'
+    service_request.save()
+
+    # Notifier le client
+    Notification.objects.create(
+        user=payment.client,
+        type='booking_cancelled',
+        title='Remboursement en cours',
+        message=(
+            f'Le prestataire a annulé pour "{service_request.title}". '
+            f'Vous serez remboursé de {payment.amount} $ sous 5 à 10 jours ouvrables.'
+        ),
+    )
+
+    return Response({'status': 'refunded'})
 
 
 # ─── Contrat PDF ──────────────────────────────────────────────────────────────

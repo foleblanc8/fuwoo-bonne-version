@@ -11,7 +11,7 @@ from .views import (
     ServiceRequestViewSet, BidViewSet,
     password_reset_request, password_reset_confirm,
     verify_email, resend_verification,
-    create_checkout_session, stripe_webhook,
+    create_checkout_session, stripe_webhook, approve_payment, cancel_and_refund,
     submit_identity, PortfolioPhotoViewSet,
     download_contract,
     CRMViewSet, crm_stats, crm_revenue_chart, crm_notes, crm_note_detail,
@@ -61,6 +61,8 @@ urlpatterns = [
     # Paiements Stripe
     path('payments/create-checkout/', create_checkout_session, name='create_checkout'),
     path('payments/webhook/', stripe_webhook, name='stripe_webhook'),
+    path('payments/approve/', approve_payment, name='approve_payment'),
+    path('payments/cancel-refund/', cancel_and_refund, name='cancel_and_refund'),
 
     # Vérification d'identité
     path('auth/submit-identity/', submit_identity, name='submit_identity'),

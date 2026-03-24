@@ -205,12 +205,25 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
 class BidSerializer(serializers.ModelSerializer):
     provider = UserSerializer(read_only=True)
     service_request_detail = ServiceRequestSerializer(source='service_request', read_only=True)
+    payment_status           = serializers.SerializerMethodField()
+    payment_client_approved  = serializers.SerializerMethodField()
+    payment_provider_approved = serializers.SerializerMethodField()
+
+    def get_payment_status(self, obj):
+        return obj.payment.status if hasattr(obj, 'payment') else None
+
+    def get_payment_client_approved(self, obj):
+        return obj.payment.client_approved if hasattr(obj, 'payment') else False
+
+    def get_payment_provider_approved(self, obj):
+        return obj.payment.provider_approved if hasattr(obj, 'payment') else False
 
     class Meta:
         model = Bid
         fields = [
             'id', 'service_request', 'service_request_detail', 'provider', 'price', 'price_unit',
             'message', 'estimated_duration', 'status', 'created_at',
+            'payment_status', 'payment_client_approved', 'payment_provider_approved',
         ]
         read_only_fields = ['provider', 'status']
 
