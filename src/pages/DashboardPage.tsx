@@ -239,7 +239,7 @@ type Bid = {
   estimated_duration: number | null;
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
-  payment_status?: 'pending' | 'held' | 'released' | 'completed' | 'refunded' | null;
+  payment_status?: 'pending' | 'held' | 'work_submitted' | 'released' | 'completed' | 'refunded' | 'cancellation_requested' | 'disputed' | null;
   payment_client_approved?: boolean;
   payment_provider_approved?: boolean;
 };
@@ -1643,8 +1643,11 @@ function ProviderRequestsTab() {
   const [bidModal, setBidModal]         = useState<ServiceRequest | null>(null);
   const [bidForm, setBidForm]           = useState({ price: '', price_unit: 'par projet', message: '', estimated_duration: '' });
   const [submitting, setSubmitting]     = useState(false);
-  const [approvingBid, setApprovingBid] = useState<number | null>(null);
-  const [cancellingBid, setCancellingBid] = useState<number | null>(null);
+  const [submittingWork, setSubmittingWork]         = useState<number | null>(null);
+  const [cancellingBid, setCancellingBid]           = useState<number | null>(null);
+  const [cancelModal, setCancelModal]               = useState<number | null>(null);
+  const [cancelReason, setCancelReason]             = useState('');
+  const [submittingCancel, setSubmittingCancel]     = useState(false);
   const { showToast: showToastProvider } = useToast();
 
   const submittedIds = new Set(myBids.map(b => b.service_request));
@@ -1684,36 +1687,35 @@ function ProviderRequestsTab() {
     finally { setSubmitting(false); }
   };
 
-  const providerApprovePayment = async (bidId: number) => {
-    setApprovingBid(bidId);
+  const providerSubmitWork = async (bidId: number) => {
+    setSubmittingWork(bidId);
     try {
-      const res = await axios.post('payments/approve/', { bid_id: bidId });
-      const { status: newStatus, client_approved, provider_approved } = res.data as any;
+      await axios.post('payments/submit-work/', { bid_id: bidId });
       setMyBids(prev => prev.map(b =>
-        b.id === bidId
-          ? { ...b, payment_status: newStatus, payment_client_approved: client_approved, payment_provider_approved: provider_approved }
-          : b
+        b.id === bidId ? { ...b, payment_status: 'work_submitted' as const, payment_provider_approved: true } : b
       ));
-      if (newStatus === 'released') {
-        showToastProvider('Travaux confirmés ! Le paiement vous sera versé sous peu.', 'success');
-      } else {
-        showToastProvider('Votre confirmation a été enregistrée. En attente du client.', 'success');
-      }
-    } catch { showToastProvider('Impossible de confirmer.', 'error'); }
-    finally { setApprovingBid(null); }
+      showToastProvider('Travaux soumis ! Le client a été notifié et dispose de 48h pour confirmer.', 'success');
+    } catch (e: any) {
+      showToastProvider(e?.response?.data?.detail ?? 'Impossible de soumettre.', 'error');
+    }
+    finally { setSubmittingWork(null); }
   };
 
-  const providerCancelBid = async (bidId: number) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir annuler ? Le client sera remboursé intégralement.')) return;
-    setCancellingBid(bidId);
+  const providerSubmitCancel = async () => {
+    if (!cancelModal || !cancelReason.trim()) return;
+    setSubmittingCancel(true);
     try {
-      await axios.post('payments/cancel-refund/', { bid_id: bidId });
-      setMyBids(prev => prev.map(b => b.id === bidId ? { ...b, payment_status: 'refunded' as any } : b));
-      showToastProvider('Annulation effectuée. Le client sera remboursé.', 'success');
+      await axios.post('payments/cancel-request/', { bid_id: cancelModal, reason: cancelReason });
+      setMyBids(prev => prev.map(b =>
+        b.id === cancelModal ? { ...b, payment_status: 'cancellation_requested' as const } : b
+      ));
+      showToastProvider('Demande d\'annulation envoyée. L\'équipe Coupdemain vous contactera.', 'success');
+      setCancelModal(null);
+      setCancelReason('');
     } catch (e: any) {
-      showToastProvider(e?.response?.data?.detail ?? 'Impossible d\'annuler.', 'error');
+      showToastProvider(e?.response?.data?.detail ?? 'Impossible d\'envoyer.', 'error');
     }
-    finally { setCancellingBid(null); }
+    finally { setSubmittingCancel(false); }
   };
 
   const reqStatusBadge = (s: string) =>
@@ -1841,24 +1843,23 @@ function ProviderRequestsTab() {
                             </button>
                           )}
 
-                          {/* Confirmer la fin — séquestre seulement */}
-                          {bid.payment_status === 'held' && !bid.payment_provider_approved && (
-                            <button onClick={() => providerApprovePayment(bid.id)} disabled={approvingBid === bid.id}
-                              className="flex items-center gap-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 transition disabled:opacity-50">
+                          {/* Soumettre les travaux */}
+                          {bid.payment_status === 'held' && (
+                            <button onClick={() => providerSubmitWork(bid.id)} disabled={submittingWork === bid.id}
+                              className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-50">
                               <CheckCircle className="w-4 h-4" />
-                              {approvingBid === bid.id ? 'Confirmation…' : 'Confirmer travaux terminés'}
+                              {submittingWork === bid.id ? 'Envoi…' : 'Soumettre les travaux'}
                             </button>
                           )}
-                          {bid.payment_status === 'held' && bid.payment_provider_approved && (
-                            <span className="text-xs text-gray-400 italic">En attente du client…</span>
+                          {bid.payment_status === 'work_submitted' && (
+                            <span className="text-xs text-gray-400 italic text-right">En attente de confirmation du client…</span>
                           )}
 
-                          {/* Annuler + rembourser */}
-                          {bid.payment_status === 'held' && (
-                            <button onClick={() => providerCancelBid(bid.id)} disabled={cancellingBid === bid.id}
-                              className="flex items-center gap-1.5 border border-red-200 text-red-600 bg-red-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-100 transition disabled:opacity-50">
-                              <X className="w-4 h-4" />
-                              {cancellingBid === bid.id ? 'Annulation…' : 'Annuler (rembourser client)'}
+                          {/* Demande d'annulation */}
+                          {(bid.payment_status === 'held' || bid.payment_status === 'work_submitted') && (
+                            <button onClick={() => { setCancelModal(bid.id); setCancelReason(''); }}
+                              className="flex items-center gap-1.5 border border-red-200 text-red-600 bg-red-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-100 transition">
+                              <X className="w-4 h-4" />Demander une annulation
                             </button>
                           )}
                         </div>
@@ -1874,6 +1875,40 @@ function ProviderRequestsTab() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal annulation prestataire */}
+      {cancelModal !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b">
+              <h3 className="text-base font-bold text-gray-900">Demande d'annulation</h3>
+              <button onClick={() => setCancelModal(null)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-gray-600">
+                Expliquez la raison de votre annulation. Notre équipe examinera la situation et déterminera le remboursement approprié.
+              </p>
+              <textarea
+                rows={4}
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                placeholder="Ex: Urgence familiale, blessure, matériel défectueux…"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400/40 resize-none"
+              />
+              <div className="flex gap-3">
+                <button onClick={() => setCancelModal(null)}
+                  className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
+                  Retour
+                </button>
+                <button onClick={providerSubmitCancel} disabled={submittingCancel || !cancelReason.trim()}
+                  className="flex-1 bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
+                  {submittingCancel ? 'Envoi…' : 'Envoyer la demande'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2034,9 +2069,12 @@ function ClientProjectsTab() {
   const [bidsLoading, setBidsLoading] = useState<number | null>(null);
   const [accepting, setAccepting]     = useState<number | null>(null);
   const [completing, setCompleting]   = useState<number | null>(null);
-  const [paying, setPaying]               = useState<number | null>(null);
-  const [approvingPayment, setApproving]  = useState<number | null>(null);
-  const [editingReq, setEditingReq]       = useState<ServiceRequest | null>(null);
+  const [paying, setPaying]                   = useState<number | null>(null);
+  const [releasingPayment, setReleasing]      = useState<number | null>(null);
+  const [disputeModal, setDisputeModal]       = useState<{ bidId: number; reqId: number } | null>(null);
+  const [disputeReason, setDisputeReason]     = useState('');
+  const [submittingDispute, setSubmittingDispute] = useState(false);
+  const [editingReq, setEditingReq]           = useState<ServiceRequest | null>(null);
   const [reviewBid, setReviewBid]         = useState<{ bid: Bid; providerName: string } | null>(null);
   const [reviewedBidIds, setReviewedBidIds] = useState<Set<number>>(new Set());
   const { showToast } = useToast();
@@ -2104,27 +2142,38 @@ function ClientProjectsTab() {
     finally { setCompleting(null); }
   };
 
-  const approvePayment = async (bidId: number, reqId: number) => {
-    setApproving(bidId);
+  const releasePayment = async (bidId: number, reqId: number) => {
+    setReleasing(bidId);
     try {
-      const res = await axios.post('payments/approve/', { bid_id: bidId });
-      const { status: newStatus, client_approved, provider_approved } = res.data as any;
+      await axios.post('payments/release/', { bid_id: bidId });
       setBids(prev => ({
         ...prev,
         [reqId]: (prev[reqId] ?? []).map(b =>
-          b.id === bidId
-            ? { ...b, payment_status: newStatus, payment_client_approved: client_approved, payment_provider_approved: provider_approved }
-            : b
+          b.id === bidId ? { ...b, payment_status: 'released' as const } : b
         ),
       }));
-      if (newStatus === 'released') {
-        setRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'completed' } : r));
-        showToast('Travaux confirmés ! Le paiement sera versé au prestataire.', 'success');
-      } else {
-        showToast('Votre confirmation a été enregistrée. En attente du prestataire.', 'success');
-      }
-    } catch { showToast('Impossible de confirmer.', 'error'); }
-    finally { setApproving(null); }
+      setRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'completed' } : r));
+      showToast('Travaux acceptés ! Le paiement sera versé au prestataire.', 'success');
+    } catch { showToast('Impossible d\'accepter les travaux.', 'error'); }
+    finally { setReleasing(null); }
+  };
+
+  const submitDispute = async () => {
+    if (!disputeModal || !disputeReason.trim()) return;
+    setSubmittingDispute(true);
+    try {
+      await axios.post('payments/dispute/', { bid_id: disputeModal.bidId, reason: disputeReason });
+      setBids(prev => ({
+        ...prev,
+        [disputeModal.reqId]: (prev[disputeModal.reqId] ?? []).map(b =>
+          b.id === disputeModal.bidId ? { ...b, payment_status: 'disputed' as const } : b
+        ),
+      }));
+      showToast('Litige signalé. Notre équipe vous contactera sous 24-48h.', 'success');
+      setDisputeModal(null);
+      setDisputeReason('');
+    } catch { showToast('Impossible de soumettre le litige.', 'error'); }
+    finally { setSubmittingDispute(false); }
   };
 
   const commissionRate = (price: string) => {
@@ -2391,30 +2440,39 @@ function ClientProjectsTab() {
 
                                 {bid.status === 'accepted' && (() => {
                                   const ps = bid.payment_status;
-                                  const isPaid = ps === 'held' || ps === 'released' || ps === 'completed';
+                                  const isPaid = ps === 'held' || ps === 'work_submitted' || ps === 'released' || ps === 'completed';
                                   const isReleased = ps === 'released' || ps === 'completed';
-                                  const isRefunded = ps === 'refunded';
+                                  const workSubmitted = ps === 'work_submitted';
                                   return (
                                     <>
-                                      {/* Badge statut paiement */}
+                                      {/* Badge statut */}
                                       {isReleased && (
                                         <span className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
-                                          <CheckCircle className="w-3.5 h-3.5" />Payé — Libéré
+                                          <CheckCircle className="w-3.5 h-3.5" />Payé — Travaux acceptés
                                         </span>
                                       )}
                                       {ps === 'held' && (
                                         <span className="flex items-center gap-1.5 text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
-                                          <Lock className="w-3.5 h-3.5" />Payé — En séquestre
+                                          <Lock className="w-3.5 h-3.5" />Payé — Travaux en cours
                                         </span>
                                       )}
-                                      {isRefunded && (
-                                        <span className="flex items-center gap-1.5 text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
-                                          Remboursé
+                                      {workSubmitted && (
+                                        <span className="flex items-center gap-1.5 text-orange-700 bg-orange-50 border border-orange-200 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                                          <CheckCircle className="w-3.5 h-3.5" />Travaux soumis — À confirmer
                                         </span>
+                                      )}
+                                      {ps === 'refunded' && (
+                                        <span className="flex items-center gap-1.5 text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-semibold">Remboursé</span>
+                                      )}
+                                      {ps === 'cancellation_requested' && (
+                                        <span className="flex items-center gap-1.5 text-gray-600 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-semibold">Annulation en cours…</span>
+                                      )}
+                                      {ps === 'disputed' && (
+                                        <span className="flex items-center gap-1.5 text-red-700 bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl text-xs font-semibold">Litige en cours</span>
                                       )}
 
-                                      {/* Bouton payer — seulement si pas encore payé */}
-                                      {!isPaid && !isRefunded && (
+                                      {/* Bouton payer */}
+                                      {!isPaid && ps !== 'refunded' && ps !== 'cancellation_requested' && ps !== 'disputed' && (
                                         <>
                                           <p className="text-xs text-gray-400 text-right">Commission Coupdemain {commissionRate(bid.price)}% incluse</p>
                                           <button onClick={() => payBid(bid.id)} disabled={paying === bid.id}
@@ -2425,19 +2483,23 @@ function ClientProjectsTab() {
                                         </>
                                       )}
 
-                                      {/* Confirmer fin des travaux — séquestre seulement */}
-                                      {ps === 'held' && !bid.payment_client_approved && (
-                                        <button onClick={() => approvePayment(bid.id, req.id)} disabled={approvingPayment === bid.id}
-                                          className="flex items-center gap-1.5 border border-emerald-300 text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-100 transition disabled:opacity-50">
-                                          <CheckCircle className="w-4 h-4" />
-                                          {approvingPayment === bid.id ? 'Confirmation…' : 'Confirmer la fin des travaux'}
-                                        </button>
-                                      )}
-                                      {ps === 'held' && bid.payment_client_approved && !isReleased && (
-                                        <span className="text-xs text-gray-400 italic">En attente de la confirmation du prestataire…</span>
+                                      {/* Accepter / refuser les travaux soumis */}
+                                      {workSubmitted && (
+                                        <div className="flex flex-col gap-2">
+                                          <button onClick={() => releasePayment(bid.id, req.id)} disabled={releasingPayment === bid.id}
+                                            className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-50">
+                                            <CheckCircle className="w-4 h-4" />
+                                            {releasingPayment === bid.id ? 'Confirmation…' : 'Accepter les travaux'}
+                                          </button>
+                                          <button onClick={() => { setDisputeModal({ bidId: bid.id, reqId: req.id }); setDisputeReason(''); }}
+                                            className="flex items-center gap-1.5 border border-red-200 text-red-600 bg-red-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-100 transition">
+                                            <X className="w-4 h-4" />Signaler un problème
+                                          </button>
+                                          <p className="text-[10px] text-gray-400 text-center">Libération auto dans 48h si aucune action</p>
+                                        </div>
                                       )}
 
-                                      {/* Contrat + Contact toujours disponibles */}
+                                      {/* Contrat + Contact */}
                                       <a href={`/api/contracts/${bid.id}/`} target="_blank" rel="noopener noreferrer"
                                         className="flex items-center gap-1.5 border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
                                         <FileText className="w-4 h-4" />Contrat PDF
@@ -2452,7 +2514,7 @@ function ClientProjectsTab() {
                                         </button>
                                       )}
 
-                                      {/* Avis — disponible après libération */}
+                                      {/* Avis */}
                                       {isReleased && !reviewedBidIds.has(bid.id) && (
                                         <button onClick={() => setReviewBid({ bid, providerName })}
                                           className="flex items-center gap-1.5 bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-xl text-sm font-semibold hover:bg-yellow-100 transition">
@@ -2478,6 +2540,38 @@ function ClientProjectsTab() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal litige */}
+      {disputeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b">
+              <h3 className="text-base font-bold text-gray-900">Signaler un problème</h3>
+              <button onClick={() => setDisputeModal(null)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-gray-600">Décrivez le problème avec les travaux soumis. Notre équipe vous contactera sous 24-48h pour arbitrer.</p>
+              <textarea
+                rows={4}
+                value={disputeReason}
+                onChange={e => setDisputeReason(e.target.value)}
+                placeholder="Ex: Les travaux ne correspondent pas à ce qui était convenu, il manque…"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400/40 resize-none"
+              />
+              <div className="flex gap-3">
+                <button onClick={() => setDisputeModal(null)}
+                  className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
+                  Annuler
+                </button>
+                <button onClick={submitDispute} disabled={submittingDispute || !disputeReason.trim()}
+                  className="flex-1 bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
+                  {submittingDispute ? 'Envoi…' : 'Soumettre le litige'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

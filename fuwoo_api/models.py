@@ -426,12 +426,15 @@ class CRMServiceLink(models.Model):
 
 class Payment(models.Model):
     STATUS_CHOICES = [
-        ('pending',   'En attente'),
-        ('held',      'En séquestre'),   # paiement reçu, travaux en cours
-        ('released',  'Libéré'),          # les deux parties ont confirmé
-        ('completed', 'Complété'),        # legacy
-        ('failed',    'Échoué'),
-        ('refunded',  'Remboursé'),
+        ('pending',                'En attente'),
+        ('held',                   'En séquestre'),        # paiement reçu, travaux en cours
+        ('work_submitted',         'Travaux soumis'),      # prestataire a soumis
+        ('released',               'Libéré'),              # client a accepté
+        ('completed',              'Complété'),            # legacy
+        ('failed',                 'Échoué'),
+        ('refunded',               'Remboursé'),
+        ('cancellation_requested', 'Annulation demandée'), # en attente admin
+        ('disputed',               'En litige'),           # client a refusé
     ]
 
     bid      = models.OneToOneField(Bid, on_delete=models.CASCADE, related_name='payment')
@@ -448,11 +451,13 @@ class Payment(models.Model):
     stripe_session_id       = models.CharField(max_length=300, unique=True, blank=True)
     stripe_payment_intent_id = models.CharField(max_length=300, blank=True)
 
-    # Séquestre — approbations
-    client_approved   = models.BooleanField(default=False)
-    provider_approved = models.BooleanField(default=False)
+    # Séquestre
+    client_approved      = models.BooleanField(default=False)
+    provider_approved    = models.BooleanField(default=False)
+    work_submitted_at    = models.DateTimeField(null=True, blank=True)
+    cancellation_reason  = models.TextField(blank=True)
 
-    status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status       = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
     created_at   = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     released_at  = models.DateTimeField(null=True, blank=True)

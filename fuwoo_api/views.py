@@ -692,6 +692,21 @@ class BidViewSet(viewsets.ModelViewSet):
             str(bid.price), bid.price_unit,
         )
 
+    def list(self, request, *args, **kwargs):
+        """Auto-release les paiements en 'work_submitted' depuis plus de 48h avant de retourner les bids."""
+        qs = self.get_queryset().filter(status='accepted')
+        try:
+            payments_due = Payment.objects.filter(
+                bid__in=qs,
+                status='work_submitted',
+                work_submitted_at__isnull=False,
+            ).select_related('bid__service_request', 'client', 'provider')
+            for p in payments_due:
+                _auto_release_if_due(p)
+        except Exception:
+            pass
+        return super().list(request, *args, **kwargs)
+
     @action(detail=True, methods=['post'])
     def accept(self, request, pk=None):
         bid = self.get_object()
@@ -1180,71 +1195,52 @@ def stripe_webhook(request):
     return Response({'status': 'ok'})
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def approve_payment(request):
-    """
-    Client ou prestataire confirme que les travaux sont terminés.
-    Quand les deux ont approuvé → paiement libéré (status='released').
-    Body: { "bid_id": <int> }
-    """
-    bid_id = request.data.get('bid_id')
-    try:
-        payment = Payment.objects.select_related('bid__service_request', 'client', 'provider').get(bid_id=bid_id)
-    except Payment.DoesNotExist:
-        return Response({'detail': 'Paiement introuvable.'}, status=status.HTTP_404_NOT_FOUND)
-
-    user = request.user
-    if user != payment.client and user != payment.provider:
-        return Response({'detail': 'Non autorisé.'}, status=status.HTTP_403_FORBIDDEN)
-
-    if payment.status not in ('held', 'completed'):
-        return Response({'detail': 'Ce paiement ne peut pas être approuvé.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    if user == payment.client:
-        payment.client_approved = True
-    else:
-        payment.provider_approved = True
-
-    if payment.client_approved and payment.provider_approved:
-        payment.status = 'released'
-        payment.released_at = now()
-        payment.bid.service_request.status = 'completed'
-        payment.bid.service_request.save()
-        # Notifications
-        Notification.objects.create(
-            user=payment.provider,
-            type='booking_completed',
-            title='Paiement libéré !',
-            message=(
-                f'Les deux parties ont confirmé la fin des travaux pour "{payment.bid.service_request.title}". '
-                f'Le montant de {payment.provider_amount} $ vous sera versé sous peu.'
-            ),
-        )
-        Notification.objects.create(
-            user=payment.client,
-            type='booking_completed',
-            title='Travaux confirmés',
-            message=f'Les travaux pour "{payment.bid.service_request.title}" sont confirmés comme terminés.',
-        )
-
+def _release_payment(payment):
+    """Libère le paiement et marque la demande comme terminée."""
+    payment.status = 'released'
+    payment.released_at = now()
+    payment.client_approved = True
     payment.save()
-    return Response({
-        'status': payment.status,
-        'client_approved': payment.client_approved,
-        'provider_approved': payment.provider_approved,
-    })
+    payment.bid.service_request.status = 'completed'
+    payment.bid.service_request.save()
+    Notification.objects.create(
+        user=payment.provider,
+        type='booking_completed',
+        title='Paiement libéré !',
+        message=(
+            f'Le client a accepté les travaux pour "{payment.bid.service_request.title}". '
+            f'Le montant de {payment.provider_amount} $ vous sera versé sous peu.'
+        ),
+    )
+    Notification.objects.create(
+        user=payment.client,
+        type='booking_completed',
+        title='Travaux acceptés',
+        message=f'Vous avez confirmé la fin des travaux pour "{payment.bid.service_request.title}".',
+    )
+
+
+def _auto_release_if_due(payment):
+    """Libère automatiquement si 48h se sont écoulées depuis la soumission des travaux."""
+    from datetime import timedelta
+    if (
+        payment.status == 'work_submitted'
+        and payment.work_submitted_at
+        and now() >= payment.work_submitted_at + timedelta(hours=48)
+    ):
+        _release_payment(payment)
+        return True
+    return False
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def cancel_and_refund(request):
+def provider_submit_work(request):
     """
-    Prestataire annule — rembourse le client via Stripe.
+    Prestataire indique que les travaux sont terminés.
+    → status='work_submitted', notification au client.
     Body: { "bid_id": <int> }
     """
-    stripe.api_key = django_settings.STRIPE_SECRET_KEY
-
     bid_id = request.data.get('bid_id')
     try:
         payment = Payment.objects.select_related('bid__service_request', 'client', 'provider').get(bid_id=bid_id)
@@ -1252,41 +1248,167 @@ def cancel_and_refund(request):
         return Response({'detail': 'Paiement introuvable.'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.user != payment.provider:
-        return Response({'detail': 'Seul le prestataire peut annuler.'}, status=status.HTTP_403_FORBIDDEN)
+        return Response({'detail': 'Non autorisé.'}, status=status.HTTP_403_FORBIDDEN)
 
-    if payment.status != 'held':
-        return Response({'detail': 'Ce paiement ne peut pas être remboursé.'}, status=status.HTTP_400_BAD_REQUEST)
+    if payment.status not in ('held', 'completed'):
+        return Response({'detail': 'Impossible de soumettre dans cet état.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Remboursement Stripe
-    if payment.stripe_payment_intent_id:
-        try:
-            stripe.Refund.create(payment_intent=payment.stripe_payment_intent_id)
-        except stripe.StripeError as e:
-            return Response({'detail': f'Erreur Stripe : {e}'}, status=status.HTTP_502_BAD_GATEWAY)
-
-    payment.status = 'refunded'
+    payment.status = 'work_submitted'
+    payment.provider_approved = True
+    payment.work_submitted_at = now()
     payment.save()
 
-    bid = payment.bid
-    bid.status = 'rejected'
-    bid.save()
-
-    service_request = bid.service_request
-    service_request.status = 'open'
-    service_request.save()
-
-    # Notifier le client
     Notification.objects.create(
         user=payment.client,
-        type='booking_cancelled',
-        title='Remboursement en cours',
+        type='booking_completed',
+        title='Travaux soumis par le prestataire',
         message=(
-            f'Le prestataire a annulé pour "{service_request.title}". '
-            f'Vous serez remboursé de {payment.amount} $ sous 5 à 10 jours ouvrables.'
+            f'Le prestataire a indiqué avoir terminé les travaux pour "{payment.bid.service_request.title}". '
+            f'Veuillez confirmer ou signaler un problème. Le paiement sera libéré automatiquement dans 48h.'
         ),
     )
 
-    return Response({'status': 'refunded'})
+    return Response({'status': payment.status})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def client_release_payment(request):
+    """
+    Client accepte les travaux → paiement libéré.
+    Body: { "bid_id": <int> }
+    """
+    bid_id = request.data.get('bid_id')
+    try:
+        payment = Payment.objects.select_related('bid__service_request', 'client', 'provider').get(bid_id=bid_id)
+    except Payment.DoesNotExist:
+        return Response({'detail': 'Paiement introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.user != payment.client:
+        return Response({'detail': 'Non autorisé.'}, status=status.HTTP_403_FORBIDDEN)
+
+    if payment.status not in ('work_submitted', 'held', 'completed'):
+        return Response({'detail': 'Impossible de libérer dans cet état.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    _release_payment(payment)
+    return Response({'status': 'released'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def client_dispute_work(request):
+    """
+    Client refuse les travaux → litige, admin notifié par email.
+    Body: { "bid_id": <int>, "reason": <str> }
+    """
+    from django.core.mail import send_mail
+
+    bid_id = request.data.get('bid_id')
+    reason = request.data.get('reason', '').strip()
+    if not reason:
+        return Response({'detail': 'Veuillez décrire le problème.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        payment = Payment.objects.select_related('bid__service_request', 'client', 'provider').get(bid_id=bid_id)
+    except Payment.DoesNotExist:
+        return Response({'detail': 'Paiement introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.user != payment.client:
+        return Response({'detail': 'Non autorisé.'}, status=status.HTTP_403_FORBIDDEN)
+
+    if payment.status not in ('work_submitted', 'held'):
+        return Response({'detail': 'Impossible de signaler un litige dans cet état.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    payment.status = 'disputed'
+    payment.cancellation_reason = reason
+    payment.save()
+
+    title = payment.bid.service_request.title
+    send_mail(
+        subject=f'[LITIGE] Paiement #{payment.id} — {title}',
+        message=(
+            f'Client : {payment.client.get_full_name()} ({payment.client.email})\n'
+            f'Prestataire : {payment.provider.get_full_name()} ({payment.provider.email})\n'
+            f'Montant : {payment.amount} $\n'
+            f'Demande : {title}\n\n'
+            f'Raison du litige :\n{reason}'
+        ),
+        from_email=django_settings.DEFAULT_FROM_EMAIL,
+        recipient_list=['support@coupdemain.ca'],
+        fail_silently=True,
+    )
+
+    Notification.objects.create(
+        user=payment.provider,
+        type='booking_cancelled',
+        title='Litige ouvert par le client',
+        message=f'Le client a signalé un problème avec les travaux pour "{title}". L\'équipe Coupdemain va intervenir.',
+    )
+    Notification.objects.create(
+        user=payment.client,
+        type='booking_cancelled',
+        title='Litige enregistré',
+        message=f'Votre signalement a été transmis à notre équipe. Nous vous contacterons sous 24-48h.',
+    )
+
+    return Response({'status': 'disputed'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def request_cancellation(request):
+    """
+    Prestataire demande une annulation (imprévu) — admin notifié, pas de remboursement auto.
+    Body: { "bid_id": <int>, "reason": <str> }
+    """
+    from django.core.mail import send_mail
+
+    bid_id = request.data.get('bid_id')
+    reason = request.data.get('reason', '').strip()
+    if not reason:
+        return Response({'detail': 'Veuillez expliquer la raison de l\'annulation.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        payment = Payment.objects.select_related('bid__service_request', 'client', 'provider').get(bid_id=bid_id)
+    except Payment.DoesNotExist:
+        return Response({'detail': 'Paiement introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.user != payment.provider:
+        return Response({'detail': 'Non autorisé.'}, status=status.HTTP_403_FORBIDDEN)
+
+    if payment.status not in ('held', 'work_submitted'):
+        return Response({'detail': 'Impossible d\'annuler dans cet état.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    payment.status = 'cancellation_requested'
+    payment.cancellation_reason = reason
+    payment.save()
+
+    title = payment.bid.service_request.title
+    send_mail(
+        subject=f'[ANNULATION] Paiement #{payment.id} — {title}',
+        message=(
+            f'Prestataire : {payment.provider.get_full_name()} ({payment.provider.email})\n'
+            f'Client : {payment.client.get_full_name()} ({payment.client.email})\n'
+            f'Montant : {payment.amount} $\n'
+            f'Demande : {title}\n\n'
+            f'Raison de l\'annulation :\n{reason}'
+        ),
+        from_email=django_settings.DEFAULT_FROM_EMAIL,
+        recipient_list=['support@coupdemain.ca'],
+        fail_silently=True,
+    )
+
+    Notification.objects.create(
+        user=payment.client,
+        type='booking_cancelled',
+        title='Demande d\'annulation reçue',
+        message=(
+            f'Le prestataire a demandé une annulation pour "{title}". '
+            f'L\'équipe Coupdemain va examiner la situation et vous contacter.'
+        ),
+    )
+
+    return Response({'status': 'cancellation_requested'})
 
 
 # ─── Contrat PDF ──────────────────────────────────────────────────────────────
