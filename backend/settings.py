@@ -205,10 +205,9 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Coupdemain <noreply@c
 FRONTEND_URL       = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
 
 # ─── Stripe ───────────────────────────────────────────────────────────────────
-# Remplace par tes vraies clés depuis https://dashboard.stripe.com/test/apikeys
-STRIPE_SECRET_KEY      = 'sk_test_REMPLACE_MOI'
-STRIPE_PUBLISHABLE_KEY = 'pk_test_REMPLACE_MOI'
-STRIPE_WEBHOOK_SECRET  = 'whsec_REMPLACE_MOI'
+STRIPE_SECRET_KEY      = os.environ.get('STRIPE_SECRET_KEY',      '')
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_WEBHOOK_SECRET  = os.environ.get('STRIPE_WEBHOOK_SECRET',  '')
 
 # Paliers de commission (montant max en $, taux)
 STRIPE_COMMISSION_TIERS = [
