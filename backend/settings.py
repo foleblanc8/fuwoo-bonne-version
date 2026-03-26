@@ -215,3 +215,6 @@ STRIPE_COMMISSION_TIERS = [
     (2000,  0.12),   # 501–2 000 $ → 12 %
     (9999999, 0.10), # > 2 000 $ → 10 %
 ]
+
+# Commission réduite pour les récurrences (fidélisation)
+STRIPE_RECURRING_COMMISSION = 0.08  # 8 %

@@ -652,6 +652,96 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         sr.save(update_fields=['status'])
         return Response({'status': 'completed'})
 
+    @action(detail=True, methods=['post'])
+    def schedule_recurrence(self, request, pk=None):
+        """
+        Planifie la prochaine occurrence après complétion.
+        Crée un nouveau ServiceRequest pré-attribué au même prestataire, commission réduite à 8%.
+        Body: { "frequency": "weekly"|"biweekly"|"monthly"|"seasonal" }
+        """
+        from datetime import timedelta
+
+        FREQ_DAYS = {'weekly': 7, 'biweekly': 14, 'monthly': 30, 'seasonal': 90}
+        FREQ_LABELS = {
+            'weekly': 'hebdomadaire', 'biweekly': 'aux deux semaines',
+            'monthly': 'mensuel', 'seasonal': 'saisonnier',
+        }
+
+        sr = self.get_object()
+        if sr.client != request.user:
+            return Response({'error': 'Non autorisé'}, status=403)
+        if sr.status != 'completed':
+            return Response({'error': 'Le service doit être complété avant de planifier une récurrence.'}, status=400)
+
+        frequency = request.data.get('frequency')
+        if frequency not in FREQ_DAYS:
+            return Response({'error': 'Fréquence invalide.'}, status=400)
+
+        try:
+            original_bid = sr.bids.get(status='accepted')
+        except Bid.DoesNotExist:
+            return Response({'error': 'Offre originale introuvable.'}, status=400)
+
+        next_date = now() + timedelta(days=FREQ_DAYS[frequency])
+        deadline  = next_date - timedelta(days=2)
+
+        new_sr = ServiceRequest.objects.create(
+            client               = sr.client,
+            category             = sr.category,
+            title                = sr.title,
+            description          = sr.description,
+            service_area         = sr.service_area,
+            address              = sr.address or '',
+            preferred_dates      = f"Récurrence {FREQ_LABELS[frequency]} — vers le {next_date.strftime('%d %b %Y')}",
+            availability_windows = [{'flexible': True}],
+            submission_deadline  = deadline,
+            is_recurring         = True,
+            recurrence_frequency = frequency,
+            parent_request       = sr,
+            status               = 'awarded',
+            latitude             = sr.latitude,
+            longitude            = sr.longitude,
+        )
+
+        Bid.objects.create(
+            service_request = new_sr,
+            provider        = original_bid.provider,
+            price           = original_bid.price,
+            price_unit      = original_bid.price_unit,
+            message         = f'Récurrence automatique ({FREQ_LABELS[frequency]}) — même service, commission réduite à 8%.',
+            status          = 'accepted',
+        )
+
+        provider_name = original_bid.provider.get_full_name() or original_bid.provider.username
+        rate_pct = int(django_settings.STRIPE_RECURRING_COMMISSION * 100)
+
+        Notification.objects.create(
+            user    = original_bid.provider,
+            type    = 'booking_confirmed',
+            title   = 'Nouvelle récurrence planifiée',
+            message = (
+                f'Le client a planifié une récurrence {FREQ_LABELS[frequency]} de "{sr.title}". '
+                f'Commission réduite à {rate_pct}% au lieu du tarif standard.'
+            ),
+        )
+        Notification.objects.create(
+            user    = sr.client,
+            type    = 'booking_confirmed',
+            title   = 'Récurrence confirmée !',
+            message = (
+                f'La prochaine occurrence de "{sr.title}" est planifiée avec {provider_name}. '
+                f'Commission réduite à {rate_pct}%. Rendez-vous dans Mes projets pour payer quand prêt.'
+            ),
+        )
+
+        return Response({
+            'new_request_id':  new_sr.id,
+            'next_date':       next_date.date().isoformat(),
+            'provider_name':   provider_name,
+            'price':           str(original_bid.price),
+            'commission_rate': rate_pct,
+        })
+
 
 class BidViewSet(viewsets.ModelViewSet):
     serializer_class = BidSerializer
@@ -1086,7 +1176,10 @@ def create_checkout_session(request):
         return Response({'detail': 'Cette offre est déjà payée.'}, status=status.HTTP_400_BAD_REQUEST)
 
     amount = Decimal(str(bid.price))
-    rate   = _get_commission_rate(amount)
+    if bid.service_request.is_recurring:
+        rate = Decimal(str(django_settings.STRIPE_RECURRING_COMMISSION))
+    else:
+        rate = _get_commission_rate(amount)
     commission = (amount * rate).quantize(Decimal('0.01'))
     provider_amount = amount - commission
 

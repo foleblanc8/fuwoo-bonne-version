@@ -50,6 +50,8 @@ function RequestModal({
   type Window = { date: string; start: string; end: string } | { flexible: true };
   const [windows, setWindows] = useState<Window[]>([{ date: '', start: '08:00', end: '17:00' }]);
   const [isFlexible, setIsFlexible] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurFreq, setRecurFreq] = useState<'weekly' | 'biweekly' | 'monthly' | 'seasonal'>('monthly');
   const [photos, setPhotos]         = useState<File[]>([]);
   const [previews, setPreviews]     = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -92,6 +94,10 @@ function RequestModal({
       if (address.trim()) form.append('address', address.trim());
       form.append('submission_deadline', new Date(`${deadlineDate}T${deadlineTime}`).toISOString());
       form.append('availability_windows', JSON.stringify(filledWindows));
+      if (isRecurring) {
+        form.append('is_recurring', 'true');
+        form.append('recurrence_frequency', recurFreq);
+      }
       // preferred_dates en texte pour rétro-compatibilité
       const prefText = isFlexible
         ? 'Flexible / Dès que possible'
@@ -249,6 +255,36 @@ function RequestModal({
                   <p className="text-xs text-gray-400 mt-1">Maximum 3 plages. Le prestataire choisira celle qui lui convient.</p>
                 </div>
               )}
+            </div>
+
+            {/* Récurrence */}
+            <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)}
+                  className="w-4 h-4 accent-teal-600" />
+                <span className="text-sm font-medium text-gray-800">Service récurrent</span>
+                <span className="text-xs text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full font-semibold">Commission 8%</span>
+              </label>
+              {isRecurring && (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {([
+                    { key: 'weekly',   label: 'Chaque semaine' },
+                    { key: 'biweekly', label: 'Aux 2 semaines' },
+                    { key: 'monthly',  label: 'Chaque mois' },
+                    { key: 'seasonal', label: 'Chaque saison' },
+                  ] as const).map(opt => (
+                    <button key={opt.key} type="button" onClick={() => setRecurFreq(opt.key)}
+                      className={`py-2 rounded-xl border-2 text-xs font-medium transition ${recurFreq === opt.key ? 'border-teal-500 bg-teal-100 text-teal-800' : 'border-teal-200 text-teal-600 hover:bg-teal-100'}`}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-teal-700">
+                {isRecurring
+                  ? 'Le prestataire retenu sera reconduit automatiquement à la fréquence choisie.'
+                  : 'Activez pour planifier des services réguliers (tonte, ménage, déneigement…)'}
+              </p>
             </div>
 
             {/* Délai soumission */}

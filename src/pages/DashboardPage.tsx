@@ -239,6 +239,9 @@ type ServiceRequest = {
   preferred_dates: string;
   availability_windows?: Array<{ date: string; start: string; end: string } | { flexible: true }> | null;
   submission_deadline: string | null;
+  is_recurring?: boolean;
+  recurrence_frequency?: string;
+  parent_request?: number | null;
   bid_count: number;
   status: 'open' | 'awarded' | 'completed' | 'closed' | 'cancelled';
   images: { image: string }[];
@@ -2085,8 +2088,12 @@ function ClientProjectsTab() {
   const [accepting, setAccepting]     = useState<number | null>(null);
   const [completing, setCompleting]   = useState<number | null>(null);
   const [paying, setPaying]                   = useState<number | null>(null);
-  const [releasingPayment, setReleasing]      = useState<number | null>(null);
-  const [disputeModal, setDisputeModal]       = useState<{ bidId: number; reqId: number } | null>(null);
+  const [releasingPayment, setReleasing]          = useState<number | null>(null);
+  const [recurModal, setRecurModal]               = useState<{ reqId: number } | null>(null);
+  const [recurFreq, setRecurFreq]                 = useState<'weekly' | 'biweekly' | 'monthly' | 'seasonal'>('monthly');
+  const [schedulingRecur, setSchedulingRecur]     = useState(false);
+  const [recurDone, setRecurDone]                 = useState<Record<number, boolean>>({});
+  const [disputeModal, setDisputeModal]           = useState<{ bidId: number; reqId: number } | null>(null);
   const [disputeReason, setDisputeReason]     = useState('');
   const [submittingDispute, setSubmittingDispute] = useState(false);
   const [editingReq, setEditingReq]           = useState<ServiceRequest | null>(null);
@@ -2189,6 +2196,22 @@ function ClientProjectsTab() {
       setDisputeReason('');
     } catch { showToast('Impossible de soumettre le litige.', 'error'); }
     finally { setSubmittingDispute(false); }
+  };
+
+  const scheduleRecurrence = async () => {
+    if (!recurModal) return;
+    setSchedulingRecur(true);
+    try {
+      await axios.post(`service-requests/${recurModal.reqId}/schedule_recurrence/`, { frequency: recurFreq });
+      setRecurDone(prev => ({ ...prev, [recurModal.reqId]: true }));
+      showToast('Récurrence planifiée ! Vous retrouverez le nouveau projet dans Mes projets.', 'success');
+      setRecurModal(null);
+      // Recharger les demandes pour voir le nouveau projet
+      const res = await axios.get('service-requests/');
+      const d = res.data as any;
+      setRequests(Array.isArray(d) ? d : (d.results ?? []));
+    } catch { showToast('Impossible de planifier la récurrence.', 'error'); }
+    finally { setSchedulingRecur(false); }
   };
 
   const commissionRate = (price: string) => {
@@ -2322,6 +2345,11 @@ function ClientProjectsTab() {
                         </span>
                         {req.category && (
                           <span className="text-xs text-gray-400">{req.category.name}</span>
+                        )}
+                        {req.is_recurring && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+                            Récurrent
+                          </span>
                         )}
                       </div>
                       <p className="font-bold text-gray-900 text-base leading-snug">{req.title}</p>
@@ -2541,6 +2569,18 @@ function ClientProjectsTab() {
                                           <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />Avis publié
                                         </span>
                                       )}
+                                      {/* Récurrence */}
+                                      {isReleased && !req.is_recurring && !recurDone[req.id] && (
+                                        <button onClick={() => setRecurModal({ reqId: req.id })}
+                                          className="flex items-center gap-1.5 border border-teal-300 text-teal-700 bg-teal-50 px-4 py-2 rounded-xl text-sm font-medium hover:bg-teal-100 transition">
+                                          <Plus className="w-4 h-4" />Planifier la récurrence
+                                        </button>
+                                      )}
+                                      {(req.is_recurring || recurDone[req.id]) && (
+                                        <span className="flex items-center gap-1.5 text-xs text-teal-600 font-medium px-3 py-1.5">
+                                          <CheckCircle className="w-3.5 h-3.5" />Récurrence planifiée
+                                        </span>
+                                      )}
                                     </>
                                   );
                                 })()}
@@ -2555,6 +2595,45 @@ function ClientProjectsTab() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal récurrence */}
+      {recurModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between p-5 border-b">
+              <h3 className="text-base font-bold text-gray-900">Planifier une récurrence</h3>
+              <button onClick={() => setRecurModal(null)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-gray-600">Le même prestataire sera réservé automatiquement. <span className="font-semibold text-teal-700">Commission réduite à 8%</span> au lieu du tarif standard.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { key: 'weekly',   label: 'Chaque semaine' },
+                  { key: 'biweekly', label: 'Aux 2 semaines' },
+                  { key: 'monthly',  label: 'Chaque mois' },
+                  { key: 'seasonal', label: 'Chaque saison' },
+                ] as const).map(opt => (
+                  <button key={opt.key} type="button"
+                    onClick={() => setRecurFreq(opt.key)}
+                    className={`py-3 rounded-xl border-2 text-sm font-medium transition ${recurFreq === opt.key ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setRecurModal(null)}
+                  className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
+                  Annuler
+                </button>
+                <button onClick={scheduleRecurrence} disabled={schedulingRecur}
+                  className="flex-1 bg-teal-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-teal-700 transition disabled:opacity-50">
+                  {schedulingRecur ? 'Planification…' : 'Confirmer'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
