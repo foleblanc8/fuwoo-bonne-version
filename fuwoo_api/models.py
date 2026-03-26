@@ -317,8 +317,9 @@ class ServiceRequest(models.Model):
     description = models.TextField()
     service_area = models.CharField(max_length=100)  # Zone publique (ville / quartier)
     address = models.CharField(max_length=200, blank=True, default='')  # Adresse privée
-    preferred_dates = models.TextField(blank=True)
-    submission_deadline = models.DateTimeField()
+    preferred_dates      = models.TextField(blank=True)
+    availability_windows = models.JSONField(null=True, blank=True, help_text="Liste de plages [{date, start, end} | {flexible: true}]")
+    submission_deadline  = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     # Géolocalisation de la demande
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)

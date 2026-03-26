@@ -18,6 +18,20 @@ import { getCategoryImage } from '../data/serviceImages';
 import { getCategoryStyle } from '../data/categoryStyles';
 import axios from 'axios';
 
+// ─── Helpers disponibilités ───────────────────────────────────────────────────
+
+function formatAvailability(req: { availability_windows?: any; preferred_dates?: string }): string | null {
+  const windows = req.availability_windows;
+  if (windows?.length) {
+    return windows.map((w: any) => {
+      if (w.flexible) return 'Flexible / Dès que possible';
+      const d = new Date(w.date + 'T12:00').toLocaleDateString('fr-CA', { weekday: 'short', month: 'short', day: 'numeric' });
+      return `${d} ${w.start}–${w.end}`;
+    }).join(' · ');
+  }
+  return req.preferred_dates || null;
+}
+
 // ─── Safety Data ──────────────────────────────────────────────────────────────
 
 const SAFETY_BY_SLUG: Record<string, { title: string; tip: string }[]> = {
@@ -223,6 +237,7 @@ type ServiceRequest = {
   service_area: string;
   address: string | null;
   preferred_dates: string;
+  availability_windows?: Array<{ date: string; start: string; end: string } | { flexible: true }> | null;
   submission_deadline: string | null;
   bid_count: number;
   status: 'open' | 'awarded' | 'completed' | 'closed' | 'cancelled';
@@ -1782,8 +1797,8 @@ function ProviderRequestsTab() {
                         }
                         return null;
                       })()}
-                      {req.preferred_dates && (
-                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Souhaité : {req.preferred_dates}</span>
+                      {formatAvailability(req) && (
+                        <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Souhaité : {formatAvailability(req)}</span>
                       )}
                       {req.submission_deadline && (
                         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.submission_deadline).toLocaleDateString('fr-CA')}</span>
@@ -2317,8 +2332,8 @@ function ClientProjectsTab() {
                         {req.service_area && (
                           <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{req.service_area}</span>
                         )}
-                        {req.preferred_dates && (
-                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{req.preferred_dates}</span>
+                        {formatAvailability(req) && (
+                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{formatAvailability(req)}</span>
                         )}
                         {req.submission_deadline && (
                           <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Limite : {new Date(req.submission_deadline).toLocaleDateString('fr-CA')}</span>

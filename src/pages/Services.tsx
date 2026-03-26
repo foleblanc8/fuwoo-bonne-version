@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import SEO from "../components/SEO";
 import { useServices } from "../contexts/ServiceContext";
 import { useAuth } from "../contexts/AuthContext";
-import { Search, MapPin, LocateFixed, Loader, X, Check, Upload, ImagePlus, Trash2, Lock } from "lucide-react";
+import { Search, MapPin, LocateFixed, Loader, X, Check, Upload, ImagePlus, Trash2, Lock, Plus } from "lucide-react";
 import { getCategoryImage } from "../data/serviceImages";
 import { getCategoryStyle } from "../data/categoryStyles";
 import axios from "axios";
@@ -47,8 +47,9 @@ function RequestModal({
     return d.toISOString().split('T')[0];
   });
   const [deadlineTime, setDeadlineTime] = useState('10:00');
-  const [prefDate, setPrefDate]     = useState('');
-  const [prefTime, setPrefTime]     = useState('');
+  type Window = { date: string; start: string; end: string } | { flexible: true };
+  const [windows, setWindows] = useState<Window[]>([{ date: '', start: '08:00', end: '17:00' }]);
+  const [isFlexible, setIsFlexible] = useState(false);
   const [photos, setPhotos]         = useState<File[]>([]);
   const [previews, setPreviews]     = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -74,13 +75,12 @@ function RequestModal({
     e.preventDefault();
     if (!user) { setError('Vous devez être connecté pour envoyer une demande.'); return; }
     if (photos.length === 0) { setError('Ajoutez au moins une photo du travail à effectuer.'); return; }
-    if (prefDate && prefTime) {
-      const serviceDateTime = new Date(`${prefDate}T${prefTime}`);
-      const deadlineDateTime = new Date(`${deadlineDate}T${deadlineTime}`);
-      if (serviceDateTime.getTime() - deadlineDateTime.getTime() < 24 * 60 * 60 * 1000) {
-        setError("Le délai de soumission doit être au moins 24h avant la date souhaitée du service.");
-        return;
-      }
+    const filledWindows = isFlexible
+      ? [{ flexible: true as const }]
+      : windows.filter(w => 'date' in w && w.date);
+    if (!isFlexible && filledWindows.length === 0) {
+      setError('Ajoutez au moins une plage de disponibilité.');
+      return;
     }
     setSubmitting(true);
     setError('');
@@ -91,7 +91,13 @@ function RequestModal({
       form.append('service_area', serviceArea);
       if (address.trim()) form.append('address', address.trim());
       form.append('submission_deadline', new Date(`${deadlineDate}T${deadlineTime}`).toISOString());
-      form.append('preferred_dates', `${prefDate}${prefTime ? ' à ' + prefTime : ''}`);
+      form.append('availability_windows', JSON.stringify(filledWindows));
+      // preferred_dates en texte pour rétro-compatibilité
+      const prefText = isFlexible
+        ? 'Flexible / Dès que possible'
+        : filledWindows.filter((w): w is { date: string; start: string; end: string } => 'date' in w)
+            .map(w => `${w.date} ${w.start}–${w.end}`).join(', ');
+      form.append('preferred_dates', prefText);
       form.append('category_id', String(category.id));
       if (geoCoords) {
         form.append('latitude', String(geoCoords.lat));
@@ -189,23 +195,60 @@ function RequestModal({
               <p className="text-xs text-gray-400 mt-1">Partagée uniquement avec le prestataire retenu</p>
             </div>
 
-            {/* Date souhaitée */}
+            {/* Disponibilités */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Date et heure souhaitées <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Vos disponibilités <span className="text-red-500">*</span>
               </label>
-              <div className="flex gap-2">
-                <input type="date" value={prefDate} onChange={e => setPrefDate(e.target.value)} required
-                  min={new Date().toISOString().split('T')[0]}
-                  className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary" />
-                <select value={prefTime} onChange={e => setPrefTime(e.target.value)} required
-                  className="w-32 border border-gray-300 rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary">
-                  <option value="">Heure</option>
-                  {['8:00','9:00','10:00','11:00','13:00','14:00','15:00','16:00','17:00'].map(h => (
-                    <option key={h} value={h}>{h}</option>
+
+              {/* Option flexible */}
+              <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                <input type="checkbox" checked={isFlexible} onChange={e => setIsFlexible(e.target.checked)}
+                  className="w-4 h-4 accent-coupdemain-primary" />
+                <span className="text-sm text-gray-600">Flexible / Dès que possible</span>
+              </label>
+
+              {!isFlexible && (
+                <div className="space-y-2">
+                  {(windows as Array<{ date: string; start: string; end: string }>).map((w, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2">
+                      <input type="date" value={w.date}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={e => setWindows(prev => prev.map((p, pi) => pi === i ? { ...p as any, date: e.target.value } : p))}
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary bg-white" />
+                      <select value={w.start}
+                        onChange={e => setWindows(prev => prev.map((p, pi) => pi === i ? { ...p as any, start: e.target.value } : p))}
+                        className="w-24 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary bg-white">
+                        {['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'].map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                      <span className="text-xs text-gray-400">à</span>
+                      <select value={w.end}
+                        onChange={e => setWindows(prev => prev.map((p, pi) => pi === i ? { ...p as any, end: e.target.value } : p))}
+                        className="w-24 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary bg-white">
+                        {['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00'].map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                      {windows.length > 1 && (
+                        <button type="button" onClick={() => setWindows(prev => prev.filter((_, pi) => pi !== i))}
+                          className="p-1.5 text-gray-400 hover:text-red-500 transition">
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   ))}
-                </select>
-              </div>
+                  {windows.length < 3 && (
+                    <button type="button"
+                      onClick={() => setWindows(prev => [...prev, { date: '', start: '08:00', end: '17:00' }])}
+                      className="flex items-center gap-1.5 text-coupdemain-primary text-sm font-medium hover:underline mt-1">
+                      <Plus className="w-4 h-4" />Ajouter une plage
+                    </button>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">Maximum 3 plages. Le prestataire choisira celle qui lui convient.</p>
+                </div>
+              )}
             </div>
 
             {/* Délai soumission */}
