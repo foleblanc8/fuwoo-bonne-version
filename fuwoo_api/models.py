@@ -381,6 +381,35 @@ class PortfolioPhoto(models.Model):
         return f"Portfolio de {self.provider.username} — #{self.id}"
 
 
+class ProviderCredential(models.Model):
+    CREDENTIAL_TYPES = [
+        ('rbq',       'Licence RBQ'),
+        ('ccq',       'Carte CCQ'),
+        ('cmeq',      'Licence CMEQ (électricité)'),
+        ('cmmtq',     'Licence CMMTQ (plomberie/gaz)'),
+        ('insurance', 'Assurance responsabilité'),
+        ('skill',     'Compétence / spécialité'),
+        ('diploma',   'Diplôme / attestation'),
+        ('other',     'Autre'),
+    ]
+
+    provider        = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='credentials')
+    credential_type = models.CharField(max_length=20, choices=CREDENTIAL_TYPES)
+    title           = models.CharField(max_length=200)          # ex: "Maçonnerie", "Électricité résidentielle"
+    license_number  = models.CharField(max_length=100, blank=True)
+    issued_by       = models.CharField(max_length=200, blank=True)
+    issued_year     = models.PositiveSmallIntegerField(null=True, blank=True)
+    expires_at      = models.DateField(null=True, blank=True)
+    is_verified     = models.BooleanField(default=False)       # admin-verified (pour futur)
+    created_at      = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['credential_type', 'title']
+
+    def __str__(self):
+        return f"{self.provider.username} — {self.get_credential_type_display()} : {self.title}"
+
+
 class CRMClient(models.Model):
     PIPELINE_CHOICES = [
         ('lead',      'Lead'),

@@ -167,6 +167,15 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',
+        'user': '1000/day',
+        'auth': '10/minute',   # login + register
+    },
 }
 
 # ─── Email ────────────────────────────────────────────────────────────────────
@@ -218,3 +227,12 @@ STRIPE_COMMISSION_TIERS = [
 
 # Commission réduite pour les récurrences (fidélisation)
 STRIPE_RECURRING_COMMISSION = 0.08  # 8 %
+
+# Paliers progressifs par volume de projets complétés
+# Évalués dans l'ordre — premier match gagne
+STRIPE_PROVIDER_TIERS = [
+    {'min_projects': 50, 'min_rating': 4.7, 'name': 'elite',       'label': 'Élite',    'rate': 0.08, 'emoji': '🏆'},
+    {'min_projects': 21, 'min_rating': 0.0, 'name': 'expert',      'label': 'Expert',   'rate': 0.10, 'emoji': '💪'},
+    {'min_projects': 6,  'min_rating': 0.0, 'name': 'established', 'label': 'Établi',   'rate': 0.12, 'emoji': '⭐'},
+    {'min_projects': 0,  'min_rating': 0.0, 'name': 'starter',     'label': 'Débutant', 'rate': 0.15, 'emoji': '🌱'},
+]

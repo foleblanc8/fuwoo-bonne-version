@@ -6,6 +6,7 @@ from .models import (
     ServiceCategory, Service, ServiceImage, Booking,
     Review, Message, Notification, Availability,
     ServiceRequest, ServiceRequestImage, Bid, PortfolioPhoto,
+    ProviderCredential,
     CRMClient, CRMNote, CRMServiceLink,
 )
 
@@ -208,6 +209,7 @@ class BidSerializer(serializers.ModelSerializer):
     payment_status           = serializers.SerializerMethodField()
     payment_client_approved  = serializers.SerializerMethodField()
     payment_provider_approved = serializers.SerializerMethodField()
+    provider_commission_rate  = serializers.SerializerMethodField()
 
     def get_payment_status(self, obj):
         return obj.payment.status if hasattr(obj, 'payment') else None
@@ -218,12 +220,28 @@ class BidSerializer(serializers.ModelSerializer):
     def get_payment_provider_approved(self, obj):
         return obj.payment.provider_approved if hasattr(obj, 'payment') else False
 
+    def get_provider_commission_rate(self, obj):
+        from django.conf import settings as django_settings
+        from decimal import Decimal
+        if obj.service_request.is_recurring:
+            return float(django_settings.STRIPE_RECURRING_COMMISSION)
+        count = Bid.objects.filter(
+            provider=obj.provider, status='accepted',
+            service_request__status='completed'
+        ).count()
+        rating = float(obj.provider.rating or 0)
+        for tier in django_settings.STRIPE_PROVIDER_TIERS:
+            if count >= tier['min_projects'] and rating >= tier['min_rating']:
+                return tier['rate']
+        return django_settings.STRIPE_PROVIDER_TIERS[-1]['rate']
+
     class Meta:
         model = Bid
         fields = [
             'id', 'service_request', 'service_request_detail', 'provider', 'price', 'price_unit',
             'message', 'estimated_duration', 'status', 'created_at',
             'payment_status', 'payment_client_approved', 'payment_provider_approved',
+            'provider_commission_rate',
         ]
         read_only_fields = ['provider', 'status']
 
@@ -275,3 +293,16 @@ class PortfolioPhotoSerializer(serializers.ModelSerializer):
         model  = PortfolioPhoto
         fields = ['id', 'image', 'caption', 'order', 'created_at']
         read_only_fields = ['created_at']
+
+
+class ProviderCredentialSerializer(serializers.ModelSerializer):
+    credential_type_label = serializers.CharField(source='get_credential_type_display', read_only=True)
+
+    class Meta:
+        model  = ProviderCredential
+        fields = [
+            'id', 'credential_type', 'credential_type_label', 'title',
+            'license_number', 'issued_by', 'issued_year', 'expires_at',
+            'is_verified', 'created_at',
+        ]
+        read_only_fields = ['is_verified', 'created_at']

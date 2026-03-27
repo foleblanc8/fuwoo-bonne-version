@@ -13,7 +13,8 @@ from .views import (
     verify_email, resend_verification,
     create_checkout_session, stripe_webhook,
     provider_submit_work, client_release_payment, client_dispute_work, request_cancellation,
-    submit_identity, PortfolioPhotoViewSet,
+    provider_tier,
+    submit_identity, PortfolioPhotoViewSet, ProviderCredentialViewSet,
     download_contract,
     CRMViewSet, crm_stats, crm_revenue_chart, crm_notes, crm_note_detail,
 )
@@ -30,6 +31,7 @@ router.register(r'availabilities', AvailabilityViewSet, basename='availability')
 router.register(r'service-requests', ServiceRequestViewSet, basename='service-request')
 router.register(r'bids', BidViewSet, basename='bid')
 router.register(r'portfolio', PortfolioPhotoViewSet, basename='portfolio')
+router.register(r'credentials', ProviderCredentialViewSet, basename='credential')
 router.register(r'crm', CRMViewSet, basename='crm')
 
 urlpatterns = [
@@ -66,6 +68,9 @@ urlpatterns = [
     path('payments/release/', client_release_payment, name='client_release_payment'),
     path('payments/dispute/', client_dispute_work, name='client_dispute_work'),
     path('payments/cancel-request/', request_cancellation, name='request_cancellation'),
+
+    # Palier de commission prestataire
+    path('profile/tier/', provider_tier, name='provider_tier'),
 
     # Vérification d'identité
     path('auth/submit-identity/', submit_identity, name='submit_identity'),

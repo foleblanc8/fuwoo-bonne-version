@@ -7,6 +7,7 @@ import {
   Plus, Send, Bell, Lock, Trash2, ChevronRight, Camera,
   Phone, MapPin, Mail, Shield, Eye, EyeOff,
   ChevronDown, ChevronUp, Edit2, X, Briefcase, LocateFixed, FileText, Menu,
+  Award, BadgeCheck,
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -260,6 +261,7 @@ type Bid = {
   payment_status?: 'pending' | 'held' | 'work_submitted' | 'released' | 'completed' | 'refunded' | 'cancellation_requested' | 'disputed' | null;
   payment_client_approved?: boolean;
   payment_provider_approved?: boolean;
+  provider_commission_rate?: number | null;
 };
 
 type ApiBooking = {
@@ -829,9 +831,219 @@ function ProfileTab() {
         </div>
       </form>
 
+      {/* Compétences & certifications — prestataires seulement */}
+      {(user as any)?.has_provider_profile && (
+        <CredentialsSection />
+      )}
+
       {/* Section vérification d'identité — prestataires seulement */}
       {(user as any)?.has_provider_profile && (
         <IdentityVerificationSection />
+      )}
+    </div>
+  );
+}
+
+// ─── Credentials Section ──────────────────────────────────────────────────────
+
+type Credential = {
+  id: number;
+  credential_type: string;
+  credential_type_label: string;
+  title: string;
+  license_number: string;
+  issued_by: string;
+  issued_year: number | null;
+  expires_at: string | null;
+  is_verified: boolean;
+};
+
+const CREDENTIAL_TYPES = [
+  { value: 'rbq',       label: 'Licence RBQ' },
+  { value: 'ccq',       label: 'Carte CCQ' },
+  { value: 'cmeq',      label: 'Licence CMEQ (électricité)' },
+  { value: 'cmmtq',     label: 'Licence CMMTQ (plomberie/gaz)' },
+  { value: 'insurance', label: 'Assurance responsabilité' },
+  { value: 'skill',     label: 'Compétence / spécialité' },
+  { value: 'diploma',   label: 'Diplôme / attestation' },
+  { value: 'other',     label: 'Autre' },
+];
+
+const CREDENTIAL_COLORS: Record<string, string> = {
+  rbq:       'bg-orange-50 border-orange-200 text-orange-800',
+  ccq:       'bg-blue-50 border-blue-200 text-blue-800',
+  cmeq:      'bg-yellow-50 border-yellow-200 text-yellow-800',
+  cmmtq:     'bg-cyan-50 border-cyan-200 text-cyan-800',
+  insurance: 'bg-green-50 border-green-200 text-green-800',
+  skill:     'bg-purple-50 border-purple-200 text-purple-800',
+  diploma:   'bg-indigo-50 border-indigo-200 text-indigo-800',
+  other:     'bg-gray-50 border-gray-200 text-gray-700',
+};
+
+const EMPTYFORM = { credential_type: 'skill', title: '', license_number: '', issued_by: '', issued_year: '', expires_at: '' };
+
+function CredentialsSection() {
+  const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ ...EMPTYFORM });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    axios.get<{ results?: Credential[] } | Credential[]>('credentials/')
+      .then(r => {
+        const d = r.data;
+        setCredentials(Array.isArray(d) ? d : (d.results ?? []));
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title.trim()) return;
+    setSaving(true);
+    setError('');
+    try {
+      const payload: Record<string, string | number | null> = {
+        credential_type: form.credential_type,
+        title: form.title.trim(),
+        license_number: form.license_number.trim(),
+        issued_by: form.issued_by.trim(),
+        issued_year: form.issued_year ? parseInt(form.issued_year) : null,
+        expires_at: form.expires_at || null,
+      };
+      const res = await axios.post<Credential>('credentials/', payload);
+      setCredentials(prev => [...prev, res.data]);
+      setForm({ ...EMPTYFORM });
+      setShowForm(false);
+      showToast('Certification ajoutée.', 'success');
+    } catch (e: any) {
+      setError(e?.response?.data ? Object.values(e.response.data).flat().join(' ') : 'Erreur.');
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: number) => {
+    setDeleting(id);
+    try {
+      await axios.delete(`credentials/${id}/`);
+      setCredentials(prev => prev.filter(c => c.id !== id));
+      showToast('Certification supprimée.', 'success');
+    } catch { showToast('Erreur lors de la suppression.', 'error'); }
+    finally { setDeleting(null); }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-6">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <Award className="w-5 h-5 text-coupdemain-primary" />
+          <h2 className="text-lg font-semibold text-gray-900">Compétences & certifications</h2>
+        </div>
+        {!showForm && credentials.length < 20 && (
+          <button onClick={() => setShowForm(true)}
+            className="flex items-center gap-1.5 text-sm text-coupdemain-primary hover:text-coupdemain-primary/80 font-medium transition">
+            <Plus className="w-4 h-4" />Ajouter
+          </button>
+        )}
+      </div>
+
+      {credentials.length === 0 && !showForm && (
+        <div className="text-center py-8 text-gray-400">
+          <Award className="w-8 h-8 mx-auto mb-2 opacity-40" />
+          <p className="text-sm">Aucune certification pour l'instant.</p>
+          <p className="text-xs mt-1">Ajoutez vos licences, diplômes et compétences pour inspirer confiance.</p>
+        </div>
+      )}
+
+      <div className="space-y-2 mb-4">
+        {credentials.map(c => (
+          <div key={c.id} className={`flex items-start justify-between border rounded-xl px-4 py-3 ${CREDENTIAL_COLORS[c.credential_type] ?? CREDENTIAL_COLORS.other}`}>
+            <div className="flex items-start gap-3 min-w-0">
+              <BadgeCheck className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <p className="font-semibold text-sm truncate">{c.title}</p>
+                <p className="text-xs opacity-70">{c.credential_type_label}</p>
+                {c.license_number && <p className="text-xs mt-0.5">Numéro : <span className="font-mono">{c.license_number}</span></p>}
+                {c.issued_by && <p className="text-xs opacity-70">{c.issued_by}{c.issued_year ? ` · ${c.issued_year}` : ''}</p>}
+                {c.expires_at && <p className="text-xs opacity-70">Expire : {new Date(c.expires_at).toLocaleDateString('fr-CA')}</p>}
+                {c.is_verified && (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full mt-1">
+                    <Shield className="w-3 h-3" />Vérifié
+                  </span>
+                )}
+              </div>
+            </div>
+            <button onClick={() => handleDelete(c.id)} disabled={deleting === c.id}
+              className="ml-3 shrink-0 text-current opacity-40 hover:opacity-80 transition disabled:opacity-20">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleAdd} className="border border-gray-200 rounded-xl p-4 space-y-3 bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-800">Nouvelle certification</h3>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+            <select value={form.credential_type} onChange={e => setForm(f => ({ ...f, credential_type: e.target.value }))}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40 bg-white">
+              {CREDENTIAL_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Titre / description <span className="text-red-400">*</span></label>
+            <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="ex : Électricité résidentielle, Maçonnerie, RBQ…"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Numéro de licence</label>
+              <input value={form.license_number} onChange={e => setForm(f => ({ ...f, license_number: e.target.value }))}
+                placeholder="ex : 5661-4400-01"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Organisme émetteur</label>
+              <input value={form.issued_by} onChange={e => setForm(f => ({ ...f, issued_by: e.target.value }))}
+                placeholder="ex : RBQ, CCQ, CMEQ…"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Année d'obtention</label>
+              <input type="number" min="1950" max="2099" value={form.issued_year} onChange={e => setForm(f => ({ ...f, issued_year: e.target.value }))}
+                placeholder="2019"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Date d'expiration</label>
+              <input type="date" value={form.expires_at} onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coupdemain-primary/40" />
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-red-600">{error}</p>}
+
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={() => { setShowForm(false); setError(''); }}
+              className="flex-1 border border-gray-200 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-100 transition">
+              Annuler
+            </button>
+            <button type="submit" disabled={!form.title.trim() || saving}
+              className="flex-1 bg-coupdemain-primary text-white py-2 rounded-lg text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-60">
+              {saving ? 'Ajout…' : 'Ajouter'}
+            </button>
+          </div>
+        </form>
       )}
     </div>
   );
@@ -2105,9 +2317,16 @@ function ClientProjectsTab() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await axios.get('service-requests/');
-        const d = res.data as any;
+        const [reqRes, reviewsRes] = await Promise.all([
+          axios.get('service-requests/'),
+          axios.get<{ results?: { bid: number | null }[] } | { bid: number | null }[]>('reviews/'),
+        ]);
+        const d = reqRes.data as any;
         setRequests(Array.isArray(d) ? d : (d.results ?? []));
+        const rd = reviewsRes.data;
+        const reviews: { bid: number | null }[] = Array.isArray(rd) ? rd : (rd.results ?? []);
+        const ids = reviews.map(r => r.bid).filter(Boolean) as number[];
+        if (ids.length > 0) setReviewedBidIds(new Set(ids));
       } catch { /* silent */ }
       finally { setLoading(false); }
     })();
@@ -2517,7 +2736,7 @@ function ClientProjectsTab() {
                                       {/* Bouton payer */}
                                       {!isPaid && ps !== 'refunded' && ps !== 'cancellation_requested' && ps !== 'disputed' && (
                                         <>
-                                          <p className="text-xs text-gray-400 text-right">Commission Coupdemain {commissionRate(bid.price)}% incluse</p>
+                                          <p className="text-xs text-gray-400 text-right">Commission Coupdemain {bid.provider_commission_rate != null ? Math.round(bid.provider_commission_rate * 100) : commissionRate(bid.price)}% incluse</p>
                                           <button onClick={() => payBid(bid.id)} disabled={paying === bid.id}
                                             className="flex items-center gap-1.5 bg-coupdemain-primary text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-coupdemain-primary/90 transition disabled:opacity-50">
                                             <DollarSign className="w-4 h-4" />
@@ -3402,6 +3621,90 @@ function ProviderCRMTab() {
 
 // ─── Provider Overview Tab ────────────────────────────────────────────────────
 
+type ProviderTierInfo = {
+  name: string;
+  label: string;
+  rate: number;
+  emoji: string;
+  min_projects: number;
+  min_rating: number;
+  projects_count: number;
+};
+
+function ProviderTierCard() {
+  const [tier, setTier] = useState<ProviderTierInfo | null>(null);
+  const [nextTier, setNextTier] = useState<ProviderTierInfo | null>(null);
+  const [projectsToNext, setProjectsToNext] = useState<number | null>(null);
+
+  useEffect(() => {
+    axios.get<{ tier: ProviderTierInfo; next_tier: ProviderTierInfo | null; projects_to_next: number | null }>('/profile/tier/')
+      .then(r => {
+        setTier(r.data.tier);
+        setNextTier(r.data.next_tier);
+        setProjectsToNext(r.data.projects_to_next);
+      })
+      .catch(() => {});
+  }, []);
+
+  if (!tier) return null;
+
+  const progress = nextTier
+    ? Math.min(100, Math.round((tier.projects_count / nextTier.min_projects) * 100))
+    : 100;
+
+  const tierColors: Record<string, string> = {
+    starter:     'from-gray-100 to-gray-200 border-gray-300',
+    established: 'from-blue-50 to-blue-100 border-blue-300',
+    expert:      'from-purple-50 to-purple-100 border-purple-300',
+    elite:       'from-yellow-50 to-yellow-100 border-yellow-400',
+  };
+  const badgeColors: Record<string, string> = {
+    starter:     'bg-gray-200 text-gray-700',
+    established: 'bg-blue-100 text-blue-700',
+    expert:      'bg-purple-100 text-purple-700',
+    elite:       'bg-yellow-100 text-yellow-700',
+  };
+
+  return (
+    <div className={`bg-gradient-to-r ${tierColors[tier.name] ?? tierColors.starter} border rounded-2xl p-5 mb-6`}>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">{tier.emoji}</span>
+          <div>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badgeColors[tier.name] ?? badgeColors.starter}`}>
+              {tier.label}
+            </span>
+            <p className="text-sm text-gray-600 mt-1">
+              Commission&nbsp;: <span className="font-bold text-gray-900">{Math.round(tier.rate * 100)}%</span>
+              &nbsp;·&nbsp;{tier.projects_count} projet{tier.projects_count !== 1 ? 's' : ''} complété{tier.projects_count !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+        {nextTier && (
+          <p className="text-xs text-gray-500">
+            {projectsToNext} projet{projectsToNext !== 1 ? 's' : ''} avant <strong>{nextTier.label}</strong> ({Math.round(nextTier.rate * 100)}% commission)
+          </p>
+        )}
+      </div>
+      {nextTier && (
+        <div className="mt-3">
+          <div className="w-full bg-white/60 rounded-full h-2">
+            <div
+              className="h-2 rounded-full bg-current transition-all"
+              style={{
+                width: `${progress}%`,
+                color: tier.name === 'elite' ? '#ca8a04' : tier.name === 'expert' ? '#7c3aed' : tier.name === 'established' ? '#2563eb' : '#6b7280',
+                backgroundColor: 'currentColor',
+              }}
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-1 text-right">{progress}%</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProviderOverviewTab() {
   const { bookings, loading, fetchBookings, confirmBooking, cancelBooking } = useBookings();
   const { user } = useAuth();
@@ -3436,6 +3739,7 @@ function ProviderOverviewTab() {
 
   return (
     <>
+      <ProviderTierCard />
       <div className="grid grid-cols-2 md:grid-cols-5 gap-5 mb-8">
         {[
           { label: 'En attente',     value: pending,                   icon: <AlertCircle className="w-7 h-7 text-yellow-400" /> },

@@ -9,10 +9,15 @@ from decimal import Decimal
 
 _ssl_ctx = ssl.create_default_context(cafile=certifi.where())
 from rest_framework import viewsets, permissions, status, filters, serializers
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+
+class AuthRateThrottle(AnonRateThrottle):
+    rate = '10/minute'
+    scope = 'auth'
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import authenticate, get_user_model
@@ -35,6 +40,7 @@ from .models import (
     ServiceCategory, Service, Booking, Review,
     Message, Notification, Availability,
     ServiceRequest, ServiceRequestImage, Bid, Payment, PortfolioPhoto,
+    ProviderCredential,
     CRMClient, CRMNote, CRMServiceLink,
 )
 from .serializers import (
@@ -42,6 +48,7 @@ from .serializers import (
     ServiceSerializer, BookingSerializer, ReviewSerializer,
     MessageSerializer, NotificationSerializer, AvailabilitySerializer,
     ServiceRequestSerializer, BidSerializer, PortfolioPhotoSerializer,
+    ProviderCredentialSerializer,
     CRMClientListSerializer, CRMClientDetailSerializer, CRMNoteSerializer,
 )
 from .permissions import IsOwnerOrReadOnly, IsProviderOrReadOnly
@@ -92,15 +99,17 @@ class MyTokenObtainPairSerializer(serializers.Serializer):
 # Vue de login personnalisée
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
-    
+    throttle_classes = [AuthRateThrottle]
+
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
-# Vue d'inscription (gardez votre version mais améliorée)
+# Vue d'inscription
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([AuthRateThrottle])
 def register(request):
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
@@ -1101,6 +1110,47 @@ class PortfolioPhotoViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
+# ─── Compétences & certifications ────────────────────────────────────────────
+
+class ProviderCredentialViewSet(viewsets.ModelViewSet):
+    serializer_class = ProviderCredentialSerializer
+    MAX_CREDENTIALS  = 20
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = ProviderCredential.objects.all()
+        provider_id = self.request.query_params.get('provider')
+        if provider_id:
+            return qs.filter(provider_id=provider_id)
+        if self.request.user.is_authenticated:
+            return qs.filter(provider=self.request.user)
+        return qs.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if not user.has_provider_profile:
+            raise serializers.ValidationError('Profil prestataire requis.')
+        if ProviderCredential.objects.filter(provider=user).count() >= self.MAX_CREDENTIALS:
+            raise serializers.ValidationError(f'Maximum {self.MAX_CREDENTIALS} certifications autorisées.')
+        serializer.save(provider=user)
+
+    def perform_update(self, serializer):
+        if serializer.instance.provider != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Non autorisé.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.provider != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Non autorisé.')
+        instance.delete()
+
+
 # ─── Vérification d'identité ──────────────────────────────────────────────────
 
 @api_view(['POST'])
@@ -1136,6 +1186,25 @@ def submit_identity(request):
     return Response({'detail': 'Document soumis. Nous l\'examinerons sous 24–48h.', 'identity_status': 'pending'})
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def provider_tier(request):
+    """Retourne le palier de commission du prestataire connecté."""
+    user = request.user
+    if not user.has_provider_profile:
+        return Response({'detail': 'Profil prestataire requis.'}, status=status.HTTP_403_FORBIDDEN)
+    tier = _get_provider_tier(user)
+    # Calculer combien de projets avant le prochain palier
+    tiers = django_settings.STRIPE_PROVIDER_TIERS
+    current_idx = next((i for i, t in enumerate(tiers) if t['name'] == tier['name']), len(tiers) - 1)
+    next_tier = tiers[current_idx - 1] if current_idx > 0 else None
+    return Response({
+        'tier': tier,
+        'next_tier': next_tier,
+        'projects_to_next': (next_tier['min_projects'] - tier['projects_count']) if next_tier else None,
+    })
+
+
 # ─── Paiements Stripe ─────────────────────────────────────────────────────────
 
 def _get_commission_rate(amount: Decimal) -> Decimal:
@@ -1145,6 +1214,19 @@ def _get_commission_rate(amount: Decimal) -> Decimal:
         if amount <= threshold:
             return Decimal(str(rate))
     return Decimal(str(tiers[-1][1]))
+
+
+def _get_provider_tier(provider):
+    """Retourne le palier du prestataire selon son volume de projets complétés."""
+    count = Bid.objects.filter(
+        provider=provider, status='accepted',
+        service_request__status='completed'
+    ).count()
+    rating = float(provider.rating or 0)
+    for tier in django_settings.STRIPE_PROVIDER_TIERS:
+        if count >= tier['min_projects'] and rating >= tier['min_rating']:
+            return {**tier, 'projects_count': count}
+    return {**django_settings.STRIPE_PROVIDER_TIERS[-1], 'projects_count': count}
 
 
 @api_view(['POST'])
@@ -1179,7 +1261,8 @@ def create_checkout_session(request):
     if bid.service_request.is_recurring:
         rate = Decimal(str(django_settings.STRIPE_RECURRING_COMMISSION))
     else:
-        rate = _get_commission_rate(amount)
+        tier = _get_provider_tier(bid.provider)
+        rate = Decimal(str(tier['rate']))
     commission = (amount * rate).quantize(Decimal('0.01'))
     provider_amount = amount - commission
 
