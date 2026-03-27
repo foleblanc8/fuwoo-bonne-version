@@ -1,130 +1,179 @@
-# Fuwoo — Marketplace de services à domicile (Québec)
+# CLAUDE.md — Coupdemain
 
-## Vision du projet
-Fuwoo est une plateforme de mise en relation entre clients et prestataires de services à domicile au Québec (rénovation, entretien, travaux, etc.). Les clients publient des demandes de service, les prestataires soumettent des offres (bids), et la plateforme gère les paiements via escrow Stripe.
+Marketplace de services à domicile au Québec. Clients publient des demandes, prestataires soumettent des offres, plateforme prend une commission et retient le paiement en escrow jusqu'à l'approbation des travaux.
 
 ---
 
-## Stack technique
+## Stack
 
 | Couche | Technologie |
 |--------|-------------|
-| Frontend | React 19 + TypeScript + Vite + Tailwind CSS |
-| Backend | Django 5.2 + Django REST Framework + JWT |
-| Base de données | PostgreSQL |
-| Paiements | Stripe (escrow) |
-| Auth | JWT (SimpleJWT) + Google OAuth optionnel |
+| Backend | Django 5.2 + Django REST Framework |
+| Auth | JWT via `rest_framework_simplejwt` |
+| Base de données | PostgreSQL (`fuwoo_db`, user `bigfol` en local) |
+| Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
+| Paiements | Stripe (escrow — pas encore Stripe Connect) |
+| Emails | Resend (prod) / console (dev) |
 | Tests E2E | Playwright (18 tests, tourne sur Vercel) |
-| Déploiement frontend | Vercel → https://fuwoo-bonne-version.vercel.app |
-| Déploiement backend | Railway (Docker) |
+| Déploiement | Railway (backend) + Vercel (frontend) |
 
 ---
 
 ## Structure du projet
 
 ```
-fuwoo-bonne-version/
-├── src/                    # Frontend React
-│   ├── pages/              # Pages: Home, Dashboard, Services, Profil, etc.
-│   ├── components/         # Header, Footer, Layout, ServiceCard, Toast, etc.
-│   ├── contexts/           # Contextes React (auth, etc.)
-│   └── data/               # Données statiques
-├── fuwoo_api/              # App Django principale
-│   ├── models.py           # Tous les modèles (voir section Models)
-│   ├── views.py            # API endpoints
-│   ├── serializers.py      # DRF serializers
-│   ├── urls.py             # Routes API
-│   ├── permissions.py      # Permissions custom
-│   ├── contract.py         # Génération de contrats PDF (reportlab)
-│   └── emails.py           # Envoi d'emails
-├── backend/                # Config Django (settings, urls, wsgi)
-├── tests/e2e/              # Tests Playwright
-├── start.sh                # Script démarrage Railway (migrate → fixtures → collectstatic → gunicorn)
-├── Dockerfile              # Build Railway
-└── vercel.json             # SPA rewrite pour Vercel
+/                          # Monorepo
+├── backend/               # Django project (settings.py, urls.py, wsgi.py)
+├── fuwoo_api/             # App Django principale
+│   ├── models.py          # Tous les modèles
+│   ├── views.py           # Toutes les vues DRF
+│   ├── serializers.py     # Tous les serializers
+│   ├── urls.py            # Routes /api/*
+│   ├── migrations/        # Dernière : 0020_providercredential
+│   ├── emails.py          # Fonctions d'envoi email
+│   └── fixtures/          # categories.json
+├── src/                   # React frontend
+│   ├── pages/             # DashboardPage.tsx, Services.tsx, ProviderProfilePage.tsx…
+│   ├── contexts/          # AuthContext, BookingContext, ServiceContext, ToastContext, NotificationContext
+│   ├── components/        # Header, ServiceCard, Skeleton, Toast…
+│   └── main.tsx           # Entry point + providers
+├── tests/e2e/             # Tests Playwright
+│   └── global-setup.ts    # Warmup auth avant les tests
+├── playwright.config.ts   # Config Playwright
+├── manage.py
+├── requirements.txt
+└── package.json
 ```
 
 ---
 
-## Modèles Django (fuwoo_api/models.py)
+## Commandes de dev
 
-- **CustomUser** — utilisateur avec rôle `client` ou `prestataire`, vérification email, identité (RBQ etc.), acceptation CGU + clause CNESST, géolocalisation
-- **ServiceCategory** — catégories de services (avec fixtures au démarrage)
-- **Service** — service offert par un prestataire (prix, durée, zone, disponibilité)
-- **ServiceImage** — photos d'un service
-- **Availability** — plages de disponibilité structurées (jour + heure début/fin)
-- **Booking** — réservation client ↔ prestataire, statuts: pending → confirmed → in_progress → completed / cancelled
-- **Review** — évaluation après booking ou bid (note globale + qualité, ponctualité, communication)
-- **Message** — messagerie entre client et prestataire (liée à un booking)
-- **Notification** — notifications in-app (bell dropdown)
-- **ServiceRequest** — demande de service publiée par un client (avec récurrence possible)
-- **ServiceRequestImage** — photos jointes à une demande
-- **Bid** — offre d'un prestataire sur une demande, statuts: pending → accepted / rejected
-- **PortfolioPhoto** — photos portfolio du prestataire
-- **ProviderCredential** — licences/certifications (RBQ, CCQ, CMEQ, CMMTQ, assurance, compétences)
-- **CRMClient** — CRM personnel du prestataire (pipeline: lead → contacté → soumission → actif → récurrent)
-
----
-
-## Flux de paiement (Escrow Stripe)
-
-1. Client paie → argent mis en escrow (Stripe)
-2. Prestataire soumet la complétion du travail
-3. Client accepte → fonds libérés vers prestataire (moins commission Fuwoo **8%**)
-4. Si litige → admin peut annuler / rembourser
-
-Commission Fuwoo : **8%** (structure en tiers possible, à confirmer)
-
----
-
-## Légal / Conformité (Québec)
-
-- **CGU** : `terms_accepted_at` stocké en base à l'inscription
-- **CNESST** : `cnesst_accepted_at` — clause travailleur autonome acceptée à l'onboarding prestataire
-- **Âge minimum** : 14 ans
-- **Vérification d'identité** : documents uploadés, statuts `not_submitted / pending / verified / rejected`
-- **Licences RBQ** : affichées sur profil prestataire, vérifiées par admin
-
----
-
-## Commandes utiles
-
-### Frontend
 ```bash
-npm run dev          # Démarrer Vite en local
-npm run build        # Build de production
-npm run test:e2e     # Lancer les tests Playwright (pointe vers Vercel par défaut)
-```
+# Backend (port 8000)
+python manage.py runserver
 
-### Backend (Django)
-```bash
-python manage.py runserver          # Démarrer le serveur Django
-python manage.py migrate            # Appliquer les migrations
-python manage.py makemigrations     # Créer de nouvelles migrations
-python manage.py loaddata categories  # Charger les fixtures de catégories
-python manage.py createsuperuser    # Créer un admin
-python manage.py seed_test_payment  # Générer un scénario de test Stripe complet
-```
+# Frontend (port 5173)
+npm run dev
 
-### Déploiement
-- **Frontend** : push sur `main` → Vercel déploie automatiquement
-- **Backend** : push sur `main` → Railway rebuild via Dockerfile
-- `start.sh` tourne au démarrage Railway : migrate → loaddata → collectstatic → gunicorn
+# Migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Charger les catégories
+python manage.py loaddata categories
+
+# Générer un scénario de test Stripe complet
+python manage.py seed_test_payment
+```
 
 ---
 
-## Variables d'environnement importantes
+## Architecture API
 
-### Backend (Railway)
-- `SECRET_KEY` — clé Django
-- `DATABASE_URL` — PostgreSQL (dj-database-url)
-- `ALLOWED_HOSTS` — hosts autorisés
-- `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY` / `STRIPE_WEBHOOK_SECRET`
-- `DEBUG` — `True` en local, `False` en prod
+- Toutes les routes sous `/api/` → `fuwoo_api/urls.py`
+- Vite proxy : `/api` → `http://localhost:8000`
+- `axios.defaults.baseURL = '/api/'` dans `src/main.tsx`
 
-### Frontend (Vercel)
-- `VITE_API_URL` — URL de l'API Railway
-- `VITE_GOOGLE_CLIENT_ID` — Google OAuth (optionnel, désactivé si absent)
+### Endpoints principaux
+
+```
+POST   /api/auth/login/                    JWT login
+POST   /api/auth/register/                 Inscription
+POST   /api/auth/token/refresh/            Refresh JWT
+GET    /api/profile/                       Profil utilisateur connecté
+GET    /api/profile/tier/                  Palier de commission du prestataire
+
+GET    /api/categories/                    Catégories de services
+GET    /api/services/                      Services (filtrables)
+GET    /api/service-requests/              Demandes de service
+POST   /api/bids/                          Soumettre une offre
+POST   /api/bids/<id>/accept/              Accepter une offre
+
+POST   /api/payments/create-checkout/      Créer session Stripe
+POST   /api/payments/webhook/             Webhook Stripe
+POST   /api/payments/submit-work/          Prestataire soumet les travaux
+POST   /api/payments/release/              Client libère le paiement
+POST   /api/payments/dispute/              Client signale un problème
+POST   /api/payments/cancel-request/       Prestataire demande annulation
+
+GET    /api/credentials/?provider=<id>     Certifications d'un prestataire
+GET    /api/portfolio/?provider=<id>       Photos portfolio
+GET    /api/reviews/?provider_id=<id>      Avis d'un prestataire
+```
+
+---
+
+## Modèles clés
+
+### CustomUser
+- Rôles : `client` (défaut) ou `prestataire`
+- `has_provider_profile` — tout user peut activer un profil pro
+- `identity_status` — `not_submitted / pending / verified / rejected`
+- `rating`, `total_reviews` — mis à jour à chaque nouvel avis
+
+### ServiceRequest (demande client)
+- Statuts : `open → awarded → completed / closed / cancelled`
+- `availability_windows` (JSONField) — jusqu'à 3 plages de dispo
+- `is_recurring` + `recurrence_frequency` — services récurrents
+- `parent_request` (FK self) — lien vers la demande parente si récurrence
+
+### Bid (offre prestataire)
+- Statuts : `pending → accepted / rejected`
+- `price_unit` : `fixed / hourly`
+- Lié à un `Payment` via OneToOne
+
+### Payment (escrow)
+- Statuts : `pending → held → work_submitted → released`
+- Cas spéciaux : `disputed`, `cancellation_requested`, `refunded`, `completed`
+- Auto-release 48h après `work_submitted_at` (vérifié dans `BidViewSet.list()`)
+
+### ProviderCredential
+- Types : `rbq`, `ccq`, `cmeq`, `cmmtq`, `insurance`, `skill`, `diploma`, `other`
+- Champs : `title`, `license_number`, `issued_by`, `issued_year`, `expires_at`, `is_verified`
+
+---
+
+## Commissions
+
+```python
+# settings.py
+STRIPE_PROVIDER_TIERS = [
+    {'min_projects': 50, 'min_rating': 4.7, 'name': 'elite',       'rate': 0.08},  # Élite 🏆
+    {'min_projects': 21, 'min_rating': 0.0, 'name': 'expert',      'rate': 0.10},  # Expert 💪
+    {'min_projects': 6,  'min_rating': 0.0, 'name': 'established', 'rate': 0.12},  # Établi ⭐
+    {'min_projects': 0,  'min_rating': 0.0, 'name': 'starter',     'rate': 0.15},  # Débutant 🌱
+]
+STRIPE_RECURRING_COMMISSION = 0.08  # Toujours 8% pour les récurrences
+```
+
+---
+
+## Frontend — Contexts (ordre dans main.tsx)
+
+```
+AuthProvider > ToastProvider > NotificationProvider > ServiceProvider > BookingProvider > App
+```
+
+| Context | Fichier | Rôle |
+|---------|---------|------|
+| AuthContext | `src/contexts/AuthContext.tsx` | user, token, login, logout, register |
+| ToastContext | `src/contexts/ToastContext.tsx` | showToast(msg, type) — auto-remove 3.5s |
+| NotificationContext | `src/contexts/NotificationContext.tsx` | polling 30s, markAsRead, markAllAsRead |
+| ServiceContext | `src/contexts/ServiceContext.tsx` | services + catégories depuis l'API |
+| BookingContext | `src/contexts/BookingContext.tsx` | réservations (dépend de AuthContext) |
+
+---
+
+## Pages principales
+
+| Page | Route | Description |
+|------|-------|-------------|
+| `DashboardPage.tsx` | `/dashboard` | Tableau de bord client + prestataire (onglets) |
+| `Services.tsx` | `/services` | Liste services + formulaire demande |
+| `ProviderProfilePage.tsx` | `/provider/:id` | Profil public prestataire |
+| `connexion.tsx` | `/connexion` | Login |
+| `Inscription.tsx` | `/inscription` | Register |
 
 ---
 
@@ -133,54 +182,61 @@ python manage.py seed_test_payment  # Générer un scénario de test Stripe comp
 - Fichiers dans `tests/e2e/`
 - Config : `playwright.config.ts` — pointe vers `https://fuwoo-bonne-version.vercel.app`
 - 18 tests couvrant : inscription, connexion, dashboard, paramètres, etc.
-- `workers: 1` (Railway cold start) + timeout 90s
+- `workers: 1` + timeout 90s (Railway cold start)
 - `global-setup.ts` — warmup de l'auth avant les tests
 
----
+```bash
+npm run test:e2e              # Lancer les tests
+npm run test:e2e:report       # Voir le rapport HTML
+```
 
-## Conventions de code
-
-- **Frontend** : composants en PascalCase, pages dans `src/pages/`, hooks dans `src/contexts/`
-- **Backend** : vues dans `views.py`, serializers dans `serializers.py`, tout dans l'app `fuwoo_api`
-- **Langue** : UI en français (Québec), code et commentaires en français
-- **Commits** : format `feat: ...` / `fix: ...` / `refactor: ...` en français
+> Les tests frappent le vrai backend (pas de mock DB). Penser au cold start Railway.
 
 ---
 
-## Ce qui a été fait (historique récent)
+## Déploiement
 
-- [x] Compétences/certifications prestataires (ProviderCredential)
-- [x] Rate limiting sur les endpoints sensibles
-- [x] Tiers de commission (structure en place)
-- [x] Récurrence de services (hebdo, bihebdo, mensuel, saisonnier)
-- [x] Commission 8% Fuwoo
-- [x] Disponibilités structurées (plages horaires)
-- [x] Escrow simplifié Stripe (soumission → acceptation → libération)
-- [x] Notifications bell dropdown
-- [x] Badges statut paiement
-- [x] seed_test_payment command
-- [x] Traçabilité légale (terms_accepted_at, cnesst_accepted_at)
-- [x] Onboarding prestataire 4 étapes
-- [x] Onglet Sécurité dashboard
-- [x] Vérification d'identité (upload document)
-- [x] Suite E2E Playwright (18 tests sur Vercel)
-- [x] Microsoft Clarity (tracking comportement)
-- [x] CRM prestataire (pipeline clients)
-- [x] Portfolio photos prestataire
-- [x] Génération contrats PDF (reportlab)
+- **Vercel** — frontend React, déploiement auto sur push `main`
+- **Railway** — backend Django via Dockerfile, `start.sh` au démarrage :
+  1. `migrate`
+  2. `loaddata categories`
+  3. `collectstatic`
+  4. `gunicorn` (2 workers, 4 threads)
+
+### Variables d'env Railway (production)
+```
+SECRET_KEY=...
+DEBUG=False
+DATABASE_URL=postgresql://...
+ALLOWED_HOSTS=...railway.app
+CORS_ALLOWED_ORIGINS=https://fuwoo-bonne-version.vercel.app
+FRONTEND_URL=https://fuwoo-bonne-version.vercel.app
+RESEND_API_KEY=re_...          # emails transactionnels
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+### Variables d'env Vercel (frontend)
+```
+VITE_API_URL=https://...railway.app
+VITE_GOOGLE_CLIENT_ID=...      # optionnel — bouton Google masqué si absent
+```
 
 ---
 
-## Ce qui reste à faire / Prochaines priorités
+## Ce qui n'est PAS encore fait
 
-<!-- À COMPLÉTER avec le propriétaire du projet -->
-- [ ] ...
+- **Emails transactionnels** — Resend bloqué en attente du domaine `coupdemain.ca`
+- **Stripe Connect** — payouts automatiques aux prestataires (paiement manuel pour l'instant)
+- **Google OAuth** — `VITE_GOOGLE_CLIENT_ID` non configuré (en attente du domaine)
+- **App mobile** — Capacitor prévu (~2 jours depuis la base React)
 
 ---
 
-## Notes importantes
+## Conventions
 
-- Le `memory.md` mentionné par le développeur contient peut-être du contexte supplémentaire — vérifier s'il existe localement
-- L'app s'appelait "coupdemain" dans `package.json` (nom interne), le nom public est **Fuwoo**
-- Google OAuth est optionnel — si `VITE_GOOGLE_CLIENT_ID` absent, le bouton Google est masqué
-- Les fixtures de catégories sont chargées automatiquement au démarrage Railway via `start.sh`
+- Français dans l'UI, anglais dans le code
+- Toasts pour tous les retours utilisateur (`useToast()`)
+- Skeleton loaders sur les listes longues
+- Pas de mock DB dans les tests — les tests E2E (Playwright) frappent le vrai backend
