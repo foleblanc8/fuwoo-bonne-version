@@ -1,5 +1,6 @@
 // src/pages/Services.tsx
 import React, { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import SEO from "../components/SEO";
 import { useServices } from "../contexts/ServiceContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -365,6 +366,7 @@ function RequestModal({
 
 const Services = () => {
   const { categories, fetchCategories } = useServices();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch]             = useState('');
   const [city, setCity]                 = useState('');
   const [geoCoords, setGeoCoords]       = useState<{ lat: number; lng: number } | null>(null);
@@ -372,6 +374,17 @@ const Services = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   useEffect(() => { fetchCategories(); }, []);
+
+  // Auto-ouvrir le modal si ?category=<slug> est dans l'URL
+  useEffect(() => {
+    const slug = searchParams.get('category');
+    if (!slug || !categories.length) return;
+    const match = (categories as unknown as Category[]).find(c => c.slug === slug);
+    if (match) {
+      setSelectedCategory(match);
+      setSearchParams({}, { replace: true }); // nettoyer l'URL
+    }
+  }, [searchParams, categories]);
 
   const handleGeolocate = () => {
     if (!navigator.geolocation) return;

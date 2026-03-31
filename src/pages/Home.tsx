@@ -207,7 +207,7 @@ const Home = () => {
               return (
                 <Link
                   key={cat.slug}
-                  to="/services"
+                  to={`/services?category=${cat.slug}`}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg border border-gray-100 hover:-translate-y-1 transition-all duration-300"
                 >
                   <div className="relative h-32 sm:h-36 overflow-hidden">
